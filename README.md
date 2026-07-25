@@ -671,14 +671,35 @@ depending on it responsibly.
 | `pytest`, `ruff` (dev only) | MIT |
 | `faster-whisper` (optional, `requirements-transcribe.txt`) | MIT |
 
-**A note on `pillow-heif`:** its own Python/C code is BSD-3-Clause, but its
-published wheels bundle [libheif](https://github.com/strukturag/libheif) and the
-HEIF codec libraries it wraps, which are under their own copyleft licences — the
-package declares a GPLv2 classifier for exactly this reason. That has no effect
-on running Storybook yourself, but if you ever redistribute a built image or
-bundle containing those wheels, their terms travel with the binaries. It is here
-only to open iPhone HEIC photos; drop it from `requirements.txt` if you would
-rather not carry it, and HEIC uploads will simply stop being accepted.
+**A note on `pillow-heif`:** its own Python/C code is BSD-3-Clause, but the
+published *binary wheels* are not. They bundle four compiled libraries, and the
+package's own `LICENSES_bundled.txt` states the position plainly: *"License for
+'pillow-heif' binary wheels: GPLv2, due to base library licenses."*
+
+| Bundled library | Licence |
+|---|---|
+| [libheif](https://github.com/strukturag/libheif) | LGPLv3 |
+| [libde265](https://github.com/strukturag/libde265) (HEIC decoding) | LGPLv3 |
+| [x265](https://bitbucket.org/multicoreware/x265_git) (HEIC encoding) | **GPLv2** |
+| [libaom](https://aomedia.googlesource.com/aom) | BSD-3-Clause |
+
+Copyleft obligations attach when you *distribute* binaries, not when you run
+them. So:
+
+- **Self-hosting for your own family — including building and running the
+  `Dockerfile` on your own server — triggers nothing.** You are not conveying
+  the software to anyone, and no obligation arises.
+- **Publishing a built image** (pushing to Docker Hub, GHCR, or handing someone
+  a tarball of the container) *does* distribute those GPLv2/LGPLv3 binaries, and
+  their terms then travel with them — including the obligation to offer
+  corresponding source for x265. GPLv2 also sits awkwardly beside this project's
+  Apache-2.0 licence in a single distributed artifact.
+
+`pillow-heif` is here for one purpose: opening iPhone HEIC photos so they can go
+through the same Pillow re-encoding path as any other upload. If you plan to
+publish images and would rather not carry any of the above, delete the line from
+`requirements.txt` — the app starts fine without it and simply stops accepting
+HEIC uploads.
 
 ### Fonts and artwork
 

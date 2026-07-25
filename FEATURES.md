@@ -3691,11 +3691,19 @@ Licences were read from the installed distributions' own metadata rather than
 recalled.
 
 That surfaced one honest complication worth stating plainly instead of
-flattening: `pillow-heif` declares itself BSD-3-Clause but ships a GPLv2
-classifier, because its wheels bundle `libheif` and the codec libraries it
-wraps. Irrelevant to running the app yourself, relevant if you ever
-redistribute a built image — so the section says so, and notes that dropping
-the package costs only HEIC upload support.
+flattening: `pillow-heif`'s own code is BSD-3-Clause, but its binary wheels
+bundle four compiled libraries — `libheif` and `libde265` (LGPLv3), `libaom`
+(BSD-3-Clause), and `x265` (**GPLv2**) — and the package's own
+`LICENSES_bundled.txt` says outright that the wheels are GPLv2 as a result.
+Verified by listing `pillow_heif.libs/` in an installed venv, not inferred
+from the classifier.
+
+Copyleft attaches on distribution, not on use, so this is a non-issue for
+someone self-hosting — *including* building and running the repo's
+`Dockerfile` on their own server. It becomes real only if a built image is
+ever published, since `COPY . .` plus `pip install` puts those binaries in
+the artifact. The README says exactly that, and notes the escape hatch:
+dropping the package costs only HEIC upload support.
 
 `CLAUDE.md`'s vendoring rule was tightened to match: a new vendored library
 now requires three things, not one — banner comment, `VENDORED.md`, and the
