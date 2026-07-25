@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Help — {{ app_title }}{% endblock %}
+{% block body_class %}page-help{% endblock %}
+{% block content %}
+<div class="help">
+  <p class="help__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; Timeline</a></p>
+  <h1 class="help__title">Help</h1>
+  <hr class="story__flourish help__flourish" aria-hidden="true">
+  <p class="help__intro">
+    A quick guide to what's here and how to use it. Nothing below is
+    required reading — most of it you'll never need, and everything is
+    forgiving: nothing here can be lost by accident.
+  </p>
+
+  <section class="help__section">
+    <h2>Writing a memory</h2>
+    <p>
+      A <strong>Story</strong> is a full dated entry — a title, the day it
+      happened, and as much writing and as many photos as you like.
+      An <strong>Instant</strong> is quicker: a photo and one line, for the
+      small moments that don't need a whole story written about them.
+    </p>
+    <p>
+      Not ready to publish something? Save it as a <strong>draft</strong> —
+      only you (and other family members writing in the same book) can see
+      it until you come back and finish it.
+    </p>
+    <p>
+      Want to write something for later, rather than now? A <strong>sealed
+      letter</strong> stays hidden from the timeline — even from you —
+      until the "open on" date you set for it arrives.
+    </p>
+    <p>
+      If a story marks a real first — first steps, first word, first day of
+      school — give it a short <strong>milestone</strong> label in the
+      editor. It'll show up on the <strong>Firsts</strong> page, a
+      chronological list of every first that's happened.
+    </p>
+  </section>
+
+  <section class="help__section">
+    <h2>The cast — people and the family tree</h2>
+    <p>
+      Add family and friends as <strong>people</strong>, so you can tag who
+      was in a story and see the ones they appear in. Link parents and
+      partners between people to build the <strong>family tree</strong>,
+      which works out relationships ("your great-aunt") on its own — you
+      never type a kinship word yourself.
+    </p>
+    <p>
+      A person's page can also record their <strong>birthday, a death, and
+      wedding/PACS dates</strong>. Recorded dates quietly surface on the
+      timeline the day they land (a birthday banner, an anniversary), and
+      the <strong>Almanac</strong> lists every one of them, month by month,
+      like a family record book.
+    </p>
+  </section>
+
+  <section class="help__section">
+    <h2>Growing up</h2>
+    <p>
+      If you've set the child's birth date (an app setting, ask whoever set
+      up Storybook), the <strong>Growing up</strong> page picks the story
+      photo nearest each birthday, so you can watch them grow year by year
+      in one glance.
+    </p>
+  </section>
+
+  <section class="help__section">
+    <h2>Reading it back</h2>
+    <p>
+      The <strong>timeline</strong> is the everyday view — everything in
+      order, newest at the top. <strong>Open a page at random</strong> for
+      a surprise from the past, or check what happened <strong>on this day</strong>
+      in an earlier year (shown right on the timeline when there's a match).
+    </p>
+    <p>
+      <strong>Read as a book</strong> turns every story into real book
+      pages, one flowing read from the beginning — good for printing or
+      saving as a PDF. <strong>Download as EPUB</strong> does the same for
+      an e-reader (Kindle, Apple Books, calibre) instead.
+    </p>
+  </section>
+
+  <section class="help__section">
+    <h2>Voice memos</h2>
+    <p>
+      Any story can have a short voice recording attached — a child's own
+      voice, or someone telling the story out loud, alongside the written
+      version. Recording needs a secure connection (HTTPS or localhost);
+      ask whoever set up Storybook if it doesn't seem to work.
+    </p>
+  </section>
+
+  {% if config.ACCOUNTS_ENABLED %}
+  <section class="help__section">
+    <h2>Family accounts</h2>
+    <p>
+      This book uses individual accounts rather than one shared password.
+      Manage your own password and generate one-off <strong>write
+      links</strong> — letting someone add a single story without an
+      account of their own — from <strong>Account</strong> in the nav.
+    </p>
+  </section>
+  {% endif %}
+
+  <section class="help__section">
+    <h2>Keeping it safe</h2>
+    <p>
+      Everything here is plain files on disk — no cloud, no lock-in.
+      <strong>Download everything (.zip)</strong> from the timeline's
+      footer whenever you want a full copy; <strong>Import a backup</strong>
+      restores one. If in doubt, ask whoever hosts this Storybook how
+      often the underlying files are backed up.
+    </p>
+  </section>
+</div>
+{% endblock %}

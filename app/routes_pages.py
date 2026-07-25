@@ -167,6 +167,16 @@ def firsts():
     return render_template("firsts.html", firsts=storage.stories_with_milestones(all_stories))
 
 
+@bp.route("/help")
+@login_required
+def help_page():
+    """A plain-language guide to the app's features, for the family actually
+    using it rather than a developer (FEATURES.md F33) — everything else
+    documenting these features (README.md, FEATURES.md) is written for the
+    latter."""
+    return render_template("help.html")
+
+
 @bp.route("/random")
 @login_required
 def random_page():
