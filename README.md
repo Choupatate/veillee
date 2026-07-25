@@ -559,6 +559,16 @@ same machine as your MCP client, not exposed remotely. Photo uploads take
 base64-encoded image bytes as a tool argument instead of a multipart file;
 voice memos and zip import/export aren't wired up as tools.
 
+### In-app help
+
+Everything above is written for whoever sets Storybook up. The family
+actually reading and writing in it day to day gets its own **Help** page
+(linked in the nav) instead — a shorter, plain-language version of the
+same feature tour with no setup/configuration talk, covering what a
+Story vs. an Instant is, what sealing a letter or a draft does, the
+family tree and life dates, growing up, reading it back, voice memos,
+and backups.
+
 ## Backing up
 
 **Back up the `stories/` folder. That is everything.** There is no database, no

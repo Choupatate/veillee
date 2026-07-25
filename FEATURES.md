@@ -1,3 +1,50 @@
+## Index
+
+Every feature shipped so far, in numeric order (the file below is *not* in
+this order — features were written up as they landed, and a few earlier
+batches predate F-numbering being sequential across the whole file). Use
+this to find which section covers something without scrolling; search for
+the exact `F<N>.` heading text to jump to it.
+
+- **F0** — Groundwork: story visibility (draft/sealed/archived filtering
+  used by F2/F4/F5/F6/F10)
+- **F1** — Authors: two voices, one book (multiple narrators, shared
+  timeline, still no accounts)
+- **F2** — Reading order: previous/next story navigation
+- **F3** — Age at each memory (the child's age label on each story)
+- **F4** — Sealed letters ("open when you're 18")
+- **F5** — "X years ago today" (on-this-day)
+- **F6** — Drafts
+- **F7** — Tap-to-zoom photos (lightbox)
+- **F8** — One-tap backup (export zip)
+- **F9** — Home-screen install (manifest, no service worker)
+- **F10** — The book view (`/book`): read it all, print it all
+- **F11** — HEIC/HEIF photo uploads (Android & iPhone originals)
+- **F12** — La voix: voice memos on stories
+- **F13** — Instants: photo + one line, fifteen seconds on a phone
+- **F14** — Personnages: the cast of the book (people)
+- **F15** — Au hasard: open a page at random
+- **F16** — Graines d'histoires: writing prompts
+- **F17** — Le style du ranch: hand-drawn visual identity
+- **F18** — L'arbre: the family tree (plus several follow-up refinement
+  rounds afterward: a nav/UI audit, a whole-codebase dedup pass, a
+  fresh-eyes audit, and six "Everyone" layout rounds)
+- **F19** — Family accounts, admin approval, delegated writing
+- **F20** — Event tagging, story↔people linkage, and source citations
+- **F21** — People picker: searchable scrolling list, ticked stays on top
+- **F22** — Button icons: a bold/flat companion set to F17
+- **F23** — Hover/press feedback across the interface
+- **F24** — Hover feedback round 2, and a dead-CSS catch on `/tree`
+- **F25** — Splitting `routes_pages.py`/`routes_api.py` by resource
+- **F26** — CSRF protection
+- **F27** — Life dates: birthdays, deaths, and unions
+- **F28** — Firsts: a chronological register of milestones
+- **F29** — Growing up: the photo nearest each birthday
+- **F30** — A gentle nudge after a quiet spell
+- **F31** — Year chapters in the book view
+- **F32** — MCP server: an AI-assisted authoring surface
+- **F33** — Help: an in-app, plain-language guide for the family
+
 # Feature spec — F1: Authors ("two voices, one book")
 
 Follow-up feature to be implemented **after** the fixes in `REVIEW.md`. Same
@@ -3552,3 +3599,50 @@ comes back as a tool error result, not a crash) — proving the plain-Python
 tests reflect what a real MCP client actually sees.
 
 `pytest` (820: 779 existing + 41 new) and `ruff check .` green.
+
+## F33. Help — an in-app, plain-language guide for the family
+
+While improving documentation for maintainers/AI agents (this file's new
+Index above, and README's dependency table alongside F32), the gap on the
+other side became obvious: everything explaining *how the app works* —
+what a Story vs. an Instant is, what sealing a letter does, what a
+milestone is — lives only in `README.md`, which the actual family reading
+the timeline (not the person who set the app up) will likely never open.
+There was no in-app help at all.
+
+### Design
+
+- New `/help` route (`routes_pages.py`, `help_page()`) rendering a single
+  static template, `help.html` — no dynamic data needed beyond
+  `config.ACCOUNTS_ENABLED` (already a Jinja global via Flask's `config`
+  context), so the route itself is a one-line `render_template` call.
+- Content is a condensed, friendly rewrite of README's feature tour aimed
+  at the person actually using the app day to day, not a developer:
+  writing (Story vs. Instant, drafts, sealed letters, milestones), the
+  cast (people, family tree, life dates/almanac), growing up, reading it
+  back (timeline, random page, on-this-day, book/EPUB), voice memos, and
+  backing up. The family-accounts section is conditional on
+  `STORYBOOK_ACCOUNTS=1`, same guard-on-config convention every other
+  accounts-specific UI element already follows.
+- `help.html` follows the same static-page template shape as
+  `almanac.html`/`firsts.html`/`growth.html`: a `__back` link to the
+  timeline, an `<h1>`, the shared rope-divider flourish, then a series of
+  `<section>` blocks. Deliberately scoped as one page, not a multi-page
+  manual or an interactive tour — "book, not blog" applies to the help
+  text too.
+- Linked from the main nav (`base.html`, next to "People") rather than
+  the timeline's footer-links row, since — unlike Firsts/Growing Up —
+  it's always relevant regardless of what data exists yet.
+
+### Tests
+
+New `tests/test_help.py`: requires auth, renders every core section,
+hides/shows the family-accounts section based on `STORYBOOK_ACCOUNTS`
+(using the existing `_bootstrap_admin`/`_login` account-flow test
+helpers, since accounts-mode login isn't the shared-password login the
+other test fixtures use), and confirms the nav link appears only when
+logged in. Verified live with Playwright at both a desktop width and a
+390px mobile viewport, and confirmed clicking the nav's new "Help" link
+actually navigates to `/help`.
+
+`pytest` (826: 820 existing + 6 new) and `ruff check .` green.

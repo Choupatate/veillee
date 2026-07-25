@@ -922,7 +922,8 @@ mark {
 .tree__back a,
 .almanac__back a,
 .firsts__back a,
-.growth__back a {
+.growth__back a,
+.help__back a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -3588,6 +3589,53 @@ img.family-chip__thumb {
   font-family: var(--font-sans);
   font-size: 0.75rem;
   color: var(--color-text-dim);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Help (F33) — a plain-language guide for the family, not developers      */
+/* ---------------------------------------------------------------------- */
+
+.help {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+.help__title {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.help__flourish {
+  margin: 0 auto 1.5rem;
+}
+
+.help__intro {
+  color: var(--color-text-dim);
+  font-family: var(--font-sans);
+  margin-bottom: 2rem;
+}
+
+.help__section {
+  margin-bottom: 1.75rem;
+}
+
+.help__section h2 {
+  font-family: var(--font-serif);
+  font-size: 1.1875rem;
+  margin: 0 0 0.5rem;
+}
+
+.help__section p {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin: 0 0 0.75rem;
+}
+
+.help__section p:last-child {
+  margin-bottom: 0;
 }
 
 /* ---------------------------------------------------------------------- */
