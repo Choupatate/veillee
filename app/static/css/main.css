@@ -2164,7 +2164,7 @@ img.person-family__thumb {
 .editor__unlock-group {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.4rem;
 }
 
@@ -2193,6 +2193,7 @@ img.person-family__thumb {
 
 .editor__toggles {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-left: auto;
 }
