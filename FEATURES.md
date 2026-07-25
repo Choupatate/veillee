@@ -44,6 +44,8 @@ the exact `F<N>.` heading text to jump to it.
 - **F31** — Year chapters in the book view
 - **F32** — MCP server: an AI-assisted authoring surface
 - **F33** — Help: an in-app, plain-language guide for the family
+- **F34** — Credits: third-party attribution audit (vendored licences,
+  dependency licences, artwork provenance)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -3646,3 +3648,59 @@ logged in. Verified live with Playwright at both a desktop width and a
 actually navigates to `/help`.
 
 `pytest` (826: 820 existing + 6 new) and `ruff check .` green.
+
+## F34. Credits — third-party attribution audit
+
+A pass over what this repository redistributes and what it merely depends
+on, so that a public repo under Apache-2.0 actually carries the notices the
+licences it builds on require.
+
+### What was missing
+
+- **Toast UI Editor had no licence file.** `app/static/vendor/d3/` and
+  `app/static/vendor/familychart/` each shipped the upstream `LICENSE`
+  verbatim; `app/static/vendor/toastui/` did not. Its bundle banner named the
+  copyright holder and the licence ("Licensed under the MIT license"), but MIT
+  asks for the permission notice itself to travel with the code, and vendoring
+  the bundle into a public repo *is* redistribution. Fixed by adding
+  `app/static/vendor/toastui/LICENSE` (fetched from upstream `master`, not
+  reconstructed from memory) and a `VENDORED.md` matching family-chart's,
+  which also records the esbuild rebuild command and — importantly — that
+  `usageStatistics: false` in `editor.js:1033` is what keeps the editor from
+  calling Google Analytics on load.
+- **No credits anywhere.** No `NOTICE`, no `CREDITS`, no section in any
+  markdown file. The `## Dependencies` section added alongside F32 explained
+  what each package is *for*, which is the more useful thing day to day, but
+  never said who wrote it or under what terms.
+
+### What was already fine
+
+Worth recording so a later audit doesn't redo the work: no webfonts are
+bundled or fetched (system font stacks only, zero `@font-face` rules in the
+project), and no stock imagery, icon set, or clip art is used — every
+illustration and icon is generated-then-locally-processed per F17 and F31, so
+there is no third-party asset licence to track.
+
+### The Credits section
+
+New `## Credits` in `README.md`, between Dependencies and Philosophy, split by
+the distinction that actually matters legally: **vendored** (three JS bundles
+this repo redistributes, each with version/licence/copyright holder) versus
+**installed from PyPI** (pinned but fetched by pip, listed for completeness).
+Licences were read from the installed distributions' own metadata rather than
+recalled.
+
+That surfaced one honest complication worth stating plainly instead of
+flattening: `pillow-heif` declares itself BSD-3-Clause but ships a GPLv2
+classifier, because its wheels bundle `libheif` and the codec libraries it
+wraps. Irrelevant to running the app yourself, relevant if you ever
+redistribute a built image — so the section says so, and notes that dropping
+the package costs only HEIC upload support.
+
+`CLAUDE.md`'s vendoring rule was tightened to match: a new vendored library
+now requires three things, not one — banner comment, `VENDORED.md`, and the
+upstream `LICENSE` verbatim — plus a row in the Credits table in the same
+commit.
+
+Documentation only; no application code changed. `pytest` (826) and
+`ruff check .` green.

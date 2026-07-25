@@ -34,8 +34,13 @@ undocumented.
   under `app/static/vendor/` or served locally — no CDN links, no external
   fonts, no analytics beacons. (`editor.js` explicitly disables Toast UI's
   `usageStatistics` ping for this reason — never re-enable it.) If you vendor
-  a new third-party library, document its version and provenance in a banner
-  comment the way `toastui-editor-all.min.js` does.
+  a new third-party library, three things are required, not optional:
+  its version and provenance in a banner comment the way
+  `toastui-editor-all.min.js` does, a `VENDORED.md` next to it recording the
+  build command and the no-network audit, and the upstream `LICENSE` text
+  verbatim in the same directory — vendoring means this public repo
+  redistributes that code, and every one of its licences requires the notice
+  to travel with it. Add it to README's "Credits" table in the same commit.
 - **Boring, minimal dependencies; no build step; no JS framework.** Plain
   `<script>` tags, UMD modules where code needs to run in both the browser
   and Node (see `tree-logic.js`, `safe-storage.js`). Don't introduce a

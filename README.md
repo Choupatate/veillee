@@ -622,13 +622,78 @@ Dev-only (`requirements.txt`'s `# dev` section): `pytest` (test runner),
 
 No JavaScript build step and no `package.json` — the browser code is plain
 `<script>` tags plus three vendored, pinned third-party bundles under
-`app/static/vendor/` (each with a banner comment or `VENDORED.md`
-documenting its version/provenance/no-network audit): the
+`app/static/vendor/` (each with a `VENDORED.md` documenting its version,
+provenance, and no-network audit, plus the upstream `LICENSE` — see
+"Credits" below): the
 [Toast UI Editor](https://github.com/nhn/tui.editor) (3.2.2, the WYSIWYG
 markdown editor), and [family-chart](https://www.npmjs.com/package/family-chart)
 0.9.0 + [D3](https://d3js.org) 7.9.0 (the family tree renderer, F18). The
 two JS test files (`tests/js/*.mjs`) run directly via `node`, no test
 framework or `node_modules` needed.
+
+## Credits
+
+This app is a small amount of original code resting on other people's work.
+Everything third-party it uses is listed here with its licence.
+
+Storybook itself is licensed under the **Apache License 2.0** — see `LICENSE`.
+
+### Vendored in this repository
+
+These are committed under `app/static/vendor/`, so this repository
+*redistributes* them. Each directory carries the upstream licence text verbatim
+in its own `LICENSE` file, alongside a `VENDORED.md` recording the version, how
+the bundle was built, and the no-network audit it passed.
+
+| Component | Version | Licence | Copyright |
+|---|---|---|---|
+| [Toast UI Editor](https://github.com/nhn/tui.editor) — the WYSIWYG markdown editor | 3.2.2 | MIT | © 2020 NHN Cloud Corp. |
+| [family-chart](https://github.com/donatso/family-chart) — the family-tree renderer (F18) | 0.9.0 | MIT | © 2021 Donat Soric |
+| [D3](https://d3js.org) — required peer of family-chart | 7.9.0 | ISC | © 2010–2023 Mike Bostock |
+
+### Installed from PyPI
+
+Not redistributed here — `requirements.txt` pins the versions and `pip` fetches
+them. Listed for completeness, and because knowing what you depend on is part of
+depending on it responsibly.
+
+| Package | Licence |
+|---|---|
+| `flask` | BSD-3-Clause |
+| `flask-wtf` (and WTForms) | BSD-3-Clause |
+| `python-frontmatter` | MIT |
+| `markdown` (Python-Markdown) | BSD-3-Clause |
+| `pymdown-extensions` | MIT |
+| `pillow` | MIT-CMU |
+| `pillow-heif` | BSD-3-Clause (see the note below) |
+| `waitress` | ZPL 2.1 (Zope Public License) |
+| `mcp` (the official Python SDK) | MIT |
+| `pytest`, `ruff` (dev only) | MIT |
+| `faster-whisper` (optional, `requirements-transcribe.txt`) | MIT |
+
+**A note on `pillow-heif`:** its own Python/C code is BSD-3-Clause, but its
+published wheels bundle [libheif](https://github.com/strukturag/libheif) and the
+HEIF codec libraries it wraps, which are under their own copyleft licences — the
+package declares a GPLv2 classifier for exactly this reason. That has no effect
+on running Storybook yourself, but if you ever redistribute a built image or
+bundle containing those wheels, their terms travel with the binaries. It is here
+only to open iPhone HEIC photos; drop it from `requirements.txt` if you would
+rather not carry it, and HEIC uploads will simply stop being accepted.
+
+### Fonts and artwork
+
+No webfonts are bundled or fetched — the app uses system font stacks only
+(`--font-serif`/`--font-sans` in `main.css`), so no font licences are involved.
+There is no `@font-face` rule anywhere in the project. (`family-chart.css` names
+`Roboto` in a font stack, but nothing is ever downloaded; it falls through to
+whatever sans-serif the device has.)
+
+The illustrations and icons under `app/static/img/` and `app/static/icons/` — the
+campfire, the sealed letter, the tumbleweed, the button icons — were generated
+with Google's Gemini from prompts written for this project, then processed
+locally (background keyed to transparent, cropped, repadded, downscaled). See
+`FEATURES.md` F17 and F31 for the full process. No third-party stock imagery,
+icon set, or clip art is used anywhere in the app.
 
 ## Philosophy
 
