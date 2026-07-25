@@ -12,7 +12,10 @@ NHN Cloud Corp. The full license text is in `LICENSE` next to this file.
   `import Editor from '@toast-ui/editor'; window.toastui = { Editor }`.
 - `toastui-editor.min.css` — the editor's stylesheet, same version (3.2.2).
 - `theme/toastui-editor-dark.css` — the official dark theme, same version, used
-  by the app's dark and manuscript themes.
+  by the app's dark and manuscript themes. A licence banner comment was added
+  locally below its `@charset` line (upstream ships it without one) so the
+  copyright notice travels with the copy served to browsers; re-add it if this
+  file is ever re-vendored.
 
 ## Network behaviour
 

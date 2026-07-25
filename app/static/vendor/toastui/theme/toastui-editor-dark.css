@@ -1,4 +1,13 @@
 @charset "utf-8";
+/*!
+ * @toast-ui/editor v3.2.2 — dark theme — https://github.com/nhn/tui.editor
+ * Copyright (c) 2020 NHN Cloud Corp. Licensed under the MIT licence.
+ * Full licence text: app/static/vendor/toastui/LICENSE
+ *
+ * This banner is added locally (upstream ships this theme file without one) so
+ * the copyright notice travels with the copy served to browsers. Re-add it if
+ * this file is ever re-vendored — see VENDORED.md.
+ */
 .toastui-editor-dark.toastui-editor-defaultUI {
   border-color: #494c56;
   color: #eee;

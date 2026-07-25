@@ -638,12 +638,21 @@ Everything third-party it uses is listed here with its licence.
 
 Storybook itself is licensed under the **Apache License 2.0** — see `LICENSE`.
 
+The running app carries the same information at **`/licences`** (linked from the
+foot of the Help page), which reproduces the vendored licences in full — a repo
+file doesn't discharge the notice requirement for someone who only ever sees the
+running site.
+
 ### Vendored in this repository
 
 These are committed under `app/static/vendor/`, so this repository
-*redistributes* them. Each directory carries the upstream licence text verbatim
-in its own `LICENSE` file, alongside a `VENDORED.md` recording the version, how
-the bundle was built, and the no-network audit it passed.
+*redistributes* them — and they're served to every visitor's browser, which
+redistributes them again. Each directory carries the upstream licence text
+verbatim in its own `LICENSE` file, alongside a `VENDORED.md` recording the
+version, how the bundle was built, and the no-network audit it passed. Every
+file that goes to a browser carries a copyright banner; where upstream shipped
+one without (`family-chart.css`, `theme/toastui-editor-dark.css`) it was added
+locally, and its `VENDORED.md` says so.
 
 | Component | Version | Licence | Copyright |
 |---|---|---|---|

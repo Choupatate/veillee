@@ -16,6 +16,7 @@ import random
 import tempfile
 import zipfile
 from datetime import date, datetime
+from pathlib import Path
 
 from flask import (
     Blueprint,
@@ -175,6 +176,89 @@ def help_page():
     documenting these features (README.md, FEATURES.md) is written for the
     latter."""
     return render_template("help.html")
+
+
+# The three third-party bundles under `app/static/vendor/` are served to every
+# visitor's browser, which is redistribution — so their copyright and permission
+# notices have to travel with them (FEATURES.md F35). `path` points at the
+# upstream licence text vendored alongside each bundle; the page renders that
+# file rather than a copy pasted into the template, so the two can never drift.
+_VENDORED_LICENCES = (
+    {
+        "name": "Toast UI Editor",
+        "version": "3.2.2",
+        "purpose": "the editor you write stories in",
+        "url": "https://github.com/nhn/tui.editor",
+        "path": "vendor/toastui/LICENSE",
+    },
+    {
+        "name": "family-chart",
+        "version": "0.9.0",
+        "purpose": "draws the family tree",
+        "url": "https://github.com/donatso/family-chart",
+        "path": "vendor/familychart/LICENSE",
+    },
+    {
+        "name": "D3",
+        "version": "7.9.0",
+        "purpose": "the graphics library the family tree is built on",
+        "url": "https://d3js.org",
+        "path": "vendor/d3/LICENSE",
+    },
+)
+
+# Installed from PyPI and run on the server only — never sent to a browser, so
+# no notice obligation attaches. Listed for transparency, not compliance.
+_SERVER_LICENCES = (
+    ("Flask, Werkzeug, Jinja2, Click, itsdangerous", "BSD-3-Clause"),
+    ("Flask-WTF, WTForms", "BSD-3-Clause"),
+    ("Python-Markdown", "BSD-3-Clause"),
+    ("PyMdown Extensions", "MIT"),
+    ("python-frontmatter, PyYAML", "MIT"),
+    ("Pillow", "MIT-CMU"),
+    ("pillow-heif", "BSD-3-Clause (its bundled codecs are LGPLv3/GPLv2)"),
+    ("Waitress", "ZPL 2.1"),
+    ("MCP Python SDK", "MIT"),
+)
+
+
+def _vendored_licences():
+    """Read each vendored bundle's licence text off disk, once per process.
+
+    Cached on the app object rather than with `functools.lru_cache` so that a
+    test app pointed at a different static folder doesn't inherit another
+    app's text.
+    """
+    cached = current_app.extensions.get("vendored_licences")
+    if cached is not None:
+        return cached
+    static_dir = Path(current_app.static_folder)
+    entries = []
+    for lib in _VENDORED_LICENCES:
+        licence_file = static_dir / lib["path"]
+        try:
+            text = licence_file.read_text(encoding="utf-8").strip()
+        except OSError:
+            # A missing licence file is a packaging bug worth surfacing, but
+            # not worth 500-ing a page whose whole job is to be readable.
+            text = ""
+        entries.append({**lib, "text": text})
+    current_app.extensions["vendored_licences"] = entries
+    return entries
+
+
+@bp.route("/licences")
+@login_required
+def licences_page():
+    """Third-party notices for everything this app is built on (FEATURES.md
+    F35). The vendored JS/CSS under `app/static/vendor/` is served to browsers,
+    so its licences are reproduced here in full; server-side packages are listed
+    for transparency only."""
+    return render_template(
+        "licences.html",
+        vendored=_vendored_licences(),
+        server_licences=_SERVER_LICENCES,
+    )
 
 
 @bp.route("/random")

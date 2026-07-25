@@ -1,3 +1,12 @@
+/*!
+ * family-chart v0.9.0 — https://github.com/donatso/family-chart
+ * Copyright (c) 2021 Donat Soric. Licensed under the MIT licence.
+ * Full licence text: app/static/vendor/familychart/LICENSE
+ *
+ * This banner is added locally (upstream ships this file without one) so the
+ * copyright notice travels with the copy served to browsers. Re-add it if this
+ * file is ever re-vendored — see VENDORED.md.
+ */
 .f3 {
   --female-color: rgb(196, 138, 146);
   --male-color: rgb(120, 159, 172);

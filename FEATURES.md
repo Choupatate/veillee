@@ -46,6 +46,7 @@ the exact `F<N>.` heading text to jump to it.
 - **F33** — Help: an in-app, plain-language guide for the family
 - **F34** — Credits: third-party attribution audit (vendored licences,
   dependency licences, artwork provenance)
+- **F35** — Licences: in-app third-party notices at `/licences`
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -3712,3 +3713,60 @@ commit.
 
 Documentation only; no application code changed. `pytest` (826) and
 `ruff check .` green.
+
+## F35. Licences — third-party notices, in the app itself
+
+F34 fixed attribution in the *repository*. This fixes it in the *product*,
+which is a separate obligation: the three vendored bundles under
+`app/static/vendor/` are sent to every visitor's browser, and shipping a copy
+of MIT/ISC-licensed code to someone means the copyright and permission
+notices have to go with it. A `LICENSE` file sitting in a git repo does not
+discharge that for a user who only ever sees the running site.
+
+### The gap
+
+Auditing what actually leaves the server: `d3.min.js`,
+`family-chart.min.js`, `toastui-editor-all.min.js` and
+`toastui-editor.min.css` all carry upstream banner comments — fine. But
+`family-chart.css` began at `.f3 {` and `theme/toastui-editor-dark.css` at
+`@charset "utf-8";`, both with no notice at all. Banner comments were added
+locally to those two (below the `@charset` line, which must stay first in a
+CSS file), and each `VENDORED.md` now records that the banner is a local
+addition to re-apply on any re-vendoring.
+
+### The page
+
+New `/licences`, linked from the foot of `/help` rather than the main nav —
+it's a page you go looking for, not one you navigate by. It reproduces each
+vendored licence **in full**, because that is what the licences ask for;
+server-side PyPI packages get a name-and-licence list only, since they're
+never distributed and no notice attaches.
+
+The licence text is read from `app/static/vendor/*/LICENSE` at request time,
+not pasted into the template, so the page cannot drift from what is actually
+shipped. Cached on `current_app.extensions` rather than via
+`functools.lru_cache` so a test app pointed at a different static folder
+doesn't inherit another app's text. A missing licence file degrades to a
+pointer at the source path instead of a 500 — a page whose only job is to be
+readable shouldn't fail closed.
+
+Reuses F33's `.help` prose layout wholesale rather than duplicating a
+near-identical CSS block; only the licence-specific pieces
+(`.licences__item/__name/__version/__purpose/__text/__list`) are new. Licence
+text uses `white-space: pre-wrap` rather than `overflow-x: auto` — these are
+80-column files and a phone reader shouldn't have to pan sideways through a
+licence.
+
+### Tests
+
+New `tests/test_licences.py` (12). The substantive one walks every
+non-trivial line of all three real licence files and asserts it appears in
+the rendered HTML — that's the test that fails if someone edits the page text
+or upgrades a bundle without noticing its licence changed. Others cover
+auth-gating, the copyright holders by name, the graceful missing-file path,
+the Help→Licences link, and — guarding F34's work — that all six served
+bundles still carry their banner. Verified in Chromium at 390px, 390px @200%
+zoom, and 1280px: zero horizontal overflow, licence text wrapping rather
+than scrolling.
+
+`pytest` (838: 826 existing + 12 new) and `ruff check .` green.
