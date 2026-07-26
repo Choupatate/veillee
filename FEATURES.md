@@ -47,6 +47,8 @@ the exact `F<N>.` heading text to jump to it.
 - **F34** — Taking a photo, not just adding one (in-app camera)
 - **F35** — Photos that look right everywhere (editor preview, stacked
   figures, no overflow)
+- **F36** — Hardening for the open internet (login lockout, CSP and
+  security headers, cache privacy, the auth-perimeter test)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -3862,3 +3864,119 @@ on the book page.
   image.
 
 `pytest` (851: 835 existing + 16 new) and `ruff check .` green.
+
+## F36. Hardening for the open internet
+
+Written for the moment this stops being a LAN app: a NAS, a port forward,
+and photos of a real child behind one login form. Earlier rounds
+(REVIEW.md items 1–4, F19's hashing and token design) already closed the
+classic holes — CSRF everywhere, HttpOnly/SameSite/Secure cookies,
+constant-time compares, salted account hashes, 32-byte write-link tokens
+stored hashed, re-encoded uploads, allowlisted paths, zip-slip
+protection, fail-fast secret key. What was still missing was specific to
+being reachable by strangers, and this feature adds exactly that.
+
+### Brute-force lockout (`app/throttle.py`)
+
+`time.sleep(1)` on a failed login slows one connection; it does nothing
+against parallel guessing, and each sleeping request holds a waitress
+thread. `FailureThrottle` is a pure sliding-window counter (no Flask, no
+clock of its own — `now` is a parameter, so tests never sleep): after 10
+failures per key per 15 minutes, further attempts get an immediate 429
+with `Retry-After`, before any password check runs — a blocked client
+learns nothing, not even whether its last guess was right. The key is the
+client IP; a successful login clears it, so a family member who fumbled
+their password isn't one typo from a lockout all evening. GETs of the
+login page are never throttled — a blocked person can still see the form
+and the "try again in N minutes" message.
+
+Both password-bearing endpoints share one throttle instance: `/login`
+and, in accounts mode, `/request-account` — the invite code *is*
+`STORYBOOK_PASSWORD`, so guessing it there is guessing the login
+password, and failures on either count against the same key.
+
+State is in-memory and per-process, which fits: waitress is one process,
+and a restart forgiving the counters costs an attacker nothing the window
+wouldn't forgive minutes later anyway. No dependency added.
+
+`STORYBOOK_TRUSTED_PROXIES=<n>` (default 0) wraps the app in werkzeug's
+`ProxyFix` so `remote_addr` is the visitor's real IP behind a reverse
+proxy — without it, the whole internet shares the proxy's address and the
+first attacker to trip the limit would lock the family out too. Off by
+default because trusting `X-Forwarded-For` when no proxy sets it lets
+clients fake their IP past the throttle.
+
+### Security headers, and a CSP with teeth
+
+One `after_request` in `create_app()` puts on every response:
+`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+`Referrer-Policy: same-origin`, `Strict-Transport-Security` (only when
+`STORYBOOK_COOKIE_SECURE=1` says HTTPS is real), and a strict
+`Content-Security-Policy`: `default-src 'self'`, `script-src 'self'`,
+`frame-ancestors 'none'`, `form-action 'self'`, `object-src 'none'`,
+plus `blob:` for the camera/cropper/instant previews and `data:` for
+Toast UI's embedded icons. The policy names no external host — the no-CDN
+rule, enforced by the browser.
+
+The CSP is not checkbox security here. Story bodies are rendered with
+`|safe` by design (trusted family), but F19 delegates and write-link
+holders are only semi-trusted — and with `script-src 'self'` and no
+inline scripts, a `<script>` tag or `onerror=` handler smuggled into
+markdown is refused by the browser. Verified live: an injected
+`window.__pwned` script in a story body does not run, and the console
+shows the CSP refusal. The one inline `<script>` the app had (the
+theme-boot snippet in `base.html`, which must run before first paint)
+moved to `static/js/theme-boot.js`, still a blocking script in `<head>`,
+so the policy needs no nonces and no `unsafe-inline` for scripts.
+`style-src` keeps `'unsafe-inline'` for the `--author-color` /
+`--photo-sepia` custom-property attributes — style injection is a far
+smaller risk than script, and the trade was worth zero nonce plumbing.
+
+### Cache privacy
+
+HTML pages are personal content behind a login: `Cache-Control: no-store`
+on every one, so nothing lands in a disk cache or an intermediary. Media
+and static files keep their long `max-age` (F-lightbox-era design, safe
+because photo filenames are immutable) but now carry `private`, so only
+the logged-in family member's own browser caches them — never a shared
+cache along the way.
+
+### The auth-perimeter test
+
+The guardrail that matters most long-term: `tests/test_security.py`
+walks the entire `url_map` and asserts every GET route refuses an
+anonymous client except the four deliberately public endpoints (`/login`,
+`/manifest.webmanifest`, `/request-account`, `/w/<token>` — plus
+static). A future page added without `@login_required` fails CI the day
+it's written, and a second test pins the allowlist itself so a new
+public endpoint is always a conscious decision in a diff.
+
+### Deployment guidance
+
+README gained "Opening it to the internet": VPN-first advice (WireGuard/
+Tailscale — the safest option is an unreachable login page), then the
+checklist for real exposure — HTTPS-only with a real certificate,
+`STORYBOOK_COOKIE_SECURE=1`, `STORYBOOK_TRUSTED_PROXIES=1`, a long
+passphrase, host patching, never exposing the MCP server, off-box
+backups — and an honest closing: nothing is "unhackable"; what remains
+rides on the password and the TLS in front.
+
+### Tests
+
+- `tests/test_throttle.py` — the pure counter: blocks at the limit and
+  not before, unblocks when the oldest failure ages out, per-key
+  independence, `clear()` on success, `retry_after` countdown, bounded
+  memory.
+- `tests/test_security.py` — headers on the wire (CSP directives, no
+  external host in the policy, HSTS only under HTTPS, `no-store` pages,
+  `private` media), lockout behavior end-to-end (429 after the limit,
+  right-password-while-blocked still 429 and still logged out, success
+  clears, GET never throttled, invite-code form shares the lockout), no
+  inline `<script>` in any rendered page, and the perimeter walk.
+- Verified live in Chromium with the CSP active: the Toast UI editor,
+  image upload + preview, the F34 camera (blob: preview), the voice
+  recorder, the portrait cropper, the family tree (d3 + family-chart),
+  book/timeline/almanac/help all work with zero console errors — and the
+  injected-script story is neutralized.
+
+`pytest` (873: 851 existing + 22 new) and `ruff check .` green.

@@ -46,6 +46,29 @@ def _safe_next_url(next_url):
     return next_url
 
 
+def throttle_key():
+    """What the brute-force throttle counts failures against: the client
+    IP (via ProxyFix when STORYBOOK_TRUSTED_PROXIES is set, so a reverse
+    proxy doesn't collapse the whole internet into one key)."""
+    return request.remote_addr or "unknown"
+
+
+def throttled_response(template, **context):
+    """The 429 page for a blocked client: no password check ran, no
+    thread slept, and Retry-After says when to come back."""
+    throttle = current_app.extensions["failure_throttle"]
+    retry_after = throttle.retry_after(throttle_key(), time.time())
+    minutes = max(1, (retry_after + 59) // 60)
+    flash(
+        f"Too many attempts. Try again in about {minutes} minute{'s' if minutes > 1 else ''}.",
+        "error",
+    )
+    response = current_app.make_response(render_template(template, **context))
+    response.status_code = 429
+    response.headers["Retry-After"] = str(retry_after)
+    return response
+
+
 def set_session_for_account(account):
     """Populate a fresh session for a real (non-delegate) account — shared
     by login() and any route that changes the current user's own password
@@ -117,32 +140,46 @@ def delegate_required(view):
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     accounts_enabled = current_app.config["ACCOUNTS_ENABLED"]
+    no_accounts_yet = accounts_enabled and not accounts.any_accounts_exist(
+        storage.people_dir(current_app.config["STORIES_DIR"])
+    )
 
     if request.method == "POST":
+        throttle = current_app.extensions["failure_throttle"]
+        key = throttle_key()
+        # Checked before the password so a blocked client learns nothing
+        # from this request — not even whether the password was right.
+        if throttle.is_blocked(key, time.time()):
+            return throttled_response(
+                "login.html",
+                accounts_enabled=accounts_enabled,
+                no_accounts_yet=no_accounts_yet,
+            )
         if accounts_enabled:
             people_dir = storage.people_dir(current_app.config["STORIES_DIR"])
             username = request.form.get("username", "").strip().lower()
             password = request.form.get("password", "")
             account = accounts.verify_login(people_dir, username, password)
             if account:
+                throttle.clear(key)
                 set_session_for_account(account)
                 return redirect(_safe_next_url(request.args.get("next", "")))
+            throttle.register_failure(key, time.time())
             time.sleep(1)
             flash("Incorrect username or password.", "error")
         else:
             password = request.form.get("password", "")
             correct = hmac.compare_digest(password, current_app.config["PASSWORD"])
             if correct:
+                throttle.clear(key)
                 session.clear()
                 session["authed"] = True
                 session.permanent = True
                 return redirect(_safe_next_url(request.args.get("next", "")))
+            throttle.register_failure(key, time.time())
             time.sleep(1)
             flash("Incorrect password.", "error")
 
-    no_accounts_yet = accounts_enabled and not accounts.any_accounts_exist(
-        storage.people_dir(current_app.config["STORIES_DIR"])
-    )
     return render_template(
         "login.html", accounts_enabled=accounts_enabled, no_accounts_yet=no_accounts_yet
     )

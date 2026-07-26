@@ -12,7 +12,14 @@ from datetime import date, datetime
 from flask import abort, current_app, flash, redirect, render_template, request, session, url_for
 
 from . import accounts, people, storage, write_links
-from .auth import admin_required, delegate_required, login_required, set_session_for_account
+from .auth import (
+    admin_required,
+    delegate_required,
+    login_required,
+    set_session_for_account,
+    throttle_key,
+    throttled_response,
+)
 from .routes_pages import _people_dir, bp
 
 
@@ -36,7 +43,14 @@ def request_account():
         password = request.form.get("password") or ""
         note = request.form.get("note") or ""
 
+        # The invite code is STORYBOOK_PASSWORD, so guessing it here is
+        # guessing the login password — same throttle, same key (F36).
+        throttle = current_app.extensions["failure_throttle"]
+        if throttle.is_blocked(throttle_key(), time.time()):
+            return throttled_response("request_account.html", submitted=False)
+
         if not hmac.compare_digest(invite_code, current_app.config["PASSWORD"]):
+            throttle.register_failure(throttle_key(), time.time())
             time.sleep(1)
             flash("Incorrect invite code.", "error")
         else:

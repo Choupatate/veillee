@@ -95,7 +95,8 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_STORIES_DIR` | Where story folders live (default `./stories`) |
 | `STORYBOOK_PASSWORD` | The one shared password. Required in production. |
 | `STORYBOOK_SECRET_KEY` | Flask session-signing secret. Required whenever `STORYBOOK_PASSWORD` is set — the app refuses to start otherwise. |
-| `STORYBOOK_COOKIE_SECURE` | Set to `1` when serving over HTTPS to mark the session cookie `Secure`. Default off, for local/LAN HTTP use. |
+| `STORYBOOK_COOKIE_SECURE` | Set to `1` when serving over HTTPS to mark the session cookie `Secure` and send an HSTS header. Default off, for local/LAN HTTP use. |
+| `STORYBOOK_TRUSTED_PROXIES` | How many reverse proxies sit in front of the app (default `0`). Set to `1` behind nginx/Caddy/a NAS reverse proxy so the login lockout sees each visitor's real IP. See "Opening it to the internet". |
 | `STORYBOOK_AUTHORS` | Optional. Comma-separated `Name:#hexcolor` pairs for several narrators (see below). Unset by default. |
 | `STORYBOOK_BIRTHDATE` | Optional. The child's birth date (`YYYY-MM-DD`). Shows the child's age at each memory (see below). Unset by default. |
 | `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook`. |
@@ -585,6 +586,56 @@ same feature tour with no setup/configuration talk, covering what a
 Story vs. an Instant is, what sealing a letter or a draft does, the
 family tree and life dates, growing up, reading it back, voice memos,
 and backups.
+
+## Opening it to the internet
+
+The app ships hardened for exposure (see the list below), but the honest
+first question is whether you need to expose it at all. If the family can
+install a VPN app, **a VPN (WireGuard, or Tailscale for the least setup)
+is meaningfully safer than an open port**: the login page simply isn't
+reachable by strangers, so there is nothing to probe, guess at, or
+exploit. Most NAS units can run one. If relatives need plain-browser
+access and a VPN is too much friction, expose it — but do all of the
+following:
+
+1. **HTTPS only.** Put a reverse proxy with a real certificate in front
+   (Caddy and NAS reverse-proxy suites do Let's Encrypt automatically)
+   and never forward port 80 to the app. Without this, the password and
+   every photo travel readable by anyone on the path.
+2. **Set `STORYBOOK_COOKIE_SECURE=1`** — marks the session cookie
+   HTTPS-only and turns on HSTS.
+3. **Set `STORYBOOK_TRUSTED_PROXIES=1`** (or however many proxies you
+   run) so the brute-force lockout counts each visitor's real IP rather
+   than lumping the whole internet together as the proxy's address.
+4. **Use a long password.** The lockout (10 failed attempts per IP per
+   15 minutes) makes online guessing slow, but the password's length is
+   still the real wall. A passphrase of several random words is both
+   strong and typeable on a phone. With several family members, consider
+   `STORYBOOK_ACCOUNTS=1` so each person has their own credentials and
+   one can be reset without re-keying everyone.
+5. **Keep the host patched.** The app's dependencies are pinned; the OS,
+   Docker, and reverse proxy on the NAS are yours to update. Enable the
+   NAS's automatic security updates if it has them.
+6. **Never expose the MCP server.** It is stdio-only by design and
+   bypasses the web login; it must not be wrapped in anything
+   network-reachable (see the MCP section's trust model).
+7. **Keep an off-box backup** (below). Security includes still having
+   the stories if the NAS is stolen, ransomed, or dies.
+
+What the app itself already does: every page and API route requires
+login; repeated failed logins are refused per-IP before any password
+check runs; all state-changing requests carry CSRF tokens; the session
+cookie is signed, `HttpOnly`, `SameSite=Lax`; a strict
+`Content-Security-Policy` (no external hosts, no inline scripts) means
+even HTML smuggled into a story cannot run script; responses carry
+`nosniff`/`frame-ancestors 'none'`/`Referrer-Policy` headers; pages are
+never written to disk caches and photos are cacheable by your browser
+only, not by shared caches; uploads are size-limited, re-encoded through
+Pillow, and written under validated names; account passwords are
+salted+hashed; write-link tokens are 32 random bytes stored only as
+hashes. No software can promise "unhackable" — but the remaining risk
+concentrates almost entirely on the strength of the password and the
+TLS in front, which are the two items above only you control.
 
 ## Backing up
 
