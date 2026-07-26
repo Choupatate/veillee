@@ -1,17 +1,50 @@
-# Storybook
+# Veillée
 
-A private, self-hosted memory journal. A parent writes stories (text + photos) for
-their child; the family reads them later as a chronological timeline and as
-book-like story pages.
+> *la veillée* — the evening when the family gathered by the fire, and someone
+> told the stories worth keeping.
+
+A **private, self-hosted family memory journal**. A parent writes dated stories —
+words and photographs — for a child to read years from now. The family reads them
+back as a chronological timeline, as book-like printed pages, or as an EPUB on an
+e-reader.
+
+It is deliberately not a social network. No feed, no reactions, no comment
+threads, nothing engineered to be scrolled. A book, written slowly, for a handful
+of people who already love each other.
 
 Everything is stored as plain **markdown files and images on disk** — no database.
 If you delete the app entirely and keep the `stories/` folder, every story is still
-fully readable with nothing more than a file browser and a text editor.
+fully readable with nothing more than a file browser and a text editor. The data is
+meant to outlive the software that wrote it.
+
+### What's in it
+
+- **Stories and Instants** — a full dated entry with photos, or just a picture and
+  one line for the small moments.
+- **The cast** — everyone in the book, with a **family tree** that works out
+  "great-aunt" by itself, plus birthdays, weddings, deaths and a month-by-month
+  almanac.
+- **Sealed letters** — write something today that stays locked, even to you, until
+  a date you choose.
+- **Firsts and Growing up** — a register of milestones, and the photo nearest each
+  birthday laid side by side.
+- **Voice memos** — a child's actual voice, kept next to the words.
+- **Reading it back** — timeline, printable book view, EPUB export, one-tap zip
+  backup, offline transcription.
+- **Yours alone** — self-hosted on your own machine, no cloud service, no
+  analytics, no tracking, and **zero network requests at runtime**. Python and
+  Flask, mobile-first, no build step, no JavaScript framework.
 
 Three themes are available from the toggle in the top-right corner: dark (the
 default), light, and manuscript — a warm, aged-paper look with a subtly grained
 texture (a self-contained inline SVG filter, no image assets or network requests)
 where the timeline, story, and editor each render as a page resting on a desk.
+
+> **A note on the name.** The project is *Veillée*; the application still calls
+> itself Storybook internally — every setting is `STORYBOOK_*`, and the site title
+> defaults to "Storybook" unless you set `STORYBOOK_TITLE`. Set that to whatever
+> your family's book should be called (`STORYBOOK_TITLE="Le livre de Milo"`).
+> Renaming the internals is a separate, larger change and hasn't been done.
 
 See `PLAN.md` for the full design specification this app was built from, and
 `REVIEW.md` for the production-readiness review it was subsequently audited
@@ -149,6 +182,11 @@ account. Each person can set their own byline color on their person page
 (**Byline color**), replacing what `STORYBOOK_AUTHORS` does below; a
 family member with no color set yet gets a neutral default rather than no
 color at all.
+
+## Features
+
+A tour of what the app does, in roughly the order you'd meet it. Everything here
+is built in; the few optional pieces are called out as such.
 
 ### Several narrators
 

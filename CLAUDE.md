@@ -4,9 +4,13 @@ Guidance for Claude Code (or any AI agent) working in this repository.
 
 ## What this is
 
-Storybook is a private, self-hosted memory journal: a parent writes stories
+Veillée is a private, self-hosted memory journal: a parent writes stories
 (text + photos) for their child, and the family reads them later as a
-chronological timeline and book-like story pages. It's a Flask app with
+chronological timeline and book-like story pages. The project is named
+Veillée, but the code still says Storybook throughout — config is
+`STORYBOOK_*`, the default title is "Storybook", and the CSS/templates use
+`storybook-*` keys. That inconsistency is known and deliberate for now; don't
+half-rename things as a drive-by. It's a Flask app with
 **no database** — every story is a folder of a markdown file (with
 frontmatter) plus its images/audio, living under `stories/`. Delete the app
 entirely and the `stories/` folder is still fully readable with a text
