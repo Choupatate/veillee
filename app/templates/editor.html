@@ -11,6 +11,7 @@
       data-create-url="{{ url_for('api.create_story') }}"
       data-update-url-template="{{ url_for('api.update_story', story_id='__ID__') }}"
       data-image-url-template="{{ url_for('api.upload_image', story_id='__ID__') }}"
+      data-media-url-template="{{ url_for('pages.story_media', story_id='__ID__', filename='__FILENAME__') }}"
       data-redirect-template="{{ url_for('pages.story', story_id='__ID__') }}"
       data-edit-url-template="{{ url_for('pages.edit_story', story_id='__ID__') }}">
   <input class="editor__title" id="story-title" name="title" type="text"
@@ -72,6 +73,15 @@
   <div id="editor-root" class="editor__root">
     <textarea id="markdown-source" class="editor__source">{{ story.body if story else '' }}</textarea>
   </div>
+  {# Unhidden by editor.js only where getUserMedia exists (F34); the Toast
+     UI toolbar's own image button stays the way to add an existing file. #}
+  <section class="editor__camera" id="editor-camera" hidden>
+    <h2 class="editor__camera-heading">Photo</h2>
+    <button type="button" id="camera-btn" class="btn editor__camera-btn">
+      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">Take a photo
+    </button>
+    <p class="editor__camera-message" id="camera-message" hidden></p>
+  </section>
   <section class="editor__voice" id="editor-voice">
     <h2 class="editor__voice-heading">Voice</h2>
     <div class="editor__voice-recorder">

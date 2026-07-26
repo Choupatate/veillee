@@ -44,6 +44,9 @@ the exact `F<N>.` heading text to jump to it.
 - **F31** — Year chapters in the book view
 - **F32** — MCP server: an AI-assisted authoring surface
 - **F33** — Help: an in-app, plain-language guide for the family
+- **F34** — Taking a photo, not just adding one (in-app camera)
+- **F35** — Photos that look right everywhere (editor preview, stacked
+  figures, no overflow)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -3646,3 +3649,216 @@ logged in. Verified live with Playwright at both a desktop width and a
 actually navigates to `/help`.
 
 `pytest` (826: 820 existing + 6 new) and `ruff check .` green.
+
+## F34. Taking a photo, not just adding one
+
+Every way of getting a photo into the book assumed the photo already
+existed: the instant form, the story editor's image button, and the
+person editor's Photo panel all opened the OS file picker. On a phone
+that picker does offer the camera, so this was survivable — but on a
+laptop with a webcam there was no camera at all, and even on a phone
+"take a photo of this drawing right now" meant a round trip out to the
+camera app, into the gallery, back into the picker.
+
+F12 already records audio in the browser with `getUserMedia`; this is the
+same idea for the lens instead of the microphone.
+
+### Design
+
+- **`app/static/js/camera.js`** — one shared full-screen overlay
+  (`window.StorybookCamera`), built in JS rather than duplicated into
+  three templates. `open()` returns a `Promise<File|null>`: a JPEG `File`
+  shaped exactly like one an `<input type="file">` would hand over —
+  which is the whole point, since every existing upload path (re-encode
+  with Pillow, `photo-NNN.jpg` naming, thumbnails, HEIC conversion,
+  cropper) then works untouched. `null` means the user backed out. No new
+  endpoint, no new storage code, no server change of any kind.
+- Live preview → shutter → **review step** ("Retake" / "Use photo"), so a
+  blurry frame never reaches the book. Also: "Flip" (shown only when
+  `enumerateDevices` reports two or more cameras), "Cancel", Escape, and
+  the phone's back gesture (a `history.pushState` on open, mirroring F7's
+  lightbox) — all of which stop every track, so the camera light goes out
+  the moment the overlay closes.
+- The selfie camera previews mirrored (`scaleX(-1)`) but is *captured*
+  raw, matching what every phone camera does: you see yourself the way a
+  mirror shows you, the book keeps the photo the way everyone else sees
+  you.
+- **`app/static/js/camera-logic.js`** — the DOM-free half (frame scaling,
+  the front/back toggle, capture filenames) as a UMD module with Node
+  tests, per the repo's rule about testable client logic. `captureSize`
+  caps the longest edge at 2000px to match `storage.MAX_IMAGE_EDGE` (the
+  server re-encodes to that anyway, so this only saves upload bytes) and
+  returns `null` for a 0×0 `<video>`, which is how a not-yet-ready stream
+  is told apart from a real frame.
+
+### Where it appears
+
+- **`/new-instant`** — a "Take a photo" button under the photo picker.
+  The capture and a picked file are deliberately exclusive: choosing one
+  clears the other, so the preview and the save always agree on which
+  photo is *the* photo. The file input lost its `required` attribute for
+  this — a camera photo never reaches the input, so the browser would
+  otherwise block a save that does have a photo (the JS check that was
+  already there still catches a genuinely empty form).
+- **The story editor** — a "Photo" section above "Voice", symmetric with
+  it. The capture uploads through the existing images endpoint and is
+  inserted at the cursor as `![](photo-NNN.jpg)`. It sits beside the
+  toolbar's image button rather than replacing it: that one adds a photo
+  you already have, this one takes a new one. Insertion goes through a
+  new `insertImage` method on both editor wrappers (Toast UI's
+  `exec("addImage", …)`, and a cursor splice in the no-JS-editor
+  fallback), which also de-duplicated the fallback's existing insert.
+- **The person editor** — a "Take a photo" button beside "Add a
+  photo"/"Change photo". The captured file goes straight into F18's
+  existing pan/zoom cropper, so a portrait taken in the app is framed and
+  toned exactly like an uploaded one.
+
+### Degrading gracefully
+
+`getUserMedia` requires a secure context. Over plain LAN HTTP
+`navigator.mediaDevices` is undefined, `isSupported()` is false, and
+every "Take a photo" button stays hidden — the file inputs are untouched
+and remain the way in. This is the same bargain F12's voice memos already
+make, and it's why all three buttons ship `hidden` in the template and
+are unhidden by JS, never the reverse. Denied permission, no camera, and
+a camera busy in another app each get their own message inside the
+overlay instead of a dead button.
+
+### Tests
+
+- `tests/js/camera_logic_test.mjs` (13 assertions: scaling both
+  orientations, aspect-ratio preservation, the not-ready 0×0 case, the
+  facing toggle, filename formatting), wired into pytest via
+  `test_tree_logic_js.py` like the other Node suites.
+- `tests/test_camera.py` covers the server-rendered contract the scripts
+  hang off: the camera scripts load on exactly the three pages that can
+  add a photo and on none of the reading pages, every button ships
+  hidden, the instant photo input is no longer `required`, and a
+  `camera-<timestamp>.jpg` upload round-trips through the images endpoint
+  and can become an instant's cover.
+- Verified live in Chromium with a fake webcam
+  (`--use-fake-device-for-media-stream`) at 390px and at 1280px, in both
+  themes: capture → retake → use on all three surfaces, an instant saved
+  from a capture appearing on the timeline, a captured photo rendering on
+  the saved story page, a captured portrait surviving the cropper, and
+  Escape/back/Cancel all closing the overlay without touching the form.
+
+`pytest` (835: 826 existing + 9 new) and `ruff check .` green.
+
+## F35. Photos that look right everywhere
+
+Adding the in-app camera (F34) made it obvious how many photos a story
+now collects, and three things about how they rendered were not neat.
+
+### The problem
+
+**A photo added in the editor showed as a broken image.** Story markdown
+stores image links as bare filenames — `![](photo-001.jpg)` — on purpose:
+the folder has to stay readable and movable without the app, so
+`rendering.py` is what resolves a bare src to `/story/<id>/media/<file>`
+at render time. The browser editor has no such step. It resolves
+`photo-001.jpg` against the page URL (`/new`, `/edit/<id>`) and gets a
+404, in both the WYSIWYG pane and the markdown preview pane. The photo
+was uploaded and saved correctly and appeared on the story page; only the
+editor's own view of it was wrong. That's still the worst place for it to
+be wrong, because it's the moment the writer is deciding whether the
+photo belongs there.
+
+**Two photos added in a row rendered as raw inline images.** Both the
+camera button and the toolbar's image button insert at the cursor, so
+clicking twice produces `![](a.jpg)![](b.jpg)` in one paragraph. The
+figure rule only fired for a paragraph holding exactly one image, so a
+pair fell through to bare `<img>` — no `<figure>`, none of the figure
+styling, no caption, not clickable for the F7 lightbox.
+
+**An image sharing a paragraph with text overflowed the page.** Nothing
+styled a non-figure image at all, so a 1920px photo rendered at 1920px
+inside a 632px column and ran off the side, on the story page and in the
+book alike.
+
+### The design
+
+**Editor preview** — `app/static/js/media-links.js`, a small UMD module
+with `toEditorMarkdown` / `toStoredMarkdown` / `toEditorSrc`. Bare
+filenames are expanded to real media URLs on the way *into* the Toast UI
+editor and collapsed back to bare filenames on the way *out*. Both
+directions apply the same "is this absolute?" test `rendering.py` uses,
+so external URLs, root-relative paths and another story's media URL are
+all left exactly as written; only a single path segment under this
+story's own media base ever collapses.
+
+The conversion hangs entirely off the wrapper object `createToastEditor`
+already returns — `getMarkdown` / `setMarkdown` / `insertImage`, plus
+`initialValue` and `addImageBlobHook`. Everything outside that wrapper
+(saving, autosave, the dirty check, the fallback textarea editor) keeps
+seeing bare filenames and needed no changes. Nothing about the saved file
+changed: `index.md` still stores `![](photo-001.jpg)`.
+
+The markdown-source pane now shows the full media URL rather than the
+bare filename. That's the deliberate trade: it's what makes the preview
+pane resolve, and the WYSIWYG pane — the default — is where nearly all
+writing happens.
+
+The alternative, storing resolvable URLs in `index.md`, was rejected
+outright: it would pin every story to the app's URL scheme and break the
+"delete the app and the folder still works" guarantee.
+
+**Stacked figures** — `rendering.py`'s rule widened from "a paragraph
+holding exactly one image" to "a paragraph holding nothing but images",
+emitting one `<figure>` per image. `![](a.jpg)![](b.jpg)` and
+`![](a.jpg)\n![](b.jpg)` now both render as two proper stacked figures.
+Fixed at the render layer rather than by making the editor insert block
+breaks: driving Toast UI's block structure means poking at the vendored
+build's ProseMirror internals, and the failure mode is `<br>` litter
+written into someone's `index.md` — a bad trade in an app whose whole
+point is clean files. Fixing it in `rendering.py` also repairs stories
+that already exist, including imported backups and hand-written markdown.
+
+**No overflow** — `.story__body img` finally has a rule of its own
+(`max-width: 100%`, `height: auto`, and the same rounded corners the
+figures have). An image genuinely mixed in with text stays inline,
+because that is what the author wrote, but it can no longer break out of
+the column. The print stylesheet already had `max-width: 100%`; this
+brings the screen in line with it.
+
+**Lightbox** — F7's selector widened from `.story__body figure img` to
+`.story__body img`, so an inline photo is zoomable like every other one.
+`story.js` skips an image the author wrapped in a link (that click
+belongs to the link) and adds a `story__zoomable` class to the images it
+actually wired up, so the zoom cursor only ever appears on something that
+really does zoom.
+
+### The book
+
+Unchanged, and confirmed working: `/book` renders every story through the
+same `render_markdown` with that story's media base, and `/book.epub`
+rewrites those srcs to epub-relative paths and packs the real image bytes
+into the zip. Verified end to end — 8 images embedded, every `src` in the
+XHTML resolving to a file in the archive, nothing broken or overflowing
+on the book page.
+
+### Tests
+
+- `tests/js/media_links_test.mjs` (23 assertions: expansion, collapsing,
+  alt text and link titles surviving, absolute/protocol-relative/
+  root-relative URLs left alone, plain links untouched, a byte-for-byte
+  expand→collapse round trip), wired into pytest via
+  `test_tree_logic_js.py`.
+- `tests/test_editor_images.py` — the contract the script depends on
+  (both editors ship `media-links.js` and a `data-media-url-template`,
+  loaded before `editor.js`, and the template really is the URL that
+  serves the file) plus the invariant it protects (a saved body still
+  holds bare filenames; an absolute media URL that somehow reaches
+  `index.md` still renders).
+- `tests/test_rendering.py` — stacked figures from glued and
+  soft-broken images, text-mixed images staying inline, a linked image
+  staying a link, images-only paragraphs keeping their neighbours, list
+  items and blockquotes behaving.
+- Verified live in Chromium: photos loading in both editor panes via the
+  toolbar button and the camera, on a new story and a reopened one, in
+  the person editor against its own media base, `index.md` unchanged
+  across a resave, zero console errors, no image wider than its column on
+  any story or in the book, and the lightbox opening from an inline
+  image.
+
+`pytest` (851: 835 existing + 16 new) and `ruff check .` green.

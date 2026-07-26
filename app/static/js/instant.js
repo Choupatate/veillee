@@ -3,6 +3,7 @@
   var photoInput = document.getElementById("instant-photo");
   var photoPicker = document.getElementById("instant-photo-picker");
   var photoPreview = document.getElementById("instant-photo-preview");
+  var cameraButton = document.getElementById("instant-camera");
   var lineInput = document.getElementById("instant-line");
   var dateInput = document.getElementById("instant-date");
   var saveButton = document.getElementById("instant-save");
@@ -12,13 +13,16 @@
   var authorChipsController = window.StorybookAuthorChips.init(authorsRoot);
 
   var previewUrl = null;
+  // A photo taken with the in-app camera (F34). The two sources are
+  // exclusive: picking a file clears the capture and vice versa, so the
+  // preview and the save always agree on which photo is "the" photo.
+  var capturedFile = null;
 
-  photoInput.addEventListener("change", function () {
+  function showPhoto(file) {
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       previewUrl = null;
     }
-    var file = photoInput.files[0];
     if (file) {
       previewUrl = URL.createObjectURL(file);
       photoPreview.src = previewUrl;
@@ -29,11 +33,28 @@
       photoPreview.removeAttribute("src");
       photoPicker.classList.remove("has-photo");
     }
+  }
+
+  photoInput.addEventListener("change", function () {
+    capturedFile = null;
+    showPhoto(photoInput.files[0]);
   });
+
+  if (cameraButton && window.StorybookCamera && window.StorybookCamera.isSupported()) {
+    cameraButton.hidden = false;
+    cameraButton.addEventListener("click", function () {
+      window.StorybookCamera.open().then(function (file) {
+        if (!file) return;
+        capturedFile = file;
+        photoInput.value = "";
+        showPhoto(file);
+      });
+    });
+  }
 
   form.addEventListener("submit", function (event) {
     event.preventDefault();
-    var file = photoInput.files[0];
+    var file = capturedFile || photoInput.files[0];
     if (!file) {
       window.alert("Please choose a photo.");
       return;
@@ -60,7 +81,7 @@
       .then(window.FetchJson.parse)
       .then(function (created) {
         var formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", file, file.name || "camera.jpg");
         return fetch("/api/stories/" + created.id + "/images", window.CsrfFetch.withToken({
           method: "POST",
           body: formData,

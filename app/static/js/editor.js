@@ -421,6 +421,33 @@
     return mediaUrlTemplate.replace("__ID__", storyId).replace("__FILENAME__", filename);
   }
 
+  // Where this story's/person's uploaded images are served from, e.g.
+  // "/story/<id>/media". Empty until the story exists on disk, which is
+  // fine: a story with no id has no images yet either.
+  function mediaBaseUrl() {
+    if (!mediaUrlTemplate || !storyId) return "";
+    return buildMediaUrl("").replace(/\/+$/, "");
+  }
+
+  // Saved markdown keeps bare filenames (rendering.py resolves them); the
+  // editor needs resolvable URLs or it shows a broken image. media-links.js
+  // converts between the two — see its header. Both are no-ops if the
+  // script somehow didn't load, leaving the previous behaviour.
+  function toEditorMarkdown(value) {
+    if (!window.MediaLinks) return value;
+    return window.MediaLinks.toEditorMarkdown(value, mediaBaseUrl());
+  }
+
+  function toStoredMarkdown(value) {
+    if (!window.MediaLinks) return value;
+    return window.MediaLinks.toStoredMarkdown(value, mediaBaseUrl());
+  }
+
+  function toEditorSrc(filename) {
+    if (!window.MediaLinks) return filename;
+    return window.MediaLinks.toEditorSrc(filename, mediaBaseUrl());
+  }
+
   function setPhotoSepia(value) {
     value = Math.max(0, Math.min(100, Math.round(value)));
     if (photoImg) photoImg.style.setProperty("--photo-sepia", value + "%");
@@ -739,6 +766,21 @@
     });
   }
 
+  // A photo taken in the browser (F34) enters the same crop -> upload
+  // path as a chosen file; the camera hands back a JPEG File either way.
+  var photoCameraBtn = document.getElementById("editor-photo-camera");
+  if (photoCameraBtn && photoUrlTemplate && cameraAvailable()) {
+    photoCameraBtn.hidden = false;
+    photoCameraBtn.addEventListener("click", function () {
+      window.StorybookCamera.open().then(function (file) {
+        if (!file) return;
+        showPhotoMessage("");
+        if (photoFileInput) photoFileInput.value = "";
+        openCropper(file);
+      });
+    });
+  }
+
   function addFamilyFields(payload) {
     if (familyRoot) {
       payload.parents = parentsPicker.getSelected();
@@ -990,6 +1032,13 @@
     scheduleAutosave();
   }
 
+  // False without a secure context (camera.js explains why), in which case
+  // every "Take a photo" button stays hidden and the file inputs are the
+  // only way in — same graceful degradation as the F12 voice recorder.
+  function cameraAvailable() {
+    return !!(window.StorybookCamera && window.StorybookCamera.isSupported());
+  }
+
   function ensureStoryId() {
     if (storyId) return Promise.resolve(storyId);
     var payload = buildStoryPayload(titleInput.value.trim() || "Untitled", "");
@@ -1010,7 +1059,7 @@
   function uploadImage(file) {
     return ensureStoryId().then(function (id) {
       var formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", file, file.name || "photo.jpg");
       return fetch(fillUrlTemplate(imageUrlTemplate, id), window.CsrfFetch.withToken({
         method: "POST",
         body: formData,
@@ -1028,7 +1077,7 @@
       height: "60vh",
       initialEditType: "wysiwyg",
       previewStyle: "vertical",
-      initialValue: sourceTextarea.value,
+      initialValue: toEditorMarkdown(sourceTextarea.value),
       theme: isDarkTheme() ? "dark" : undefined,
       usageStatistics: false,
       toolbarItems: [
@@ -1041,7 +1090,7 @@
         addImageBlobHook: function (blob, callback) {
           uploadImage(blob)
             .then(function (filename) {
-              callback(filename, "");
+              callback(toEditorSrc(filename), "");
             })
             .catch(function (error) {
               showSaveMessage(error.message);
@@ -1073,10 +1122,13 @@
 
     return {
       getMarkdown: function () {
-        return editor.getMarkdown();
+        return toStoredMarkdown(editor.getMarkdown());
       },
       setMarkdown: function (value) {
-        editor.setMarkdown(value);
+        editor.setMarkdown(toEditorMarkdown(value));
+      },
+      insertImage: function (filename) {
+        editor.exec("addImage", { imageUrl: toEditorSrc(filename), altText: "" });
       },
     };
   }
@@ -1151,18 +1203,22 @@
     toolbar.appendChild(imageBtn);
     toolbar.appendChild(imageInput);
 
+    function insertImageAtCursor(filename) {
+      var start = sourceTextarea.selectionStart;
+      var value = sourceTextarea.value;
+      var insertion = "![](" + filename + ")\n";
+      sourceTextarea.value = value.slice(0, start) + insertion + value.slice(start);
+      sourceTextarea.focus();
+      markDirty();
+    }
+
     imageInput.addEventListener("change", function () {
       var file = imageInput.files[0];
       if (!file) return;
       uploadImage(file)
         .then(function (filename) {
-          var start = sourceTextarea.selectionStart;
-          var value = sourceTextarea.value;
-          var insertion = "![](" + filename + ")\n";
-          sourceTextarea.value = value.slice(0, start) + insertion + value.slice(start);
-          sourceTextarea.focus();
+          insertImageAtCursor(filename);
           imageInput.value = "";
-          markDirty();
         })
         .catch(function (error) {
           showSaveMessage(error.message);
@@ -1179,6 +1235,7 @@
       setMarkdown: function (value) {
         sourceTextarea.value = value;
       },
+      insertImage: insertImageAtCursor,
     };
   }
 
@@ -1188,6 +1245,36 @@
   titleInput.addEventListener("input", markDirty);
   if (dateInput) dateInput.addEventListener("input", markDirty);
   if (relationInput) relationInput.addEventListener("input", markDirty);
+
+  // --- Take a photo into the story body (F34) -------------------------------
+  // Sits beside the toolbar's image button rather than replacing it: that
+  // one adds a photo you already have, this one takes a new one. Both end
+  // up as the same uploaded file and the same ![](photo-NNN.jpg).
+  var cameraSection = document.getElementById("editor-camera");
+  var cameraBtn = document.getElementById("camera-btn");
+  if (cameraSection && cameraBtn && cameraAvailable()) {
+    var showCameraMessage = makeMessageSetter(document.getElementById("camera-message"));
+    cameraSection.hidden = false;
+    cameraBtn.addEventListener("click", function () {
+      window.StorybookCamera.open().then(function (file) {
+        if (!file) return;
+        showCameraMessage("Adding the photo…");
+        cameraBtn.disabled = true;
+        uploadImage(file)
+          .then(function (filename) {
+            editor.insertImage(filename);
+            showCameraMessage("");
+            markDirty();
+          })
+          .catch(function (error) {
+            showCameraMessage((error && error.message) || "Could not add that photo.");
+          })
+          .then(function () {
+            cameraBtn.disabled = false;
+          });
+      });
+    });
+  }
 
   // --- Autosave to localStorage + crash/close recovery ---------------------
   //

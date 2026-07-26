@@ -30,3 +30,16 @@ def test_story_page_cover_and_figure_images_present_for_lightbox(auth_client, st
     assert "story__body" in html
     assert "<figure>" in html
     assert "<figcaption>A caption</figcaption>" in html
+
+
+def test_an_inline_image_is_also_reachable_by_the_lightbox(auth_client, stories_dir):
+    """F35 widened the lightbox from figures to every story image; the
+    server just has to emit the <img> inside .story__body for story.js to
+    find it."""
+    story_id = storage.create_story(
+        stories_dir, "Inline photo", date(2026, 1, 1),
+        "We walked and then ![](photo-001.jpg)she slept.",
+    )
+    html = auth_client.get(f"/story/{story_id}").data.decode()
+    assert "<figure>" not in html
+    assert f'src="/story/{story_id}/media/photo-001.jpg"' in html

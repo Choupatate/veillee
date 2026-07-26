@@ -19,6 +19,67 @@ def test_image_without_alt_has_no_figcaption():
     assert "<figcaption>" not in html
 
 
+def test_two_images_in_one_paragraph_each_become_a_figure():
+    """Editors insert at the cursor, so two photos added in a row share a
+    paragraph. As bare inline <img> they'd miss the figure styling and
+    render at full pixel width, blowing out of the column (F35)."""
+    html = render_markdown(
+        "![](photo-001.jpg)![Asleep](photo-002.jpg)", "/story/2026-01-01-story/media"
+    )
+    assert html.count("<figure>") == 2
+    assert "<p>" not in html
+    assert 'src="/story/2026-01-01-story/media/photo-001.jpg"' in html
+    assert "<figcaption>Asleep</figcaption>" in html
+
+
+def test_images_separated_by_a_single_newline_also_become_figures():
+    html = render_markdown(
+        "![](photo-001.jpg)\n![](photo-002.jpg)", "/story/2026-01-01-story/media"
+    )
+    assert html.count("<figure>") == 2
+
+
+def test_image_mixed_with_text_stays_inline():
+    """That's what the author wrote; CSS keeps it inside the column."""
+    html = render_markdown(
+        "We walked and then ![](photo-001.jpg)she slept.", "/story/2026-01-01-story/media"
+    )
+    assert "<figure>" not in html
+    assert "<p>We walked and then <img" in html
+
+
+def test_a_linked_image_is_left_as_a_link():
+    html = render_markdown(
+        "[![](photo-001.jpg)](https://example.com)", "/story/2026-01-01-story/media"
+    )
+    assert "<figure>" not in html
+    assert '<a href="https://example.com">' in html
+    assert 'src="/story/2026-01-01-story/media/photo-001.jpg"' in html
+
+
+def test_images_only_paragraph_between_prose_keeps_its_neighbours():
+    html = render_markdown(
+        "Before\n\n![](a.jpg)![](b.jpg)\n\nAfter", "/story/2026-01-01-story/media"
+    )
+    assert "<p>Before</p>" in html
+    assert "<p>After</p>" in html
+    assert html.count("<figure>") == 2
+    assert html.index("Before") < html.index("<figure>") < html.index("After")
+
+
+def test_image_inside_a_list_item_is_not_pulled_out():
+    html = render_markdown("- ![](photo-001.jpg)\n- two", "/story/2026-01-01-story/media")
+    assert "<figure>" not in html
+    assert "<li><img" in html
+    assert 'src="/story/2026-01-01-story/media/photo-001.jpg"' in html
+
+
+def test_lone_image_in_a_blockquote_still_becomes_a_figure():
+    html = render_markdown("> ![](photo-001.jpg)", "/story/2026-01-01-story/media")
+    assert "<blockquote>" in html
+    assert "<figure>" in html
+
+
 def test_absolute_image_src_not_rewritten():
     html = render_markdown("![alt](https://example.com/photo.jpg)", "/story/2026-01-01-story/media")
     assert 'src="https://example.com/photo.jpg"' in html
