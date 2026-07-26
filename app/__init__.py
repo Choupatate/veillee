@@ -6,8 +6,35 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 from flask_wtf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+from .throttle import DEFAULT_LIMIT, DEFAULT_WINDOW_SECONDS, FailureThrottle
 
 MAX_CONTENT_LENGTH = 128 * 1024 * 1024
+
+# Everything the app loads is served by the app itself (the no-CDN rule),
+# so the Content-Security-Policy can be strict: no external hosts at all,
+# and no inline <script> anywhere (base.html's theme boot lives in
+# static/js/theme-boot.js for exactly this reason). This is real
+# defense-in-depth: story bodies are rendered with |safe by design, and
+# with this policy a <script> smuggled into one is refused by the browser.
+# blob: appears because the camera (F34), the portrait cropper (F18), and
+# the instant preview all show not-yet-uploaded media via createObjectURL;
+# data: because the vendored Toast UI CSS embeds its icons that way.
+# style-src allows inline styles for the --author-color / --photo-sepia
+# custom-property attributes templates set.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "media-src 'self' blob:; "
+    "connect-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'; "
+    "frame-ancestors 'none'"
+)
 
 _HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
@@ -63,6 +90,7 @@ def create_app(test_config=None):
     title = os.environ.get("STORYBOOK_TITLE") or "Storybook"
     child_slug = os.environ.get("STORYBOOK_CHILD") or None
     accounts_enabled = os.environ.get("STORYBOOK_ACCOUNTS") == "1"
+    trusted_proxies = int(os.environ.get("STORYBOOK_TRUSTED_PROXIES") or 0)
 
     if password and not secret_key and not test_config:
         raise RuntimeError(
@@ -85,10 +113,34 @@ def create_app(test_config=None):
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=cookie_secure,
+        LOGIN_ATTEMPT_LIMIT=DEFAULT_LIMIT,
+        LOGIN_ATTEMPT_WINDOW=DEFAULT_WINDOW_SECONDS,
     )
 
     if test_config:
         app.config.update(test_config)
+
+    # Behind a reverse proxy (the normal NAS setup), remote_addr is the
+    # proxy's address, which would make the login throttle treat the whole
+    # internet as one client — the first attacker to trip it would lock the
+    # family out too. STORYBOOK_TRUSTED_PROXIES=<count of proxies in front>
+    # tells the app to trust that many X-Forwarded-For / X-Forwarded-Proto
+    # hops. Off by default: trusting those headers when no proxy sets them
+    # would let clients spoof their IP past the throttle.
+    if trusted_proxies > 0:
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=trusted_proxies,
+            x_proto=trusted_proxies,
+            x_host=trusted_proxies,
+        )
+
+    # One throttle shared by every password-bearing endpoint (login and,
+    # in accounts mode, the invite-code form) — they guard the same secret.
+    app.extensions["failure_throttle"] = FailureThrottle(
+        limit=app.config["LOGIN_ATTEMPT_LIMIT"],
+        window_seconds=app.config["LOGIN_ATTEMPT_WINDOW"],
+    )
 
     app.config["STORIES_DIR"] = Path(app.config["STORIES_DIR"])
     app.config["STORIES_DIR"].mkdir(parents=True, exist_ok=True)
@@ -108,6 +160,33 @@ def create_app(test_config=None):
     @app.context_processor
     def inject_title():
         return {"app_title": app.config["TITLE"]}
+
+    @app.after_request
+    def security_headers(response):
+        """Hardening headers on every response (F36). Static files keep
+        their long cache but get the same protective headers."""
+        response.headers.setdefault("Content-Security-Policy", _CSP)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        if app.config["SESSION_COOKIE_SECURE"]:
+            # Only meaningful (and only sent) when the operator says the
+            # app is served over HTTPS; a year, no preload — reversible.
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000"
+            )
+        content_type = response.headers.get("Content-Type", "")
+        if content_type.startswith("text/html"):
+            # Pages are personal content behind a login: never written to
+            # a disk cache or held by an intermediary. (Photos keep their
+            # long cache — see below — this is about the pages themselves.)
+            response.headers["Cache-Control"] = "no-store"
+        elif "max-age" in response.headers.get("Cache-Control", ""):
+            # Cached media and static files are for this browser only,
+            # never for a shared cache along the way.
+            response.cache_control.private = True
+            response.cache_control.public = False
+        return response
 
     @app.errorhandler(404)
     def not_found(error):

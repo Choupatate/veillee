@@ -13,15 +13,10 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 <script src="{{ url_for('static', filename='js/safe-storage.js') }}"></script>
 <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
-<script>
-document.documentElement.classList.add("js");
-(function () {
-  var stored = window.SafeStorage.getString("storybook-theme");
-  if (stored === "light" || stored === "dark" || stored === "manuscript") {
-    document.documentElement.setAttribute("data-theme", stored);
-  }
-})();
-</script>
+{# Deliberately a blocking script in <head>: it applies the stored theme
+   before first paint. Inline would be simpler but F36's CSP forbids
+   inline scripts so that markdown-smuggled ones are refused too. #}
+<script src="{{ url_for('static', filename='js/theme-boot.js') }}"></script>
 {% block head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
