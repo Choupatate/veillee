@@ -6,6 +6,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .throttle import DEFAULT_LIMIT, DEFAULT_WINDOW_SECONDS, FailureThrottle
@@ -188,14 +189,91 @@ def create_app(test_config=None):
             response.cache_control.public = False
         return response
 
+    def _error_page(status, heading, message, api_message=None, hint=None):
+        """Every error a family member can hit must render through
+        base.html — it carries the viewport meta and the stylesheet. A bare
+        Werkzeug error page has neither, so on a phone it lays out at 980px
+        and reads as "the site is broken" (F37)."""
+        if request.path.startswith("/api/"):
+            return jsonify({"error": api_message or message}), status
+        return render_template(
+            "error.html", heading=heading, message=message, hint=hint
+        ), status
+
     @app.errorhandler(404)
     def not_found(error):
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Not found."}), 404
         return render_template("404.html"), 404
 
     @app.errorhandler(413)
     def too_large(error):
-        if request.path.startswith("/api/"):
-            return jsonify({"error": "File too large (max 128 MB)."}), 413
-        return render_template("404.html"), 413
+        return _error_page(
+            413,
+            "That file is too big",
+            "The upload limit is 128 MB. Try a smaller file, or copy it "
+            "straight into the stories folder instead.",
+            api_message="File too large (max 128 MB).",
+        )
+
+    @app.errorhandler(CSRFError)
+    def csrf_error(error):
+        """A CSRF failure is nearly always one of two ordinary things: a
+        page left open until its session expired, or a reverse proxy that
+        isn't passing the browser's real host through. Say so, instead of
+        Werkzeug's bare "Bad Request"."""
+        referrer_mismatch = "referrer" in (error.description or "").lower()
+        if referrer_mismatch:
+            hint = (
+                "This usually means the reverse proxy in front of this app "
+                "isn't forwarding the address you typed. Whoever set it up "
+                "should check that it sends X-Forwarded-Host and "
+                "X-Forwarded-Proto, and that STORYBOOK_TRUSTED_PROXIES is set."
+            )
+        else:
+            hint = None
+        return _error_page(
+            400,
+            "That page had gone stale",
+            "For safety this app refuses a form it can't match to your "
+            "current session. Log in again and redo that last step — "
+            "nothing was saved or lost.",
+            api_message="Your session expired. Reload the page and try again.",
+            hint=hint,
+        )
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return _error_page(
+            400,
+            "Something was wrong with that request",
+            "The app couldn't make sense of what the browser sent. "
+            "Reload the page and try again.",
+        )
+
+    @app.errorhandler(403)
+    def forbidden(error):
+        return _error_page(
+            403,
+            "Not allowed",
+            "You don't have access to that.",
+        )
+
+    @app.errorhandler(429)
+    def too_many_requests(error):
+        return _error_page(
+            429,
+            "Too many attempts",
+            "Wait a few minutes and try again.",
+        )
+
+    @app.errorhandler(500)
+    def server_error(error):
+        return _error_page(
+            500,
+            "Something went wrong",
+            "That's a fault in the app, not anything you did. Your stories "
+            "are files on disk and are unaffected.",
+        )
 
     return app

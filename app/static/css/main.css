@@ -520,6 +520,22 @@ mark {
   margin-bottom: 1.5rem;
 }
 
+/* Error pages (F37) reuse the empty-state layout: a heading above the
+   message, and a smaller line below it for the "tell whoever set this up"
+   detail that a family member should be able to ignore. */
+.empty-state__heading {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.empty-state__hint {
+  font-family: var(--font-sans) !important;
+  font-size: 0.9375rem !important;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
 .timeline__onthisday {
   max-width: 40rem;
   margin: 1.25rem auto 0;

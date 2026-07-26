@@ -49,6 +49,8 @@ the exact `F<N>.` heading text to jump to it.
   figures, no overflow)
 - **F36** — Hardening for the open internet (login lockout, CSP and
   security headers, cache privacy, the auth-perimeter test)
+- **F37** — Every error is a real page (no more bare 980px Werkzeug
+  pages on a phone)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -3980,3 +3982,78 @@ rides on the password and the TLS in front.
   injected-script story is neutralized.
 
 `pytest` (873: 851 existing + 22 new) and `ruff check .` green.
+
+## F37. Every error is a real page
+
+Found while reproducing a reverse-proxy problem on a phone viewport, and
+partly caused by F36.
+
+### The problem
+
+`404.html` extended `base.html`, so a missing page looked like the app.
+Every *other* error fell through to Werkzeug's built-in page: bare HTML,
+no stylesheet, and — the part that matters — **no `<meta name="viewport">`**.
+Without that tag a phone lays the page out at 980px and zooms out, so
+"Bad Request" renders as a few words of unreadable type floating in a
+desktop-width void. Measured on a 390px iPhone viewport:
+`clientWidth: 980`, `styleSheets.length: 0`, `viewportMeta: null`. It
+doesn't read as "one request failed", it reads as "the whole site is
+broken".
+
+That was largely theoretical while 400s were hard to reach. F36 changed
+that: Flask-WTF's `WTF_CSRF_SSL_STRICT` referrer check only runs when
+`request.is_secure`, and `request.is_secure` only became true behind a
+reverse proxy once F36 added `ProxyFix`. On a proxy that doesn't forward
+the browser's real host, *every* form submission — login included — now
+400s. So F36 turned a rare ugly page into a likely one, and this fixes it.
+
+### The design
+
+A shared `error.html` (extending `base.html`, reusing the `empty-state`
+layout and the tumbleweed illustration) plus a `_error_page` helper, and
+handlers for 400, 403, 413, 429, 500 and `CSRFError`. Each gets a plain
+heading and a sentence written for a family member, not an operator:
+"That file is too big", "Something went wrong — that's a fault in the
+app, not anything you did. Your stories are files on disk and are
+unaffected."
+
+`/api/*` paths keep returning JSON from the same helper, so the editor's
+`fetch` error handling is unchanged (this also fixed `/api/*` 404s, which
+had been returning the HTML 404 page to JSON callers).
+
+The CSRF handler is the interesting one. A CSRF failure is nearly always
+one of two ordinary things, and the page says which:
+
+- **A stale tab** — "That page had gone stale… nothing was saved or
+  lost." The reassurance is the point; a CSRF error looks alarming.
+- **A misconfigured reverse proxy** — when the failure is specifically
+  the referrer check, an extra hint names it: check that the proxy sends
+  `X-Forwarded-Host` and `X-Forwarded-Proto`, and that
+  `STORYBOOK_TRUSTED_PROXIES` is set. Anyone hitting this is otherwise
+  stuck staring at "Bad Request" with no thread to pull.
+
+The referrer check itself is left on. It's real defense-in-depth, and the
+correct fix for a proxy that trips it is to configure the proxy, not to
+switch a security check off.
+
+### Tests
+
+`tests/test_error_pages.py`:
+
+- Each of 400/403/413/429 renders with the viewport meta and the
+  stylesheet — the exact two things whose absence caused the mobile bug.
+- `/api/*` equivalents stay JSON, and the 413 message still names the
+  128 MB limit.
+- A CSRF failure is a readable page, says "nothing was saved or lost",
+  and never says "Bad Request"; on the API it's JSON.
+- A referrer mismatch over HTTPS names the reverse proxy and
+  `X-Forwarded-Host`; a *matching* referrer over HTTPS still logs in, so
+  the guard can't fire on a correctly configured setup.
+
+Also verified by standing up a real HTTPS reverse proxy (self-signed
+cert, forwarding to the app with DSM's `X-Forwarded-*` headers) and
+driving it in Chromium at 390px with an iPhone user-agent: through a
+correctly configured proxy every page lays out at 390px with all CSS
+loaded and zero failed requests, and the CSRF page now does too.
+
+`pytest` (888: 873 existing + 15 new) and `ruff check .` green.
