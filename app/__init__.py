@@ -92,6 +92,7 @@ def create_app(test_config=None):
     child_slug = os.environ.get("STORYBOOK_CHILD") or None
     accounts_enabled = os.environ.get("STORYBOOK_ACCOUNTS") == "1"
     trusted_proxies = int(os.environ.get("STORYBOOK_TRUSTED_PROXIES") or 0)
+    default_language = os.environ.get("STORYBOOK_LANGUAGE") or None
 
     if password and not secret_key and not test_config:
         raise RuntimeError(
@@ -114,6 +115,7 @@ def create_app(test_config=None):
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=cookie_secure,
+        DEFAULT_LANGUAGE=default_language,
         LOGIN_ATTEMPT_LIMIT=DEFAULT_LIMIT,
         LOGIN_ATTEMPT_WINDOW=DEFAULT_WINDOW_SECONDS,
     )
@@ -156,11 +158,13 @@ def create_app(test_config=None):
 
     @app.before_request
     def resolve_language():
-        """One language per request (F38): an explicit choice stored in a
-        cookie, else the browser's Accept-Language, else English."""
+        """One language per request (F38): the reader's own choice from
+        the picker, else their browser's preference, else the book's own
+        default (STORYBOOK_LANGUAGE), else English."""
         g.lang = i18n.pick_language(
             request.cookies.get(i18n.COOKIE_NAME),
             request.headers.get("Accept-Language"),
+            app.config.get("DEFAULT_LANGUAGE"),
         )
 
     app.jinja_env.globals["is_sealed"] = storage.is_sealed

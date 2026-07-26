@@ -105,6 +105,35 @@ def test_falls_back_to_english():
     assert i18n.pick_language("../../etc/passwd", None) == "en"
 
 
+def test_book_default_covers_a_visitor_with_no_preference_at_all():
+    """A French family's book should greet a preference-less visitor in
+    French, not English."""
+    assert i18n.pick_language(None, None, "fr") == "fr"
+    assert i18n.pick_language(None, "", "fr") == "fr"
+
+
+def test_a_readers_own_choice_beats_the_book_default():
+    assert i18n.pick_language("en", None, "fr") == "en"
+
+
+def test_the_browser_preference_beats_the_book_default():
+    """So an English-speaking relative visiting a French book still gets
+    English — one tap on the flag changes it either way."""
+    assert i18n.pick_language(None, "en-GB,en;q=0.9", "fr") == "en"
+
+
+def test_a_nonsense_book_default_is_ignored():
+    assert i18n.pick_language(None, None, "klingon") == "en"
+
+
+def test_book_default_is_read_from_the_environment(app_factory):
+    client = app_factory(DEFAULT_LANGUAGE="fr").test_client()
+    assert b'<html lang="fr">' in client.get("/login").data
+    # ...and the reader can still override it from the picker.
+    client.post("/language/en", data={"next": "/login"})
+    assert b'<html lang="en">' in client.get("/login").data
+
+
 # --- translation and plurals --------------------------------------------------
 
 

@@ -99,6 +99,7 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_TRUSTED_PROXIES` | How many reverse proxies sit in front of the app (default `0`). Set to `1` behind nginx/Caddy/a NAS reverse proxy so the login lockout sees each visitor's real IP. See "Opening it to the internet". |
 | `STORYBOOK_AUTHORS` | Optional. Comma-separated `Name:#hexcolor` pairs for several narrators (see below). Unset by default. |
 | `STORYBOOK_BIRTHDATE` | Optional. The child's birth date (`YYYY-MM-DD`). Shows the child's age at each memory (see below). Unset by default. |
+| `STORYBOOK_LANGUAGE` | Optional. The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. Defaults to `en`. |
 | `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook`. |
 | `STORYBOOK_CHILD` | Optional. The slug of the person page the family tree's kinship labels are computed relative to (see below). Unset by default. |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
@@ -204,8 +205,11 @@ Two flags sit at the top of every page — including the login page, so
 someone can switch before typing a password. The choice is remembered per
 person, in a cookie that lasts a year and survives logging out, so each
 family member reads the book in their own language on their own devices.
-If nobody has chosen, the browser's own language preference decides, and
-English is the fallback.
+If nobody has chosen, the browser's own language preference decides; after
+that the book's own `STORYBOOK_LANGUAGE` setting, and finally English. A
+reader's own pick always beats all of it — so an English-speaking relative
+visiting a French book still gets English, and one tap changes it either
+way.
 
 Only the **interface** is translated. What you write — titles, stories,
 tags, people's names — is shown exactly as you typed it, in whatever

@@ -87,13 +87,21 @@ def parse_accept_language(header: str):
     return None
 
 
-def pick_language(cookie_value=None, accept_language=None) -> str:
-    """An explicit choice always wins; otherwise take the browser's
-    preference; otherwise English."""
+def pick_language(cookie_value=None, accept_language=None, book_default=None) -> str:
+    """Resolution order: the reader's own explicit choice, then the
+    browser's preference, then the book's own default, then English.
+
+    `book_default` (STORYBOOK_LANGUAGE) matters because this app is one
+    family's book, not a public site: if the book is French, a visitor
+    arriving with no stored choice should get French, not English."""
     if is_supported(cookie_value):
         return cookie_value
     from_header = parse_accept_language(accept_language)
-    return from_header or DEFAULT_LANGUAGE
+    if from_header:
+        return from_header
+    if is_supported(book_default):
+        return book_default
+    return DEFAULT_LANGUAGE
 
 
 def _plural_index(n: int, lang: str) -> int:

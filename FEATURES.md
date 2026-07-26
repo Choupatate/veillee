@@ -4116,10 +4116,19 @@ password, so the route is deliberately not `@login_required`.
 A one-year `storybook-lang` cookie, not the session and not a per-account
 setting. It has to survive logging out, and it has to work before there
 is an account at all (the login page, and the F19 request-account page).
-Resolution order per request: **explicit choice → `Accept-Language` →
-English**, so a French phone gets French on its very first visit without
-touching anything. Regional tags match their base language, so `fr-CA`
+
+Resolution order per request: **the reader's own choice → their browser's
+`Accept-Language` → the book's own `STORYBOOK_LANGUAGE` → English**. A
+French phone therefore gets French on its very first visit without
+touching anything, and regional tags match their base language so `fr-CA`
 and `fr-BE` both land on French.
+
+`STORYBOOK_LANGUAGE` exists because this is one family's book, not a
+public site: a visitor arriving at a French family's book with no
+preference of their own should be greeted in French. It sits *below* the
+browser preference deliberately — an English-speaking relative visiting a
+French book still gets English rather than a wall of French — and below
+the reader's own pick, which always wins and is one tap away either way.
 
 ### Dates, and why not strftime
 
