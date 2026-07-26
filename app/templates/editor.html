@@ -11,6 +11,7 @@
       data-create-url="{{ url_for('api.create_story') }}"
       data-update-url-template="{{ url_for('api.update_story', story_id='__ID__') }}"
       data-image-url-template="{{ url_for('api.upload_image', story_id='__ID__') }}"
+      data-media-url-template="{{ url_for('pages.story_media', story_id='__ID__', filename='__FILENAME__') }}"
       data-redirect-template="{{ url_for('pages.story', story_id='__ID__') }}"
       data-edit-url-template="{{ url_for('pages.edit_story', story_id='__ID__') }}">
   <input class="editor__title" id="story-title" name="title" type="text"

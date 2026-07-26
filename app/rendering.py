@@ -25,7 +25,14 @@ class _StoryImageTreeprocessor(Treeprocessor):
     turning non-empty alt text into a <figcaption>. `media_base` is a path
     prefix like "/story/<id>/media" or "/people/<slug>/media" (FEATURES.md
     F14 generalized this from a hardcoded story path so person pages can
-    share the same rendering)."""
+    share the same rendering).
+
+    A paragraph holding nothing but images becomes one <figure> per image
+    (FEATURES.md F35). Editors insert an image at the cursor, so two photos
+    added in a row land in the same paragraph — as bare inline <img> they'd
+    escape the figure styling entirely and render at full pixel width. An
+    image genuinely mixed in with text is left inline, since that's what
+    the author wrote; CSS keeps it inside the column."""
 
     def __init__(self, md, media_base):
         super().__init__(md)
@@ -35,25 +42,34 @@ class _StoryImageTreeprocessor(Treeprocessor):
         self._process(root)
         return root
 
+    def _is_images_only_paragraph(self, el):
+        if el.tag != "p" or len(el) == 0:
+            return False
+        if (el.text or "").strip():
+            return False
+        return all(
+            child.tag == "img" and not (child.tail or "").strip() for child in el
+        )
+
     def _process(self, parent):
-        for i, child in enumerate(list(parent)):
-            is_lone_image_paragraph = (
-                child.tag == "p"
-                and len(child) == 1
-                and child[0].tag == "img"
-                and not (child.text or "").strip()
-                and not (child[0].tail or "").strip()
-            )
-            if is_lone_image_paragraph:
-                img = child[0]
-                self._rewrite_src(img)
-                figure = self._build_figure(img)
-                figure.tail = child.tail
-                parent[i] = figure
+        rebuilt = []
+        changed = False
+        for child in parent:
+            if self._is_images_only_paragraph(child):
+                figures = []
+                for img in child:
+                    self._rewrite_src(img)
+                    figures.append(self._build_figure(img))
+                figures[-1].tail = child.tail
+                rebuilt.extend(figures)
+                changed = True
             else:
                 if child.tag == "img":
                     self._rewrite_src(child)
                 self._process(child)
+                rebuilt.append(child)
+        if changed:
+            parent[:] = rebuilt
 
     def _rewrite_src(self, img):
         src = img.get("src", "")

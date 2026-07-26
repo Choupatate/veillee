@@ -60,7 +60,13 @@
     history.pushState({ storybookLightbox: true }, "");
   }
 
-  document.querySelectorAll(".story__body figure img, .story__cover").forEach(function (img) {
+  // Every photo in a story opens the lightbox, not just the ones on their
+  // own line (F35) — an image the author mixed into a paragraph is still a
+  // photo worth seeing big. One exception: an image the author wrapped in a
+  // link belongs to that link, so leave the click alone.
+  document.querySelectorAll(".story__body img, .story__cover").forEach(function (img) {
+    if (img.closest("a")) return;
+    img.classList.add("story__zoomable");
     img.addEventListener("click", function () {
       openLightbox(img);
     });

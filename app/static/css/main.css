@@ -1489,6 +1489,22 @@ img.people__portrait {
   color: var(--color-accent);
 }
 
+/* An image the author mixed into a paragraph stays inline — that's what
+   they wrote — but must never break out of the column at its full pixel
+   width (F35), and should still look like the photos around it. Photos on
+   their own line become figures below instead. */
+.story__body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+}
+
+/* Added by story.js only to images it actually wired to the lightbox, so
+   nothing invites a click that does nothing. */
+.story__body img.story__zoomable {
+  cursor: zoom-in;
+}
+
 .story__body figure {
   margin: 2rem 0;
 }

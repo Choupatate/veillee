@@ -421,6 +421,33 @@
     return mediaUrlTemplate.replace("__ID__", storyId).replace("__FILENAME__", filename);
   }
 
+  // Where this story's/person's uploaded images are served from, e.g.
+  // "/story/<id>/media". Empty until the story exists on disk, which is
+  // fine: a story with no id has no images yet either.
+  function mediaBaseUrl() {
+    if (!mediaUrlTemplate || !storyId) return "";
+    return buildMediaUrl("").replace(/\/+$/, "");
+  }
+
+  // Saved markdown keeps bare filenames (rendering.py resolves them); the
+  // editor needs resolvable URLs or it shows a broken image. media-links.js
+  // converts between the two — see its header. Both are no-ops if the
+  // script somehow didn't load, leaving the previous behaviour.
+  function toEditorMarkdown(value) {
+    if (!window.MediaLinks) return value;
+    return window.MediaLinks.toEditorMarkdown(value, mediaBaseUrl());
+  }
+
+  function toStoredMarkdown(value) {
+    if (!window.MediaLinks) return value;
+    return window.MediaLinks.toStoredMarkdown(value, mediaBaseUrl());
+  }
+
+  function toEditorSrc(filename) {
+    if (!window.MediaLinks) return filename;
+    return window.MediaLinks.toEditorSrc(filename, mediaBaseUrl());
+  }
+
   function setPhotoSepia(value) {
     value = Math.max(0, Math.min(100, Math.round(value)));
     if (photoImg) photoImg.style.setProperty("--photo-sepia", value + "%");
@@ -1050,7 +1077,7 @@
       height: "60vh",
       initialEditType: "wysiwyg",
       previewStyle: "vertical",
-      initialValue: sourceTextarea.value,
+      initialValue: toEditorMarkdown(sourceTextarea.value),
       theme: isDarkTheme() ? "dark" : undefined,
       usageStatistics: false,
       toolbarItems: [
@@ -1063,7 +1090,7 @@
         addImageBlobHook: function (blob, callback) {
           uploadImage(blob)
             .then(function (filename) {
-              callback(filename, "");
+              callback(toEditorSrc(filename), "");
             })
             .catch(function (error) {
               showSaveMessage(error.message);
@@ -1095,13 +1122,13 @@
 
     return {
       getMarkdown: function () {
-        return editor.getMarkdown();
+        return toStoredMarkdown(editor.getMarkdown());
       },
       setMarkdown: function (value) {
-        editor.setMarkdown(value);
+        editor.setMarkdown(toEditorMarkdown(value));
       },
       insertImage: function (filename) {
-        editor.exec("addImage", { imageUrl: filename, altText: "" });
+        editor.exec("addImage", { imageUrl: toEditorSrc(filename), altText: "" });
       },
     };
   }
