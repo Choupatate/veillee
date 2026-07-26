@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Family tree — {{ app_title }}{% endblock %}
+{% block title %}{{ _("Family tree") }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-tree{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/familychart/family-chart.css') }}">
 {% endblock %}
 {% block content %}
 <div class="tree">
-  <p class="tree__back"><a href="{{ url_for('pages.people_page') }}">&lsaquo; People</a></p>
-  <h1 class="tree__title">Family tree</h1>
+  <p class="tree__back"><a href="{{ url_for('pages.people_page') }}">&lsaquo; {{ _("People") }}</a></p>
+  <h1 class="tree__title">{{ _("Family tree") }}</h1>
   <hr class="story__flourish tree__flourish" aria-hidden="true">
 
   {% if has_family_links %}
-  <nav class="tree__views" id="tree-views" hidden aria-label="Family tree views"></nav>
+  <nav class="tree__views" id="tree-views" hidden aria-label="{{ _('Family tree views') }}"></nav>
   <div id="FamilyChart" class="tree__chart f3" data-tree-url="{{ url_for('api.api_tree') }}"
        data-fallback-avatar="{{ url_for('static', filename='img/person-oval.jpg') }}"
        data-map-tile="{{ url_for('static', filename='img/tree-map-tile.jpg') }}"
@@ -31,13 +31,13 @@
   </section>
 
   <section class="tree__others">
-    <h2 class="tree__others-heading">Friends &amp; others</h2>
+    <h2 class="tree__others-heading">{{ _("Friends & others") }}</h2>
     <ul class="tree__others-list">
       {% for other in others %}
       <li class="tree__others-item">
         <a href="{{ url_for('pages.person_page', slug=other.slug) }}">{{ other.name }}</a>
         {% if other.friend_of %}
-        <span class="tree__others-note">friend of
+        <span class="tree__others-note">{{ _("friend of") }}
           {% for f in other.friend_of %}<a href="{{ url_for('pages.person_page', slug=f.slug) }}">{{ f.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</span>
         {% endif %}
       </li>
@@ -47,7 +47,7 @@
   {% else %}
   <img class="illo tree__illo" src="{{ url_for('static', filename='img/tree-sapling.jpg') }}"
        alt="" loading="lazy" decoding="async" width="760" height="739">
-  <p class="tree__empty">Link two people in the person editor and the tree will grow here.</p>
+  <p class="tree__empty">{{ _("Link two people in the person editor and the tree will grow here.") }}</p>
   {% endif %}
 </div>
 {% endblock %}

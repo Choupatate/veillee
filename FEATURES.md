@@ -51,6 +51,8 @@ the exact `F<N>.` heading text to jump to it.
   security headers, cache privacy, the auth-perimeter test)
 - **F37** — Every error is a real page (no more bare 980px Werkzeug
   pages on a phone)
+- **F38** — The interface in French, with a flag picker each reader sets
+  for themselves
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -4057,3 +4059,114 @@ correctly configured proxy every page lays out at 390px with all CSS
 loaded and zero failed requests, and the CSRF page now does too.
 
 `pytest` (888: 873 existing + 15 new) and `ruff check .` green.
+
+## F38. The interface in French
+
+The README's "Ideas for later" listed i18n as deliberately out of scope,
+with the note that if it ever became worth doing it belonged in a
+discussion rather than a surprise PR. This is that discussion resolved:
+the book is for a French family, and a grandmother reading it should not
+have to work around an English interface.
+
+### What is and isn't translated
+
+The **interface** is translated. What the family **wrote** never is —
+story titles, bodies, tags, milestone labels, people's names, relation
+lines. Two readers of the same book see the same memories with different
+furniture around them. This is the whole design constraint: translation
+is a rendering concern, and `stories/` on disk is untouched by it. Not a
+byte of the storage format changed.
+
+### Why not Flask-Babel
+
+It was the obvious choice and was rejected: `.po`/`.mo` files need
+`pybabel` to compile them, which is a build step, and this project has
+none and wants none (CLAUDE.md). What it buys — plural rules for
+languages with more than two forms, message extraction tooling — is
+overkill for two languages that both have exactly two.
+
+Instead `app/i18n.py` is a dict lookup, a plural rule, and a date
+formatter, with the French strings in `app/translations_fr.py`. No new
+dependency.
+
+Keys are the **English source strings**, so templates stay readable
+(`{{ _("Back to the timeline") }}`) and a missing entry degrades to
+English rather than to a raw key like `error.notfound.title`.
+
+### The picker
+
+Two flags in the nav, present on every page including `/login` — someone
+who can't read English has to be able to switch *before* typing a
+password, so the route is deliberately not `@login_required`.
+
+- **Inline SVG flags**, not emoji. Emoji flags were the shortcut and were
+  rejected: Windows renders them as bare letters, defeating the entire
+  point. Each flag carries its `EN`/`FR` code beside it anyway, and the
+  buttons are 68×44px — a real tap target on a phone.
+- **One tiny POST form per language**, not a `<select>` plus JS: it works
+  with JavaScript off and is CSRF-protected like every other state change.
+  A hidden `next` field carries the current path so switching leaves you
+  on the page you were reading — through the same local-paths-only
+  allowlist as the login redirect, so it can't become an open redirect.
+- The current language is dimmed and marked `aria-current` rather than
+  removed, so the row never reflows when you switch.
+
+### Where the choice lives
+
+A one-year `storybook-lang` cookie, not the session and not a per-account
+setting. It has to survive logging out, and it has to work before there
+is an account at all (the login page, and the F19 request-account page).
+Resolution order per request: **explicit choice → `Accept-Language` →
+English**, so a French phone gets French on its very first visit without
+touching anything. Regional tags match their base language, so `fr-CA`
+and `fr-BE` both land on French.
+
+### Dates, and why not strftime
+
+`strftime("%B")` is locale-dependent and needs the locale generated on
+the host, which a slim Docker image doesn't have; `%-d` is glibc-only
+besides. A month-name lookup table is smaller, deterministic, and
+identical everywhere. French also isn't English with the words swapped:
+the day comes first, there's no comma before the year, and the first of
+the month takes an ordinal — `1er mai 2026`, not `1 mai 2026`.
+
+Plural rules differ too: French keeps the singular at zero ("0 jour"),
+English doesn't ("0 days"). `ngettext` handles it per language, which is
+also how F3's age labels became `3 ans` / `1 jour` / `avant ta naissance`.
+The arithmetic behind those moved into `dates.age_parts()` so both
+languages share one implementation of the month/day rounding.
+
+Register note: the app addresses the child directly in a few places, and
+the French keeps that familiar tone — "tu", never "vous".
+
+### Tests
+
+`tests/test_i18n.py`, and the first one is the one that matters:
+
+- **Coverage** — walks every template, collects every string passed to
+  `_()`/`_n()`, and fails if any lacks a French entry. Add an
+  untranslated string and CI fails the day you write it. "Falls back to
+  English" stays a safety net rather than the normal state.
+- **Quality guards** on the dict itself: no French value identical to its
+  English key (with an explicit allowlist for words that really are the
+  same — *Parents*, *Sources*, *Zoom*…), none empty, and placeholders
+  (`{n}`, `{name}`) preserved on both sides so interpolation can't
+  silently drop a number.
+- Language resolution: cookie beats browser, quality values honoured,
+  regional tags matched, unknown/garbage input falls back to English.
+- Dates and plurals in both languages, including `1er`, and the fact that
+  no month name is missing.
+- The picker and cookie end to end: present on `/login`, switching
+  changes the page and `<html lang>`, survives logout, an unknown code is
+  404 with no cookie set, the redirect can't be turned into an open
+  redirect, and GET is 405.
+- **Story content is never translated** — a story titled "People" still
+  says "People" on a French page.
+
+Verified in Chromium at 390px and 1280px: switching on the login page
+before logging in, the choice surviving login, no English left on the
+timeline/editor/people/help/book, French dates on the timeline and story
+pages (`18 juin`, `18 juin 2023 · 0 jour`), no horizontal overflow, and
+zero console errors.
+
+`pytest` (923: 888 existing + 35 new) and `ruff check .` green.

@@ -1,31 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Log in — {{ app_title }}{% endblock %}
+{% block title %}{{ _("Log in") }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-login{% endblock %}
 {% block content %}
 <div class="login">
   <h1 class="login__title">{{ app_title }}</h1>
-  <p class="login__subtitle">A private memory journal.</p>
+  <p class="login__subtitle">{{ _("A private memory journal.") }}</p>
   <img class="illo login__illo" src="{{ url_for('static', filename='img/login-campfire.jpg') }}"
        alt="" loading="lazy" decoding="async" width="856" height="735">
   <form class="login__form" method="post" action="{{ url_for('auth.login') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if accounts_enabled %}
-    <label class="login__label" for="username">Username</label>
+    <label class="login__label" for="username">{{ _("Username") }}</label>
     <input class="login__input" type="text" id="username" name="username" autocomplete="username" autofocus required>
-    <label class="login__label" for="password">Password</label>
+    <label class="login__label" for="password">{{ _("Password") }}</label>
     <input class="login__input" type="password" id="password" name="password" autocomplete="current-password" required>
     {% else %}
-    <label class="login__label" for="password">Password</label>
+    <label class="login__label" for="password">{{ _("Password") }}</label>
     <input class="login__input" type="password" id="password" name="password" autocomplete="current-password" autofocus required>
     {% endif %}
-    <button class="btn btn--primary login__submit" type="submit">Log in</button>
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Log in") }}</button>
   </form>
   {% if accounts_enabled %}
   <p class="login__request-link">
     {% if no_accounts_yet %}
-    No accounts yet — <a href="{{ url_for('pages.request_account') }}">request the first one</a> to get started.
+    {{ _("No accounts yet —") }} <a href="{{ url_for('pages.request_account') }}">{{ _("request the first one") }}</a> {{ _("to get started.") }}
     {% else %}
-    Don't have an account? <a href="{{ url_for('pages.request_account') }}">Request one.</a>
+    {{ _("Don't have an account?") }} <a href="{{ url_for('pages.request_account') }}">{{ _("Request one.") }}</a>
     {% endif %}
   </p>
   {% endif %}

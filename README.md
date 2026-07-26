@@ -198,6 +198,25 @@ plain LAN HTTP the "Take a photo" buttons simply don't appear, and
 choosing an existing file (which on a phone still lets you use the
 camera app) works as it always has.
 
+### In French, or in English
+
+Two flags sit at the top of every page — including the login page, so
+someone can switch before typing a password. The choice is remembered per
+person, in a cookie that lasts a year and survives logging out, so each
+family member reads the book in their own language on their own devices.
+If nobody has chosen, the browser's own language preference decides, and
+English is the fallback.
+
+Only the **interface** is translated. What you write — titles, stories,
+tags, people's names — is shown exactly as you typed it, in whatever
+language you wrote it. Dates follow the reader's language too (`18 juin
+2026` / `June 18, 2026`), as do ages (`3 ans` / `3 years old`).
+
+Adding another language means adding one file like
+`app/translations_fr.py` and one entry in `LANGUAGES`; there is no build
+step and no gettext toolchain. A test walks every template and fails if
+any interface string is missing a translation.
+
 ### Firsts — a register of milestones
 
 Any story (or instant) can carry an optional milestone label — "First

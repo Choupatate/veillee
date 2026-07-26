@@ -10,7 +10,7 @@
       <h1 class="book-cover__title">{{ app_title }}</h1>
       {% if min_year and max_year %}
       <p class="book-cover__range">
-        {% if min_year == max_year %}Stories from {{ min_year }}{% else %}Stories from {{ min_year }} to {{ max_year }}{% endif %}
+        {% if min_year == max_year %}{{ _("Stories from {year}", year=min_year) }}{% else %}{{ _("Stories from {start} to {end}", start=min_year, end=max_year) }}{% endif %}
       </p>
       {% endif %}
       {% if authors %}
@@ -55,7 +55,7 @@
 {% endif %}
 {% endfor %}
 <button type="button" class="book__print-btn" id="book-print-btn">
-  <img class="btn-icon" src="{{ url_for('static', filename='img/icon-print.png') }}" alt="" width="20" height="20">Print / save as PDF
+  <img class="btn-icon" src="{{ url_for('static', filename='img/icon-print.png') }}" alt="" width="20" height="20">{{ _("Print / save as PDF") }}
 </button>
 {% endblock %}
 {% block scripts %}

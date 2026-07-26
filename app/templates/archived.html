@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Archived — {{ app_title }}{% endblock %}
+{% block title %}{{ _("Archived") }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-archived{% endblock %}
 {% block content %}
 {% set prefix = "archived" %}
-{% set page_title = "Archived" %}
-{% set empty_text = "Nothing archived right now." %}
+{% set page_title = _("Archived") %}
+{% set empty_text = _("Nothing archived right now.") %}
 {% include "_story_list.html" %}
 {% endblock %}

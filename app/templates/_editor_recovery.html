@@ -3,10 +3,10 @@
    ids are what editor.js binds to. #}
 <div class="editor__recovery" id="editor-recovery" hidden>
   <p class="editor__recovery-text">
-    You have an unsaved draft from <span id="editor-recovery-time"></span>.
+    {{ _("You have an unsaved draft from") }} <span id="editor-recovery-time"></span>.
   </p>
   <div class="editor__recovery-actions">
-    <button type="button" class="btn" id="editor-recovery-restore">Restore it</button>
-    <button type="button" class="btn" id="editor-recovery-discard">Discard</button>
+    <button type="button" class="btn" id="editor-recovery-restore">{{ _("Restore it") }}</button>
+    <button type="button" class="btn" id="editor-recovery-discard">{{ _("Discard") }}</button>
   </div>
 </div>

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Drafts — {{ app_title }}{% endblock %}
+{% block title %}{{ _("Drafts") }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-drafts{% endblock %}
 {% block content %}
 {% set prefix = "drafts" %}
-{% set page_title = "Drafts" %}
-{% set empty_text = "No drafts right now." %}
+{% set page_title = _("Drafts") %}
+{% set empty_text = _("No drafts right now.") %}
 {% include "_story_list.html" %}
 {% endblock %}

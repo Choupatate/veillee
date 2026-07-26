@@ -1,0 +1,553 @@
+"""French interface strings (FEATURES.md F38).
+
+Keys are the English source strings exactly as they appear in the
+templates, so a missing entry falls back to readable English rather than a
+raw key. `tests/test_i18n.py` walks the templates and fails if any string
+passed to `_()` is missing here, so the fallback stays a safety net rather
+than a habit.
+
+Tone note: the app addresses the child directly in a few places ("before
+you were born"), and French keeps that familiar register — "tu", never
+"vous". The family writing the book is being spoken to, not a customer.
+"""
+
+TRANSLATIONS_FR = {
+    # --- navigation and chrome ---------------------------------------------
+    "Skip to content": "Aller au contenu",
+    "Toggle color theme": "Changer de thème",
+    "Language": "Langue",
+    "People": "Personnes",
+    "Help": "Aide",
+    "Accounts": "Comptes",
+    "Account": "Compte",
+    "+ New story": "+ Nouvelle histoire",
+    "+ Instant": "+ Instant",
+    "Log out": "Se déconnecter",
+    "Timeline": "Fil du temps",
+    "Edit": "Modifier",
+    "Save": "Enregistrer",
+    "Cancel": "Annuler",
+    "Delete": "Supprimer",
+    "Restore": "Restaurer",
+    "Import": "Importer",
+
+    # --- login / accounts ---------------------------------------------------
+    "Log in": "Se connecter",
+    "A private memory journal.": "Un journal de souvenirs, rien qu'à vous.",
+    "Username": "Nom d'utilisateur",
+    "Password": "Mot de passe",
+    "Incorrect password.": "Mot de passe incorrect.",
+    "Incorrect username or password.": "Nom d'utilisateur ou mot de passe incorrect.",
+    "Incorrect invite code.": "Code d'invitation incorrect.",
+    "Don't have an account?": "Pas encore de compte ?",
+    "Request one.": "En demander un.",
+    "No accounts yet —": "Aucun compte pour l'instant —",
+    "request the first one": "demandez le premier",
+    "to get started.": "pour commencer.",
+    "Request an account": "Demander un compte",
+    "Request account": "Demander un compte",
+    "Ask whoever set this up for the invite code.":
+        "Demandez le code d'invitation à la personne qui a installé ce livre.",
+    "Your name": "Votre nom",
+    "Note (optional)": "Note (facultatif)",
+    "e.g. Milo's godmother": "ex. la marraine de Milo",
+    "Invite code": "Code d'invitation",
+    "Back to log in": "Retour à la connexion",
+    "You're the first account on this book — it's been created as admin.":
+        "Vous êtes le premier compte de ce livre — il a été créé en tant "
+        "qu'administrateur.",
+    "Thanks — an admin will review your request soon.":
+        "Merci — un administrateur examinera votre demande bientôt.",
+    "Change password": "Changer le mot de passe",
+    "Current password": "Mot de passe actuel",
+    "New password": "Nouveau mot de passe",
+    "Confirm new password": "Confirmer le nouveau mot de passe",
+    "Your password has been changed. Any other device you're logged in on "
+    "will need to log in again.":
+        "Votre mot de passe a été changé. Tout autre appareil connecté devra "
+        "se reconnecter.",
+    "Write links": "Liens d'écriture",
+    "Create link": "Créer un lien",
+    "Label (optional)": "Intitulé (facultatif)",
+    "e.g. for the recital story": "ex. pour l'histoire du spectacle",
+    "Expires after (days, optional)": "Expire après (jours, facultatif)",
+    "Never": "Jamais",
+    "Copy this now — it won't be shown again:":
+        "Copiez-le maintenant — il ne sera plus affiché :",
+    "Revoke": "Révoquer",
+    "History": "Historique",
+    "New account": "Nouveau compte",
+    "+ New account": "+ Nouveau compte",
+    "Create account": "Créer le compte",
+    "Role": "Rôle",
+    "No accounts yet.": "Aucun compte pour l'instant.",
+    "Pending requests": "Demandes en attente",
+    "Review": "Examiner",
+    "Review request": "Examiner la demande",
+    "Approve": "Approuver",
+    "Reject request": "Rejeter la demande",
+    "Reset password": "Réinitialiser le mot de passe",
+    "Active write-links": "Liens d'écriture actifs",
+    "Link": "Lier",
+    "Set": "Définir",
+    "Family member": "Membre de la famille",
+    "— Create a new person —": "— Créer une nouvelle personne —",
+    "Name, if creating a new person": "Nom, si vous créez une personne",
+
+    # --- timeline -----------------------------------------------------------
+    "No stories yet — this is where your family's memories will live.":
+        "Aucune histoire pour l'instant — c'est ici que vivront les "
+        "souvenirs de votre famille.",
+    "{n} year ago today —": "il y a {n} an aujourd'hui —",
+    "{n} years ago today —": "il y a {n} ans aujourd'hui —",
+    "turns {n} today": "a {n} ans aujourd'hui",
+    "wedding anniversary": "anniversaire de mariage",
+    "PACS anniversary": "anniversaire de PACS",
+    "anniversary": "anniversaire",
+    "{n}-year {kind} today": "{n} ans de {kind} aujourd'hui",
+    "Nothing new in {n} month —": "Rien de neuf depuis {n} mois —",
+    "Nothing new in {n} months —": "Rien de neuf depuis {n} mois —",
+    "a little story?": "une petite histoire ?",
+    "Drafts ({n})": "Brouillons ({n})",
+    "Archived ({n})": "Archivées ({n})",
+    "Search titles, tags, people…": "Rechercher titres, mots-clés, personnes…",
+    "Search stories by title, tag, or person":
+        "Rechercher une histoire par titre, mot-clé ou personne",
+    "Jump to the latest ↓": "Aller à la plus récente ↓",
+    "No stories match": "Aucune histoire ne correspond à",
+    "Jump to year": "Aller à l'année",
+    "A sealed letter · opens {date}": "Une lettre scellée · s'ouvre le {date}",
+    "Firsts": "Premières fois",
+    "Growing up": "Grandir",
+    "Open a page at random": "Ouvrir une page au hasard",
+    "Read as a book": "Lire comme un livre",
+    "Download as PDF": "Télécharger en PDF",
+    "Download as EPUB": "Télécharger en EPUB",
+    "Download everything (.zip)": "Tout télécharger (.zip)",
+    "Import a backup": "Importer une sauvegarde",
+
+    # --- story --------------------------------------------------------------
+    "DRAFT": "BROUILLON",
+    "ARCHIVED": "ARCHIVÉE",
+    "Listen": "Écouter",
+    "Transcript": "Transcription",
+    "Story navigation": "Navigation entre les histoires",
+    "At random": "Au hasard",
+    "A sealed letter": "Une lettre scellée",
+    "A sealed letter from {author}": "Une lettre scellée de {author}",
+    "It opens on {date}.": "Elle s'ouvre le {date}.",
+
+    # --- drafts / archived --------------------------------------------------
+    "Drafts": "Brouillons",
+    "No drafts right now.": "Aucun brouillon pour l'instant.",
+    "Archived": "Archivées",
+    "Nothing archived right now.": "Rien d'archivé pour l'instant.",
+
+    # --- people / tree ------------------------------------------------------
+    "New person": "Nouvelle personne",
+    "+ New person": "+ Nouvelle personne",
+    "Edit person": "Modifier la personne",
+    "Family tree": "Arbre généalogique",
+    "Almanac": "Almanach",
+    "The people who show up again and again — grandparents, godparents, the "
+    "family dog — get a page of their own here.":
+        "Les personnes qui reviennent encore et encore — grands-parents, "
+        "parrains et marraines, le chien de la famille — ont leur page ici.",
+    "Friend of": "Ami de",
+    "Born {date}": "Né le {date}",
+    "Died {date}": "Mort le {date}",
+    "Parents": "Parents",
+    "Partner": "Conjoint",
+    "Partners": "Conjoints",
+    "Children": "Enfants",
+    "Siblings": "Frères et sœurs",
+    "Unions": "Unions",
+    "Wedding": "Mariage",
+    "PACS": "PACS",
+    "Union": "Union",
+    "wedding": "mariage",
+    "union": "union",
+    "Appears in": "Apparaît dans",
+    "Link two people in the person editor and the tree will grow here.":
+        "Reliez deux personnes dans l'éditeur et l'arbre poussera ici.",
+    "Family tree views": "Vues de l'arbre",
+    "Friends & others": "Amis et autres",
+    "friend of": "ami de",
+
+    # --- firsts / growth / almanac -----------------------------------------
+    'Give any story a milestone label in the editor — "First steps", '
+    '"First word" — and it\'ll appear here, in the order it happened.':
+        "Donnez à une histoire un intitulé de première fois dans l'éditeur — "
+        "« Premiers pas », « Premier mot » — et elle apparaîtra ici, dans "
+        "l'ordre où c'est arrivé.",
+    "Set {var} in your configuration to turn this on — the photo closest to "
+    "each birthday, one per year.":
+        "Définissez {var} dans votre configuration pour activer ceci — la "
+        "photo la plus proche de chaque anniversaire, une par an.",
+    "Add a cover photo to a story and it'll take its place here — the photo "
+    "nearest each birthday, one per year, watching them grow in one glance.":
+        "Ajoutez une photo de couverture à une histoire et elle prendra sa "
+        "place ici — la photo la plus proche de chaque anniversaire, une par "
+        "an, pour les voir grandir d'un seul coup d'œil.",
+    "Newborn": "Nouveau-né",
+    "Turning {n}": "{n} ans",
+    "Add a birth, death, wedding, or PACS date to someone in the person "
+    "editor, and it'll take its place here — a family's dates, month by "
+    "month, the way a real record book keeps them.":
+        "Ajoutez une date de naissance, de décès, de mariage ou de PACS à "
+        "quelqu'un dans l'éditeur, et elle prendra sa place ici — les dates "
+        "d'une famille, mois par mois, comme dans un vrai livre de famille.",
+    "born, {year}": "né, {year}",
+    "died, {year}": "mort, {year}",
+
+    # --- book ---------------------------------------------------------------
+    "Stories from {year}": "Histoires de {year}",
+    "Stories from {start} to {end}": "Histoires de {start} à {end}",
+    "Print / save as PDF": "Imprimer / enregistrer en PDF",
+
+    # --- editor -------------------------------------------------------------
+    "New story": "Nouvelle histoire",
+    "Edit story": "Modifier l'histoire",
+    "New instant": "Nouvel instant",
+    "Untitled": "Sans titre",
+    "Seal until": "Sceller jusqu'au",
+    "Tags, comma separated": "Mots-clés, séparés par des virgules",
+    "A first? (e.g. First steps)": "Une première fois ? (ex. Premiers pas)",
+    "Who's in this story": "Qui est dans cette histoire",
+    "Search names…": "Rechercher un nom…",
+    "Search {label}": "Rechercher {label}",
+    "Draft": "Brouillon",
+    "Archive": "Archiver",
+    "Another idea": "Une autre idée",
+    "Sources": "Sources",
+    "+ Add source": "+ Ajouter une source",
+    "Photo": "Photo",
+    "Take a photo": "Prendre une photo",
+    "Add a photo": "Ajouter une photo",
+    "Change photo": "Changer la photo",
+    "No photo yet": "Pas encore de photo",
+    "Voice": "Voix",
+    "Record": "Enregistrer",
+    "Pause": "Pause",
+    "Stop": "Arrêter",
+    "View history": "Voir l'historique",
+    "You have an unsaved draft from": "Vous avez un brouillon non enregistré du",
+    "Restore it": "Le restaurer",
+    "Discard": "Abandonner",
+    "One line…": "Une ligne…",
+    "Name": "Nom",
+    "Relation (e.g. your grandmother)": "Lien (ex. ta grand-mère)",
+    "Born": "Naissance",
+    "Died": "Décès",
+    "Byline color": "Couleur de signature",
+    "Zoom": "Zoom",
+    "Zoom in": "Zoomer",
+    "Zoom out": "Dézoomer",
+    "Drag the photo to reposition it.":
+        "Faites glisser la photo pour la repositionner.",
+    "Use this photo": "Utiliser cette photo",
+    "Sepia tone": "Teinte sépia",
+    "Family": "Famille",
+    "Parents (up to two)": "Parents (deux au maximum)",
+    "+ Add union": "+ Ajouter une union",
+    "Gender": "Genre",
+    "Unset": "Non défini",
+    "Add another person and you'll be able to link parents, a partner, and "
+    "gender here — those pickers need someone else to point at.":
+        "Ajoutez une autre personne et vous pourrez relier parents, conjoint "
+        "et genre ici — ces sélecteurs ont besoin de quelqu'un d'autre.",
+
+    # --- history ------------------------------------------------------------
+    "Back to editor": "Retour à l'éditeur",
+    "History for “{title}”": "Historique de « {title} »",
+    "No earlier versions yet — every future save will be recorded here.":
+        "Aucune version antérieure — chaque enregistrement futur sera noté ici.",
+
+    # --- import -------------------------------------------------------------
+    'Restore stories from a zip downloaded via "Download everything (.zip)". '
+    "This only works if none of the zip's stories already exist here — if "
+    "anything would collide, nothing is changed and you'll see an error below.":
+        "Restaurez des histoires depuis un zip téléchargé via « Tout "
+        "télécharger (.zip) ». Cela ne fonctionne que si aucune des histoires "
+        "du zip n'existe déjà ici — en cas de conflit, rien n'est modifié et "
+        "une erreur s'affiche ci-dessous.",
+    "Choose a backup .zip": "Choisir un fichier .zip",
+
+    # --- write links / delegate --------------------------------------------
+    "Write for {name}": "Écrire pour {name}",
+    "Your story is added straight to their book. You won't see anything else "
+    "here, and this page won't show it back to you afterward.":
+        "Votre histoire est ajoutée directement à leur livre. Vous ne verrez "
+        "rien d'autre ici, et cette page ne vous la remontrera pas ensuite.",
+    "Title": "Titre",
+    "Date": "Date",
+    "Story": "Histoire",
+    "Add this story": "Ajouter cette histoire",
+    "Thank you": "Merci",
+    "Your story for {name} has been added to the book.":
+        "Votre histoire pour {name} a été ajoutée au livre.",
+    "Link not valid": "Lien non valide",
+    "This link isn't valid anymore — it may have already been used, revoked, "
+    "or expired. Ask whoever sent it to you for a new one.":
+        "Ce lien n'est plus valide — il a peut-être déjà été utilisé, révoqué "
+        "ou expiré. Demandez-en un nouveau à la personne qui vous l'a envoyé.",
+
+    # --- errors -------------------------------------------------------------
+    "Not found": "Introuvable",
+    "That page doesn't exist, or it never did.":
+        "Cette page n'existe pas, ou n'a jamais existé.",
+    "Back to the timeline": "Retour au fil du temps",
+    "That page had gone stale": "Cette page n'était plus à jour",
+    "For safety this app refuses a form it can't match to your current "
+    "session. Log in again and redo that last step — nothing was saved or "
+    "lost.":
+        "Par sécurité, cette application refuse un formulaire qu'elle ne peut "
+        "pas rattacher à votre session. Reconnectez-vous et refaites cette "
+        "dernière étape — rien n'a été enregistré ni perdu.",
+    "This usually means the reverse proxy in front of this app isn't "
+    "forwarding the address you typed. Whoever set it up should check that it "
+    "sends X-Forwarded-Host and X-Forwarded-Proto, and that "
+    "STORYBOOK_TRUSTED_PROXIES is set.":
+        "Cela signifie en général que le proxy inverse placé devant cette "
+        "application ne transmet pas l'adresse que vous avez saisie. La "
+        "personne qui l'a configuré doit vérifier qu'il envoie "
+        "X-Forwarded-Host et X-Forwarded-Proto, et que "
+        "STORYBOOK_TRUSTED_PROXIES est défini.",
+    "That file is too big": "Ce fichier est trop volumineux",
+    "The upload limit is 128 MB. Try a smaller file, or copy it straight into "
+    "the stories folder instead.":
+        "La limite d'envoi est de 128 Mo. Essayez un fichier plus petit, ou "
+        "copiez-le directement dans le dossier des histoires.",
+    "File too large (max 128 MB).": "Fichier trop volumineux (128 Mo maximum).",
+    "Your session expired. Reload the page and try again.":
+        "Votre session a expiré. Rechargez la page et réessayez.",
+    "Something was wrong with that request": "Cette requête posait problème",
+    "The app couldn't make sense of what the browser sent. Reload the page "
+    "and try again.":
+        "L'application n'a pas compris ce que le navigateur a envoyé. "
+        "Rechargez la page et réessayez.",
+    "Not allowed": "Non autorisé",
+    "You don't have access to that.": "Vous n'avez pas accès à cela.",
+    "Too many attempts": "Trop de tentatives",
+    "Wait a few minutes and try again.":
+        "Attendez quelques minutes et réessayez.",
+    "Too many attempts. Try again in about {n} minute.":
+        "Trop de tentatives. Réessayez dans environ {n} minute.",
+    "Too many attempts. Try again in about {n} minutes.":
+        "Trop de tentatives. Réessayez dans environ {n} minutes.",
+    "Something went wrong": "Quelque chose s'est mal passé",
+    "That's a fault in the app, not anything you did. Your stories are files "
+    "on disk and are unaffected.":
+        "C'est un défaut de l'application, pas quelque chose que vous avez "
+        "fait. Vos histoires sont des fichiers sur le disque et ne sont pas "
+        "touchées.",
+    "Not found.": "Introuvable.",
+
+    # --- ages (F3) ----------------------------------------------------------
+    "before you were born": "avant ta naissance",
+    "{n} day old": "{n} jour",
+    "{n} days old": "{n} jours",
+    "{n} month old": "{n} mois",
+    "{n} months old": "{n} mois",
+    "{n} year old": "{n} an",
+    "{n} years old": "{n} ans",
+
+    # --- help page ----------------------------------------------------------
+    "A quick guide to what's here and how to use it. Nothing below is "
+    "required reading — most of it you'll never need, and everything is "
+    "forgiving: nothing here can be lost by accident.":
+        "Un petit guide de ce qui existe ici et de son usage. Rien de tout "
+        "cela n'est obligatoire — vous n'aurez presque jamais besoin de la "
+        "plupart, et tout est indulgent : rien ici ne peut être perdu par "
+        "accident.",
+    # Prose blocks carry inline <strong>/<code> and are rendered with
+    # |safe — the markup has to survive into the translation.
+    "A <strong>Story</strong> is a full dated entry — a title, the day it "
+    "happened, and as much writing and as many photos as you like. An "
+    "<strong>Instant</strong> is quicker: a photo and one line, for the small "
+    "moments that don't need a whole story written about them.":
+        "Une <strong>histoire</strong> est une entrée datée complète — un "
+        "titre, le jour où c'est arrivé, et autant de texte et de photos que "
+        "vous voulez. Un <strong>instant</strong> va plus vite : une photo et "
+        "une ligne, pour les petits moments qui n'ont pas besoin de toute une "
+        "histoire.",
+    "Not ready to publish something? Save it as a <strong>draft</strong> — "
+    "only you (and other family members writing in the same book) can see it "
+    "until you come back and finish it.":
+        "Pas encore prêt à publier ? Enregistrez en <strong>brouillon</strong> "
+        "— vous seul (et les autres membres de la famille qui écrivent dans ce "
+        "livre) le verrez jusqu'à ce que vous reveniez le terminer.",
+    'Want to write something for later, rather than now? A <strong>sealed '
+    'letter</strong> stays hidden from the timeline — even from you — until '
+    'the "open on" date you set for it arrives.':
+        "Envie d'écrire pour plus tard plutôt que pour maintenant ? Une "
+        "<strong>lettre scellée</strong> reste cachée du fil du temps — même "
+        "pour vous — jusqu'à la date d'ouverture que vous lui donnez.",
+    "If a story marks a real first — first steps, first word, first day of "
+    "school — give it a short <strong>milestone</strong> label in the editor. "
+    "It'll show up on the <strong>Firsts</strong> page, a chronological list "
+    "of every first that's happened.":
+        "Si une histoire marque une vraie première fois — premiers pas, "
+        "premier mot, première rentrée — donnez-lui un court intitulé de "
+        "<strong>première fois</strong> dans l'éditeur. Elle apparaîtra sur la "
+        "page <strong>Premières fois</strong>, la liste chronologique de "
+        "toutes les premières fois.",
+    "Add family and friends as <strong>people</strong>, so you can tag who "
+    "was in a story and see the ones they appear in. Link parents and "
+    "partners between people to build the <strong>family tree</strong>, which "
+    'works out relationships ("your great-aunt") on its own — you never type '
+    "a kinship word yourself.":
+        "Ajoutez famille et amis comme <strong>personnes</strong>, pour "
+        "marquer qui était dans une histoire et voir celles où ils "
+        "apparaissent. Reliez parents et conjoints pour construire "
+        "l'<strong>arbre généalogique</strong>, qui déduit tout seul les liens "
+        "(« ta grand-tante ») — vous n'écrivez jamais un mot de parenté "
+        "vous-même.",
+    "A person's page can also record their <strong>birthday, a death, and "
+    "wedding/PACS dates</strong>. Recorded dates quietly surface on the "
+    "timeline the day they land (a birthday banner, an anniversary), and the "
+    "<strong>Almanac</strong> lists every one of them, month by month, like a "
+    "family record book.":
+        "La page d'une personne peut aussi noter son <strong>anniversaire, un "
+        "décès et des dates de mariage ou de PACS</strong>. Les dates "
+        "enregistrées apparaissent discrètement sur le fil du temps le jour "
+        "venu, et l'<strong>Almanach</strong> les liste toutes, mois par mois, "
+        "comme un vrai livre de famille.",
+    "If you've set the child's birth date (an app setting, ask whoever set up "
+    "Storybook), the <strong>Growing up</strong> page picks the story photo "
+    "nearest each birthday, so you can watch them grow year by year in one "
+    "glance.":
+        "Si la date de naissance de l'enfant est renseignée (un réglage de "
+        "l'application, demandez à la personne qui l'a installée), la page "
+        "<strong>Grandir</strong> choisit la photo la plus proche de chaque "
+        "anniversaire, pour les voir grandir année après année d'un seul coup "
+        "d'œil.",
+    "The <strong>timeline</strong> is the everyday view — everything in "
+    "order, newest at the top. <strong>Open a page at random</strong> for a "
+    "surprise from the past, or check what happened <strong>on this "
+    "day</strong> in an earlier year (shown right on the timeline when "
+    "there's a match).":
+        "Le <strong>fil du temps</strong> est la vue de tous les jours — tout "
+        "dans l'ordre, le plus récent en haut. <strong>Ouvrez une page au "
+        "hasard</strong> pour une surprise du passé, ou voyez ce qui s'est "
+        "passé <strong>ce jour-là</strong> une année plus tôt (affiché sur le "
+        "fil quand il y a une correspondance).",
+    "<strong>Read as a book</strong> turns every story into real book pages, "
+    "one flowing read from the beginning — good for printing or saving as a "
+    "PDF. <strong>Download as EPUB</strong> does the same for an e-reader "
+    "(Kindle, Apple Books, calibre) instead.":
+        "<strong>Lire comme un livre</strong> transforme chaque histoire en "
+        "vraies pages de livre, une lecture continue depuis le début — "
+        "pratique pour imprimer ou enregistrer en PDF. <strong>Télécharger en "
+        "EPUB</strong> fait la même chose pour une liseuse (Kindle, Apple "
+        "Books, calibre).",
+    "Wherever you can add a photo — an Instant, a story, someone's portrait — "
+    "you can either choose one you already have or press <strong>Take a "
+    "photo</strong> and use the camera without leaving the page. You'll see "
+    "the picture before it's kept, so you can retake it as many times as you "
+    "like. Taking a photo needs a secure connection (HTTPS or localhost); if "
+    "the button isn't there, choosing a photo from your phone still lets you "
+    "use its camera app.":
+        "Partout où vous pouvez ajouter une photo — un instant, une histoire, "
+        "le portrait de quelqu'un — vous pouvez soit en choisir une que vous "
+        "avez déjà, soit appuyer sur <strong>Prendre une photo</strong> et "
+        "utiliser l'appareil sans quitter la page. Vous voyez l'image avant "
+        "qu'elle soit gardée, et vous pouvez la reprendre autant de fois que "
+        "vous voulez. Prendre une photo nécessite une connexion sécurisée "
+        "(HTTPS ou localhost) ; si le bouton n'est pas là, choisir une photo "
+        "depuis votre téléphone vous laisse quand même utiliser son appareil.",
+    "Any story can have a short voice recording attached — a child's own "
+    "voice, or someone telling the story out loud, alongside the written "
+    "version. Recording needs a secure connection (HTTPS or localhost); ask "
+    "whoever set up Storybook if it doesn't seem to work.":
+        "Chaque histoire peut recevoir un court enregistrement vocal — la voix "
+        "de l'enfant, ou quelqu'un qui raconte l'histoire à voix haute, à côté "
+        "de la version écrite. L'enregistrement nécessite une connexion "
+        "sécurisée (HTTPS ou localhost) ; demandez à la personne qui a "
+        "installé l'application si cela ne semble pas fonctionner.",
+    "This book uses individual accounts rather than one shared password. "
+    "Manage your own password and generate one-off <strong>write "
+    "links</strong> — letting someone add a single story without an account "
+    "of their own — from <strong>Account</strong> in the nav.":
+        "Ce livre utilise des comptes individuels plutôt qu'un mot de passe "
+        "partagé. Gérez votre propre mot de passe et créez des <strong>liens "
+        "d'écriture</strong> à usage unique — pour qu'une personne ajoute une "
+        "seule histoire sans avoir de compte — depuis <strong>Compte</strong> "
+        "dans la navigation.",
+    "Everything here is plain files on disk — no cloud, no lock-in. "
+    "<strong>Download everything (.zip)</strong> from the timeline's footer "
+    "whenever you want a full copy; <strong>Import a backup</strong> restores "
+    "one. If in doubt, ask whoever hosts this Storybook how often the "
+    "underlying files are backed up.":
+        "Tout ici n'est que des fichiers sur un disque — pas de cloud, pas "
+        "d'enfermement. <strong>Tout télécharger (.zip)</strong> depuis le pied "
+        "du fil du temps quand vous voulez une copie complète ; "
+        "<strong>Importer une sauvegarde</strong> en restaure une. Dans le "
+        "doute, demandez à la personne qui héberge ce livre à quelle fréquence "
+        "les fichiers sont sauvegardés.",
+
+    # Validation messages raised as plain strings by accounts.py/people.py
+    # and translated at the one place they're shown (the flash call).
+    "Passwords don't match.": "Les mots de passe ne correspondent pas.",
+    "New passwords don't match.":
+        "Les nouveaux mots de passe ne correspondent pas.",
+    "Current password is incorrect.": "Le mot de passe actuel est incorrect.",
+    "Usernames must be 3-32 characters: lowercase letters, numbers, hyphens.":
+        "Le nom d'utilisateur doit faire 3 à 32 caractères : minuscules, "
+        "chiffres, tirets.",
+    "That family member already has an account.":
+        "Ce membre de la famille a déjà un compte.",
+    "Can't demote the only remaining admin.":
+        "Impossible de rétrograder le dernier administrateur.",
+    "Can't disable the only remaining admin.":
+        "Impossible de désactiver le dernier administrateur.",
+    "Pick an existing family member, or enter a name for a new one.":
+        "Choisissez un membre de la famille existant, ou saisissez un nom pour "
+        "en créer un.",
+    "Provide exactly one of an existing person or a new person's name.":
+        "Indiquez soit une personne existante, soit le nom d'une nouvelle — "
+        "pas les deux.",
+    "Enter a valid date.": "Saisissez une date valide.",
+
+    # --- admin odds and ends -------------------------------------------------
+    "(no label)": "(sans intitulé)",
+    "Note:": "Note :",
+    "One use only": "Usage unique",
+    "Reject": "Rejeter",
+    "Disable": "Désactiver",
+    "Enable": "Activer",
+    "{name} (current)": "{name} (actuel)",
+    "{name} requested the username {username}.":
+        "{name} a demandé le nom d'utilisateur {username}.",
+    "Reset {name}'s password": "Réinitialiser le mot de passe de {name}",
+    "Share a link with someone so they can write one story for you — no "
+    "account, no password of their own. They can't see anything else in the "
+    "book.":
+        "Partagez un lien avec quelqu'un pour qu'il écrive une histoire pour "
+        "vous — sans compte, sans mot de passe. Il ne voit rien d'autre du "
+        "livre.",
+    "They'll need this new password next time they log in — any device "
+    "they're already logged in on will need to log in again too.":
+        "Il lui faudra ce nouveau mot de passe à la prochaine connexion — tout "
+        "appareil déjà connecté devra se reconnecter aussi.",
+    # Account status words and role names, rendered straight from data.
+    "active": "actif",
+    "revoked": "révoqué",
+    "expired": "expiré",
+    "used": "utilisé",
+    "disabled": "désactivé",
+    "pending": "en attente",
+    # The "family" role capitalizes to "Family", which already appears
+    # above as the person editor's fieldset legend — same word, same
+    # translation, so it isn't repeated here.
+    "Admin": "Administrateur",
+
+    "Writing a memory": "Écrire un souvenir",
+    "The cast — people and the family tree":
+        "Les personnages — les personnes et l'arbre généalogique",
+    "Reading it back": "Le relire",
+    "Photos": "Photos",
+    "Voice memos": "Mémos vocaux",
+    "Family accounts": "Comptes de famille",
+    "Keeping it safe": "Le garder en sécurité",
+}

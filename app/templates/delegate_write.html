@@ -1,25 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Write for {{ person_name }} — {{ app_title }}{% endblock %}
+{% block title %}{{ _("Write for {name}", name=person_name) }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-login{% endblock %}
 {% block content %}
 <div class="login">
-  <h1 class="login__title">Write for {{ person_name }}</h1>
+  <h1 class="login__title">{{ _("Write for {name}", name=person_name) }}</h1>
   <p class="login__subtitle">
-    Your story is added straight to their book. You won't see anything
-    else here, and this page won't show it back to you afterward.
+    {{ _("Your story is added straight to their book. You won't see anything else here, and this page won't show it back to you afterward.") }}
   </p>
   <form class="login__form" method="post" action="{{ url_for('pages.delegate_write') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label class="login__label" for="delegate-title">Title</label>
+    <label class="login__label" for="delegate-title">{{ _("Title") }}</label>
     <input class="login__input" type="text" id="delegate-title" name="title" autofocus required>
 
-    <label class="login__label" for="delegate-date">Date</label>
+    <label class="login__label" for="delegate-date">{{ _("Date") }}</label>
     <input class="login__input" type="date" id="delegate-date" name="date" value="{{ today.isoformat() }}" required>
 
-    <label class="login__label" for="delegate-body">Story</label>
+    <label class="login__label" for="delegate-body">{{ _("Story") }}</label>
     <textarea class="login__input login__textarea" id="delegate-body" name="markdown" rows="10"></textarea>
 
-    <button class="btn btn--primary login__submit" type="submit">Add this story</button>
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Add this story") }}</button>
   </form>
 </div>
 {% endblock %}

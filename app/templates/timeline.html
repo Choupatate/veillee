@@ -6,9 +6,9 @@
 <div class="empty-state">
   <img class="illo empty-state__illo" src="{{ url_for('static', filename='img/login-campfire.jpg') }}"
        alt="" loading="lazy" decoding="async" width="856" height="735">
-  <p>No stories yet — this is where your family's memories will live.</p>
+  <p>{{ _("No stories yet — this is where your family's memories will live.") }}</p>
   <a class="btn btn--primary" href="{{ url_for('pages.new_story') }}">
-    <img class="btn-icon" src="{{ url_for('static', filename='img/icon-new-story.png') }}" alt="" width="20" height="20">+ New story
+    <img class="btn-icon" src="{{ url_for('static', filename='img/icon-new-story.png') }}" alt="" width="20" height="20">{{ _("+ New story") }}
   </a>
 </div>
 {% else %}
@@ -18,31 +18,31 @@
   {% set years_ago = today.year - m.date.year %}
   {% set color = author_colors.get(m.author) if (authors and m.author) else None %}
   <p class="timeline__onthisday-item"{% if color %} style="--author-color: {{ color }}"{% endif %}>
-    {{ years_ago }} year{{ 's' if years_ago != 1 else '' }} ago today &mdash;
+    {{ _n("{n} year ago today —", "{n} years ago today —", years_ago) }}
     <a href="{{ url_for('pages.story', story_id=m.id) }}">{{ m.title }}</a>
   </p>
   {% endfor %}
   {% for p in birthdays_today %}
   {% set age = today.year - p.born.year %}
   <p class="timeline__onthisday-item">
-    <a href="{{ url_for('pages.person_page', slug=p.slug) }}">{{ p.name }}</a> turns {{ age }} today
+    <a href="{{ url_for('pages.person_page', slug=p.slug) }}">{{ p.name }}</a> {{ _("turns {n} today", n=age) }}
   </p>
   {% endfor %}
   {% for u in union_anniversaries_today %}
   {% set years = today.year - u.since.year %}
-  {% set kind_label = {"wedding": "wedding anniversary", "pacs": "PACS anniversary", "union": "anniversary"}[u.kind] %}
+  {% set kind_label = {"wedding": _("wedding anniversary"), "pacs": _("PACS anniversary"), "union": _("anniversary")}[u.kind] %}
   <p class="timeline__onthisday-item">
     <a href="{{ url_for('pages.person_page', slug=u.person.slug) }}">{{ u.person.name }}</a> &amp;
     <a href="{{ url_for('pages.person_page', slug=u.partner.slug) }}">{{ u.partner.name }}</a>
-    &mdash; {{ years }}-year {{ kind_label }} today
+    &mdash; {{ _("{n}-year {kind} today", n=years, kind=kind_label) }}
   </p>
   {% endfor %}
 </div>
 {% endif %}
 {% if quiet_months %}
 <p class="timeline__nudge">
-  Nothing new in {{ quiet_months }} month{{ 's' if quiet_months != 1 else '' }} &mdash;
-  <a href="{{ url_for('pages.new_story') }}">a little story?</a>
+  {{ _n("Nothing new in {n} month —", "Nothing new in {n} months —", quiet_months) }}
+  <a href="{{ url_for('pages.new_story') }}">{{ _("a little story?") }}</a>
 </p>
 {% endif %}
 {% if authors %}
@@ -56,18 +56,18 @@
 {% endif %}
 {% if draft_count or archived_count %}
 <p class="timeline__drafts-link">
-  {% if draft_count %}<a href="{{ url_for('pages.drafts') }}">Drafts ({{ draft_count }})</a>{% endif %}
+  {% if draft_count %}<a href="{{ url_for('pages.drafts') }}">{{ _("Drafts ({n})", n=draft_count) }}</a>{% endif %}
   {% if draft_count and archived_count %}&middot;{% endif %}
-  {% if archived_count %}<a href="{{ url_for('pages.archived') }}">Archived ({{ archived_count }})</a>{% endif %}
+  {% if archived_count %}<a href="{{ url_for('pages.archived') }}">{{ _("Archived ({n})", n=archived_count) }}</a>{% endif %}
 </p>
 {% endif %}
 <div class="timeline__toolbar">
   <input type="search" id="timeline-search" class="timeline__search"
-         placeholder="Search titles, tags, people&hellip;" aria-label="Search stories by title, tag, or person">
-  <a href="#" id="timeline-jump-latest" class="timeline__jump">Jump to the latest &darr;</a>
+         placeholder="{{ _('Search titles, tags, people…') }}" aria-label="{{ _('Search stories by title, tag, or person') }}">
+  <a href="#" id="timeline-jump-latest" class="timeline__jump">{{ _("Jump to the latest ↓") }}</a>
 </div>
 <p class="timeline__search-empty" id="timeline-search-empty" hidden>
-  No stories match &ldquo;<span id="timeline-search-empty-query"></span>&rdquo;.
+  {{ _("No stories match") }} &ldquo;<span id="timeline-search-empty-query"></span>&rdquo;.
 </p>
 <div class="timeline">
   <div class="timeline__spine" aria-hidden="true"></div>
@@ -89,10 +89,10 @@
             <path d="M4 5l28 22 28-22" stroke="currentColor" stroke-width="4" fill="none"/>
           </svg>
         </span>
-        <span class="timeline__title timeline__title--sealed">A sealed letter &middot; opens {{ story.unlock.strftime('%B %-d, %Y') }}</span>
+        <span class="timeline__title timeline__title--sealed">{{ _("A sealed letter · opens {date}", date=story.unlock|longdate) }}</span>
         {% else %}
         <span class="timeline__dot{% if has_author %} timeline__dot--author{% endif %}" aria-hidden="true"></span>
-        <span class="timeline__date">{{ story.date.strftime('%b %-d') }}{% if has_author %} &middot; <span class="timeline__author">{{ story.author }}</span>{% endif %}{% if birthdate %} &middot; <span class="timeline__age">{{ age_label(birthdate, story.date) }}</span>{% endif %}</span>
+        <span class="timeline__date">{{ story.date|shortdate }}{% if has_author %} &middot; <span class="timeline__author">{{ story.author }}</span>{% endif %}{% if birthdate %} &middot; <span class="timeline__age">{{ age_label(birthdate, story.date) }}</span>{% endif %}</span>
         {% if story.milestone %}
         <span class="timeline__milestone-pill">{{ story.milestone }}</span>
         {% endif %}
@@ -127,35 +127,35 @@
     {% endfor %}
   </ol>
 </div>
-<nav class="minimap" aria-label="Jump to year">
+<nav class="minimap" aria-label="{{ _('Jump to year') }}">
   {% for year, _ in years %}
   <a class="minimap__tick" href="#year-{{ year }}" data-year="{{ year }}">{{ year }}</a>
   {% endfor %}
 </nav>
 <div class="timeline__footer-links">
   {% if has_firsts %}
-  <a href="{{ url_for('pages.firsts') }}">Firsts</a>
+  <a href="{{ url_for('pages.firsts') }}">{{ _("Firsts") }}</a>
   &middot;
   {% endif %}
   {% if has_growth %}
-  <a href="{{ url_for('pages.growth') }}">Growing up</a>
+  <a href="{{ url_for('pages.growth') }}">{{ _("Growing up") }}</a>
   &middot;
   {% endif %}
-  <a href="{{ url_for('pages.random_page') }}">Open a page at random</a>
+  <a href="{{ url_for('pages.random_page') }}">{{ _("Open a page at random") }}</a>
   &middot;
-  <a href="{{ url_for('pages.book') }}">Read as a book</a>
+  <a href="{{ url_for('pages.book') }}">{{ _("Read as a book") }}</a>
   &middot;
-  <a href="{{ url_for('pages.book') }}?print=1">Download as PDF</a>
+  <a href="{{ url_for('pages.book') }}?print=1">{{ _("Download as PDF") }}</a>
   &middot;
-  <a href="{{ url_for('pages.book_epub') }}">Download as EPUB</a>
+  <a href="{{ url_for('pages.book_epub') }}">{{ _("Download as EPUB") }}</a>
   &middot;
-  <a href="{{ url_for('pages.export') }}">Download everything (.zip)</a>
+  <a href="{{ url_for('pages.export') }}">{{ _("Download everything (.zip)") }}</a>
   &middot;
-  <a href="{{ url_for('pages.import_page') }}">Import a backup</a>
+  <a href="{{ url_for('pages.import_page') }}">{{ _("Import a backup") }}</a>
   &middot;
   <form class="timeline__logout-form" method="post" action="{{ url_for('auth.logout') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="timeline__logout-button">Log out</button>
+    <button type="submit" class="timeline__logout-button">{{ _("Log out") }}</button>
   </form>
 </div>
 {% endif %}

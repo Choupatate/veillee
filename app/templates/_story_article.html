@@ -10,9 +10,9 @@ custom property scope and any per-page footer stay under the caller's
 control. #}
 <header class="story__header">
   <p class="story__date">
-    {% if story.draft %}<span class="story__draft-pill">DRAFT</span>{% endif %}
-    {% if story.archived %}<span class="story__archived-pill">ARCHIVED</span>{% endif %}
-    {{ story.date.strftime('%B %-d, %Y') }}
+    {% if story.draft %}<span class="story__draft-pill">{{ _("DRAFT") }}</span>{% endif %}
+    {% if story.archived %}<span class="story__archived-pill">{{ _("ARCHIVED") }}</span>{% endif %}
+    {{ story.date|longdate }}
     {% if birthdate %}
     &middot; <span class="story__age">{{ age_label(birthdate, story.date) }}</span>
     {% endif %}

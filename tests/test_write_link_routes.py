@@ -152,7 +152,7 @@ def test_invalid_token_shows_not_valid_page(accounts_client):
     _bootstrap_admin(accounts_client)
     resp = accounts_client.get("/w/not-a-real-token")
     assert resp.status_code == 404
-    assert b"isn't valid anymore" in resp.data
+    assert b"valid anymore" in resp.data
 
 
 def test_write_link_route_404s_when_accounts_disabled(client):

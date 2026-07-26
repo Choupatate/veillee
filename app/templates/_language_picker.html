@@ -1,0 +1,45 @@
+{# Language picker (FEATURES.md F38).
+
+   One tiny POST form per language rather than a <select> + JS: it works
+   with JavaScript off, it is CSRF-protected like every other state change,
+   and each flag is a real 44px tap target on a phone. The current language
+   is rendered as aria-current and dimmed rather than removed, so the row
+   never reflows when you switch.
+
+   Flags are inline SVG. Emoji flags were the obvious shortcut and were
+   rejected: Windows renders them as bare letters, and the whole point is
+   that someone who can't read the interface can still find their language.
+
+   `next` carries the current path so switching language leaves you on the
+   page you were reading; auth.set_language puts it through the same
+   local-paths-only allowlist as the login redirect. #}
+<div class="lang-picker" role="group" aria-label="{{ _('Language') }}">
+  {% for code, meta in LANGUAGES.items() %}
+  <form class="lang-picker__form" method="post"
+        action="{{ url_for('auth.set_language', lang=code) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+    <button type="submit" class="lang-picker__btn{% if code == current_language %} lang-picker__btn--active{% endif %}"
+            {% if code == current_language %}aria-current="true"{% endif %}
+            title="{{ meta.label }}" aria-label="{{ meta.label }}">
+      {% if code == 'en' %}
+      <svg class="lang-picker__flag" viewBox="0 0 60 30" width="24" height="12" aria-hidden="true" focusable="false">
+        <clipPath id="lang-gb-clip"><path d="M0 0v30h60V0z"/></clipPath>
+        <path d="M0 0v30h60V0z" fill="#012169"/>
+        <path d="M0 0l60 30m0-30L0 30" stroke="#fff" stroke-width="6"/>
+        <path d="M0 0l60 30m0-30L0 30" clip-path="url(#lang-gb-clip)" stroke="#C8102E" stroke-width="4"/>
+        <path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/>
+        <path d="M30 0v30M0 15h60" stroke="#C8102E" stroke-width="6"/>
+      </svg>
+      {% elif code == 'fr' %}
+      <svg class="lang-picker__flag" viewBox="0 0 60 30" width="24" height="12" aria-hidden="true" focusable="false">
+        <path d="M0 0h20v30H0z" fill="#002395"/>
+        <path d="M20 0h20v30H20z" fill="#fff"/>
+        <path d="M40 0h20v30H40z" fill="#ED2939"/>
+      </svg>
+      {% endif %}
+      <span class="lang-picker__code">{{ meta.short }}</span>
+    </button>
+  </form>
+  {% endfor %}
+</div>

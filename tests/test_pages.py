@@ -279,7 +279,10 @@ def test_timeline_shows_nudge_after_a_quiet_spell(auth_client, stories_dir):
 def test_404_page_renders_custom_template(auth_client):
     resp = auth_client.get("/this-route-does-not-exist")
     assert resp.status_code == 404
-    assert b"doesn't exist" in resp.data
+    # Apostrophes are HTML-escaped since F38 routes the copy through
+    # the translation helper (which also interpolates user data, so the
+    # escaping must stay); assert on a stable, apostrophe-free fragment.
+    assert b"or it never did" in resp.data
 
 
 def test_story_media_serves_image_and_rejects_bad_path(auth_client, stories_dir, jpeg_bytes):

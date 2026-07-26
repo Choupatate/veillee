@@ -8,6 +8,6 @@
   <h1 class="empty-state__heading">{{ heading }}</h1>
   <p>{{ message }}</p>
   {% if hint %}<p class="empty-state__hint">{{ hint }}</p>{% endif %}
-  <a class="btn btn--primary" href="{{ url_for('pages.timeline') }}">&lsaquo; Back to the timeline</a>
+  <a class="btn btn--primary" href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Back to the timeline") }}</a>
 </div>
 {% endblock %}
