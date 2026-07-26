@@ -55,7 +55,13 @@
           {% if person and person.photo %}hidden{% endif %}>No photo yet</span>
 
     <input type="file" accept="image/*" id="editor-photo-file" class="editor__photo-file-input">
-    <label for="editor-photo-file" class="btn editor__photo-upload-btn" id="editor-photo-upload-label">{% if person and person.photo %}Change photo{% else %}Add a photo{% endif %}</label>
+    <div class="editor__photo-actions">
+      <label for="editor-photo-file" class="btn editor__photo-upload-btn" id="editor-photo-upload-label">{% if person and person.photo %}Change photo{% else %}Add a photo{% endif %}</label>
+      {# Unhidden by editor.js only where getUserMedia exists (F34). #}
+      <button type="button" class="btn editor__photo-camera-btn" id="editor-photo-camera" hidden>
+        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">Take a photo
+      </button>
+    </div>
     <p class="editor__save-message" id="editor-photo-message" hidden></p>
 
     <div class="editor__photo-cropper" id="editor-photo-cropper" hidden>

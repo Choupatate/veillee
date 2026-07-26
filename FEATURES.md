@@ -44,6 +44,7 @@ the exact `F<N>.` heading text to jump to it.
 - **F31** — Year chapters in the book view
 - **F32** — MCP server: an AI-assisted authoring surface
 - **F33** — Help: an in-app, plain-language guide for the family
+- **F34** — Taking a photo, not just adding one (in-app camera)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -3646,3 +3647,98 @@ logged in. Verified live with Playwright at both a desktop width and a
 actually navigates to `/help`.
 
 `pytest` (826: 820 existing + 6 new) and `ruff check .` green.
+
+## F34. Taking a photo, not just adding one
+
+Every way of getting a photo into the book assumed the photo already
+existed: the instant form, the story editor's image button, and the
+person editor's Photo panel all opened the OS file picker. On a phone
+that picker does offer the camera, so this was survivable — but on a
+laptop with a webcam there was no camera at all, and even on a phone
+"take a photo of this drawing right now" meant a round trip out to the
+camera app, into the gallery, back into the picker.
+
+F12 already records audio in the browser with `getUserMedia`; this is the
+same idea for the lens instead of the microphone.
+
+### Design
+
+- **`app/static/js/camera.js`** — one shared full-screen overlay
+  (`window.StorybookCamera`), built in JS rather than duplicated into
+  three templates. `open()` returns a `Promise<File|null>`: a JPEG `File`
+  shaped exactly like one an `<input type="file">` would hand over —
+  which is the whole point, since every existing upload path (re-encode
+  with Pillow, `photo-NNN.jpg` naming, thumbnails, HEIC conversion,
+  cropper) then works untouched. `null` means the user backed out. No new
+  endpoint, no new storage code, no server change of any kind.
+- Live preview → shutter → **review step** ("Retake" / "Use photo"), so a
+  blurry frame never reaches the book. Also: "Flip" (shown only when
+  `enumerateDevices` reports two or more cameras), "Cancel", Escape, and
+  the phone's back gesture (a `history.pushState` on open, mirroring F7's
+  lightbox) — all of which stop every track, so the camera light goes out
+  the moment the overlay closes.
+- The selfie camera previews mirrored (`scaleX(-1)`) but is *captured*
+  raw, matching what every phone camera does: you see yourself the way a
+  mirror shows you, the book keeps the photo the way everyone else sees
+  you.
+- **`app/static/js/camera-logic.js`** — the DOM-free half (frame scaling,
+  the front/back toggle, capture filenames) as a UMD module with Node
+  tests, per the repo's rule about testable client logic. `captureSize`
+  caps the longest edge at 2000px to match `storage.MAX_IMAGE_EDGE` (the
+  server re-encodes to that anyway, so this only saves upload bytes) and
+  returns `null` for a 0×0 `<video>`, which is how a not-yet-ready stream
+  is told apart from a real frame.
+
+### Where it appears
+
+- **`/new-instant`** — a "Take a photo" button under the photo picker.
+  The capture and a picked file are deliberately exclusive: choosing one
+  clears the other, so the preview and the save always agree on which
+  photo is *the* photo. The file input lost its `required` attribute for
+  this — a camera photo never reaches the input, so the browser would
+  otherwise block a save that does have a photo (the JS check that was
+  already there still catches a genuinely empty form).
+- **The story editor** — a "Photo" section above "Voice", symmetric with
+  it. The capture uploads through the existing images endpoint and is
+  inserted at the cursor as `![](photo-NNN.jpg)`. It sits beside the
+  toolbar's image button rather than replacing it: that one adds a photo
+  you already have, this one takes a new one. Insertion goes through a
+  new `insertImage` method on both editor wrappers (Toast UI's
+  `exec("addImage", …)`, and a cursor splice in the no-JS-editor
+  fallback), which also de-duplicated the fallback's existing insert.
+- **The person editor** — a "Take a photo" button beside "Add a
+  photo"/"Change photo". The captured file goes straight into F18's
+  existing pan/zoom cropper, so a portrait taken in the app is framed and
+  toned exactly like an uploaded one.
+
+### Degrading gracefully
+
+`getUserMedia` requires a secure context. Over plain LAN HTTP
+`navigator.mediaDevices` is undefined, `isSupported()` is false, and
+every "Take a photo" button stays hidden — the file inputs are untouched
+and remain the way in. This is the same bargain F12's voice memos already
+make, and it's why all three buttons ship `hidden` in the template and
+are unhidden by JS, never the reverse. Denied permission, no camera, and
+a camera busy in another app each get their own message inside the
+overlay instead of a dead button.
+
+### Tests
+
+- `tests/js/camera_logic_test.mjs` (13 assertions: scaling both
+  orientations, aspect-ratio preservation, the not-ready 0×0 case, the
+  facing toggle, filename formatting), wired into pytest via
+  `test_tree_logic_js.py` like the other Node suites.
+- `tests/test_camera.py` covers the server-rendered contract the scripts
+  hang off: the camera scripts load on exactly the three pages that can
+  add a photo and on none of the reading pages, every button ships
+  hidden, the instant photo input is no longer `required`, and a
+  `camera-<timestamp>.jpg` upload round-trips through the images endpoint
+  and can become an instant's cover.
+- Verified live in Chromium with a fake webcam
+  (`--use-fake-device-for-media-stream`) at 390px and at 1280px, in both
+  themes: capture → retake → use on all three surfaces, an instant saved
+  from a capture appearing on the timeline, a captured photo rendering on
+  the saved story page, a captured portrait surviving the cropper, and
+  Escape/back/Cancel all closing the overlay without touching the form.
+
+`pytest` (835: 826 existing + 9 new) and `ruff check .` green.

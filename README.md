@@ -180,6 +180,23 @@ chapters — while a full story page (and the full editor, for touch-ups)
 still works normally at their direct URL. They're just a story with one
 extra frontmatter key (`kind: instant`); nothing new to back up.
 
+### Taking a photo in the app
+
+Anywhere you can add a photo — the Instant form, the story editor's
+"Photo" section, and a person's Photo panel — there's also a "Take a
+photo" button that opens the camera right in the page: live preview,
+shutter, then "Retake" or "Use photo" before anything is saved. On a
+phone you can flip between the front and back camera; a selfie previews
+mirrored and saves the way everyone else sees you. A photo taken this way
+is treated exactly like an uploaded one (re-encoded, numbered
+`photo-NNN.jpg`, cropped and toned for portraits).
+
+**Camera capture only works in a secure context** — HTTPS, or
+`localhost` — the same limitation as voice-memo recording below. Over
+plain LAN HTTP the "Take a photo" buttons simply don't appear, and
+choosing an existing file (which on a phone still lets you use the
+camera app) works as it always has.
+
 ### Firsts — a register of milestones
 
 Any story (or instant) can carry an optional milestone label — "First
