@@ -85,7 +85,7 @@ def _visible_stories():
     return groups.visible_stories(all_stories, viewer_groups, author_name)
 
 
-def _available_groups():
+def _available_groups(story=None):
     """The groups the audience picker offers (FEATURES.md F40 Phase 2).
 
     Empty outside accounts mode, which makes the picker disappear entirely
@@ -95,10 +95,23 @@ def _available_groups():
     Every group is offered, not just the writer's own: scoping a story to a
     group you aren't in is legitimate (writing something for the
     grandparents), and `can_see` keeps the author's own access either way.
+
+    A story may also name a group this install doesn't have — restore a
+    backup into a fresh book and the stories come back while `groups.json`
+    doesn't. Those orphaned slugs get a chip of their own, labelled with
+    the raw slug, so the editor round-trips them. Without it the picker
+    shows nothing lit, an ordinary save sends an empty audience, and a
+    story that was private quietly becomes public on the next edit — the
+    one failure this whole feature exists to prevent.
     """
     if not current_app.config["ACCOUNTS_ENABLED"]:
         return []
-    return groups.list_groups(current_app.config["STORIES_DIR"])
+    all_groups = groups.list_groups(current_app.config["STORIES_DIR"])
+    if story is None:
+        return all_groups
+    known = {g.slug for g in all_groups}
+    orphans = [s for s in (story.audience or []) if s not in known]
+    return all_groups + [groups.Group(slug=s, name=s, members=[]) for s in orphans]
 
 
 def _visible_page_stories():
@@ -531,7 +544,7 @@ def edit_story(story_id):
     memos = storage.list_memos(current_app.config["STORIES_DIR"] / story_id)
     return render_template(
         "editor.html", story=s, today=date.today(), authors=authors, memos=memos,
-        all_people=_other_people_refs(), all_groups=_available_groups(),
+        all_people=_other_people_refs(), all_groups=_available_groups(s),
     )
 
 

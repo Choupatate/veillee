@@ -284,30 +284,65 @@ def test_the_author_still_sees_a_story_they_scoped_away_from_themselves(scoped_a
 # --- the guard that keeps the perimeter honest ------------------------------
 
 
-ROUTE_FILES = ("routes_pages.py", "routes_people.py", "routes_groups.py")
+ROUTE_FILES = (
+    "routes_pages.py", "routes_people.py", "routes_groups.py",
+    "routes_accounts.py", "routes_api.py", "routes_api_people.py",
+)
+
+# Anything in storage.py that hands back stories without a viewer in hand.
+# A route calling one of these bypasses audience scoping entirely, which is
+# how a scoped story leaks — so they're counted, not merely discouraged.
+UNSCOPED_ENTRY_POINTS = ("storage.list_stories(", "storage.get_story(")
+
+# The sanctioned exceptions, each with a reason:
+#   routes_pages   — inside _visible_stories/_get_story_or_404/_exportable_story_ids
+#                    and _export_is_scoped (the gate itself), plus book/book_epub
+#                    re-reading a story already filtered to visible ones.
+#   routes_groups  — two per-group story counts on an admin screen; they
+#                    count, and never render a title or body.
+#   routes_api     — inside _readable_story_or_error (the gate itself).
+ALLOWED_UNSCOPED = {
+    "routes_pages.py": 6,
+    "routes_groups.py": 2,
+    "routes_api.py": 1,
+    "routes_people.py": 0,
+    "routes_accounts.py": 0,
+    "routes_api_people.py": 0,
+}
 
 
-def test_no_page_route_reaches_the_story_list_directly():
-    """`_visible_stories()` is the only sanctioned way into the story list
-    from a page route. A new route calling `storage.list_stories` straight
-    is how a scoped story leaks, so this fails the day one does.
+def test_no_route_file_reaches_stories_unscoped():
+    """`_visible_stories()` / `_get_story_or_404()` / `_readable_story_or_error()`
+    are the only sanctioned ways into a story from a route. This counts the
+    unscoped alternatives per file and fails when one appears, so a new route
+    that forgets the gate is caught the day it's written rather than the day
+    someone notices a private story on a relative's screen.
 
-    `routes_pages.py` gets one sanctioned use — inside `_visible_stories`
-    itself — plus the two group-count helpers in `routes_groups.py`, which
-    count stories per group for an admin screen and deliberately never
-    render a title or body.
+    If a legitimate new use lands here, raise the count *and* extend the
+    comment above with why — the number is a ratchet, not a formality.
     """
     from pathlib import Path
 
     app_dir = Path(__file__).resolve().parent.parent / "app"
-    allowed = {"routes_pages.py": 3, "routes_groups.py": 2, "routes_people.py": 0}
     for filename in ROUTE_FILES:
         text = (app_dir / filename).read_text()
-        count = text.count("storage.list_stories(")
-        assert count <= allowed[filename], (
-            f"{filename} calls storage.list_stories {count} times; page routes "
-            "must go through _visible_stories() so audience scoping applies"
+        count = sum(text.count(entry) for entry in UNSCOPED_ENTRY_POINTS)
+        assert count <= ALLOWED_UNSCOPED[filename], (
+            f"{filename} reaches stories unscoped {count} times (allowed "
+            f"{ALLOWED_UNSCOPED[filename]}); routes must go through the "
+            "audience gate so scoping applies"
         )
+
+
+def test_storage_exposes_no_unscoped_story_finder():
+    """`stories_featuring` and `readable_page_stories` were removed when
+    F40 landed: both read every story straight off disk, both had no
+    caller left, and both looked exactly like the helper a future person
+    page or page-turn feature would reach for. Keeping a convenient
+    unscoped finder around is how the gate gets walked past.
+    """
+    assert not hasattr(storage, "stories_featuring")
+    assert not hasattr(storage, "readable_page_stories")
 
 
 def test_accounts_mode_off_means_no_scoping_at_all(auth_client, stories_dir):
@@ -322,6 +357,51 @@ def test_accounts_mode_off_means_no_scoping_at_all(auth_client, stories_dir):
 
 def test_the_groups_pages_do_not_exist_without_accounts(auth_client):
     assert auth_client.get("/admin/groups").status_code == 404
+
+
+def test_a_story_naming_a_missing_group_stays_private(make_story):
+    """Restore a backup into a fresh book and the stories come back while
+    groups.json doesn't. That must fail private, not public."""
+    story = make_story("s", date(2026, 1, 1), audience=["gone"])
+    assert not groups.can_see(story, set())
+    assert not groups.can_see(story, {"just-us"})
+
+
+def test_the_editor_round_trips_a_missing_groups_slug(scoped_app):
+    """The silent un-scoping this feature is most likely to suffer: the
+    picker shows nothing lit for an orphaned slug, an ordinary save sends
+    an empty audience, and a private story quietly goes public."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    orphan = storage.create_story(
+        stories_dir, "Restored", date(2026, 4, 1), "body",
+        author="Maman", audience=["gone"],
+    )
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+
+    html = client.get(f"/edit/{orphan}").data.decode()
+    assert _chip_pressed(html, "gone"), "orphaned slug must render as a lit chip"
+
+    # And saving it back must be accepted rather than 400ing on the slug.
+    resp = client.put(
+        f"/api/stories/{orphan}",
+        json={"title": "Restored", "date": "2026-04-01", "markdown": "body",
+              "audience": ["gone"]},
+    )
+    assert resp.status_code == 200
+    assert storage.get_story(stories_dir, orphan).audience == ["gone"]
+
+
+def test_an_unknown_group_is_still_refused_when_it_is_new(scoped_app):
+    """Preserving an orphaned slug must not become a way to invent one."""
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    resp = client.put(
+        f"/api/stories/{scoped_app.config['PUBLIC_ID']}",
+        json={"title": "A day out", "date": "2026-01-01", "markdown": "b",
+              "audience": ["invented"]},
+    )
+    assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------

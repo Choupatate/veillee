@@ -248,7 +248,7 @@ def _validate_sources(data):
     return cleaned, None
 
 
-def _validate_audience(data):
+def _validate_audience(data, existing=None):
     """Resolve and validate the optional 'audience' field: the group slugs
     a story is scoped to (FEATURES.md F40). None means absent ("leave
     unchanged" on update), an empty list means "everyone".
@@ -256,10 +256,19 @@ def _validate_audience(data):
     Unknown group slugs are rejected rather than dropped. Silently dropping
     one would turn a story the writer believed was scoped into a public
     one, which is the single worst way this feature could fail.
+
+    A slug already on `existing` counts as valid even when no such group
+    exists here any more. Restoring a backup into a fresh install is
+    exactly that case — the stories come back, `groups.json` doesn't — and
+    without this the story couldn't be saved at all once the editor
+    round-trips the orphaned slug back. The rule is "you can't introduce an
+    unknown group, and you can't accidentally drop one either".
     """
     if "audience" not in data:
         return None, None
     valid_slugs = {g.slug for g in groups.list_groups(current_app.config["STORIES_DIR"])}
+    if existing is not None:
+        valid_slugs |= set(existing.audience or [])
     raw = data.get("audience")
     if not isinstance(raw, list):
         raw = []
@@ -370,7 +379,7 @@ def create_story():
 @bp.route("/stories/<story_id>", methods=["PUT"])
 @login_required
 def update_story(story_id):
-    _story, error = _readable_story_or_error(story_id)
+    existing, error = _readable_story_or_error(story_id)
     if error:
         return error
 
@@ -403,7 +412,7 @@ def update_story(story_id):
     milestone, error = _validate_milestone(data)
     if error:
         return error
-    audience, error = _validate_audience(data)
+    audience, error = _validate_audience(data, existing=existing)
     if error:
         return error
 

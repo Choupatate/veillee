@@ -289,12 +289,6 @@ def list_stories(stories_dir) -> list[Story]:
     return stories
 
 
-def stories_featuring(stories_dir, person_slug: str) -> list[Story]:
-    """Stories whose `people` field includes `person_slug`, date-ascending —
-    used by the person page's "Appears in" section."""
-    return [s for s in list_stories(stories_dir) if person_slug in s.people]
-
-
 def stories_with_milestones(stories: list[Story]) -> list[Story]:
     """Readable stories with a `milestone` set, date-ascending (FEATURES.md
     F28) — the register of firsts, in the order they actually happened."""
@@ -367,13 +361,6 @@ def readable_stories(stories: list[Story], today: Optional[date_cls] = None) -> 
     result = [s for s in stories if not s.draft and not s.archived and not is_sealed(s, today)]
     result.sort(key=lambda s: (s.date, s.created or datetime.min))
     return result
-
-
-def readable_page_stories(stories_dir) -> list[Story]:
-    """`readable_stories` narrowed to `kind == "story"` — the candidate set
-    for anything that turns pages (F15 random, F2 reading order): instants
-    (F13) are a different, feed-like kind and never page-turn targets."""
-    return [s for s in readable_stories(list_stories(stories_dir)) if s.kind == "story"]
 
 
 def _is_leap_year(year: int) -> bool:
@@ -750,11 +737,26 @@ def delete_memo(stories_dir, story_id: str, filename: str) -> bool:
 def import_backup(stories_dir, zip_file) -> int:
     """Restore a backup zip produced by the /export download.
 
-    Only ever extracts entries shaped like `<valid-story-id>/...` (rejecting
-    anything else as an unsafe or unrecognized path). If ANY of those story
-    ids already exist on disk, raises ImportCollision and writes nothing —
-    an import either fully succeeds or has no effect at all. Returns the
-    number of story folders imported.
+    Only ever extracts entries shaped like `<valid-story-id>/...`. If ANY of
+    those story ids already exist on disk, raises ImportCollision and writes
+    nothing — an import either fully succeeds or has no effect at all.
+    Returns the number of story folders imported.
+
+    Unsafe paths (absolute, or containing `..`) still abort the whole
+    import. Other root-level entries are *skipped* rather than rejected,
+    which is what lets a real backup be restored at all: since F19 an
+    export can contain `pending_accounts.json`, and since F40 `groups.json`
+    too, and aborting on the first one made every accounts-mode backup
+    un-importable — a one-tap backup you cannot restore being the exact
+    failure this app exists to avoid.
+
+    Skipped, not imported, deliberately: those files are live operational
+    state (who is waiting for an account, who is in which group), and
+    silently overwriting them from an old zip would be worse than leaving
+    them alone. A consequence worth knowing: a restored story can reference
+    a group this install doesn't have. `groups.can_see` treats an unknown
+    group as "nobody but the author", so that fails private rather than
+    public.
     """
     stories_dir = Path(stories_dir)
     with zipfile.ZipFile(zip_file) as zf:
@@ -768,7 +770,7 @@ def import_backup(stories_dir, zip_file) -> int:
                 raise ValueError(f"Unsafe path in backup: {name!r}")
             top = Path(name).parts[0] if Path(name).parts else ""
             if not is_valid_story_id(top):
-                raise ValueError(f"Unexpected path in backup: {name!r}")
+                continue
             story_ids.add(top)
             members.append(info)
 

@@ -4830,3 +4830,75 @@ overflow, zero console errors, French correct throughout (*Tout le
 monde* / *Seulement Just us* / *Réservée à Just us*).
 
 `pytest` (1055: 1007 existing + 48 F40) and `ruff check .` green.
+
+---
+
+### F40 inspection round — two real bugs, one of them older than F40
+
+A deliberate adversarial pass over the finished feature: every surface
+probed live as an admin deliberately outside a group, every write endpoint
+attacked, both export zips opened and compared. The read/write perimeter
+held everywhere — every listing clean, every scoped URL and mutating
+endpoint 404, the outsider's zip missing the scoped folders, `.versions/`
+and photos included. Three things did come out of it.
+
+**Two dead helpers were removed.** `storage.stories_featuring` and
+`storage.readable_page_stories` both lost their last caller when Phase 1
+routed everything through the gate. Neither is merely unused: both read
+every story straight off disk and both look exactly like the helper a
+future person page or page-turn feature would reach for, and the Phase 1
+guard test only grepped for `storage.list_stories`. Deleted, the guard
+widened to count `storage.get_story` too and to walk every route file
+rather than three, and a test added that asserts neither name comes back.
+
+**Backups could not be restored — since F19, not since F40.**
+`import_backup` rejected any zip entry whose top path segment wasn't a
+valid story id, and an accounts-mode export contains
+`pending_accounts.json` (F19) and now `groups.json` (F40). So any install
+that had ever seen an account request produced a backup that aborted on
+import with `Unexpected path in backup`. A one-tap backup you cannot
+restore is precisely the failure this app exists to prevent, and F8 is a
+headline feature, so it's fixed here rather than filed: unknown root-level
+entries are now skipped instead of aborting. Unsafe paths (absolute, `..`)
+still abort the whole import, with a test pinning that the zip-slip
+guarantee didn't weaken as a side effect.
+
+Those files are skipped rather than imported on purpose. They're live
+operational state — who is waiting for an account, who is in which group —
+and silently overwriting them from an old zip would be worse than leaving
+them alone.
+
+**Which made a third bug reachable, so it's fixed too.** Restore a backup
+into a fresh book and the stories come back while `groups.json` doesn't, so
+a story names a group that doesn't exist here. `can_see` already failed
+safe (an unknown group means nobody but the author). The editor did not:
+it rendered no lit chip for the orphaned slug, so an ordinary save sent an
+empty audience and a story that was private quietly became public — the
+one failure this whole feature exists to prevent, arriving through the
+disaster-recovery path of all places.
+
+Now `_available_groups(story)` gives an orphaned slug a chip of its own,
+labelled with the raw slug, and `_validate_audience` accepts a slug already
+on the story being updated. The rule became "you can't introduce an unknown
+group, and you can't accidentally drop one either" — inventing a new
+unknown slug is still a 400.
+
+Rehearsed end to end: export a book with a scoped story, wipe, restore into
+a fresh install. The stories come back still scoped, unreadable by anyone
+until the group is recreated, and recreating it under the same name
+realigns the slug (`Just us` → `just-us`) and restores access with the
+audience intact.
+
+### Two boundaries worth knowing, deliberately left alone
+
+- **`groups.json` is in every export**, so any family member's backup
+  reveals every group's name and membership. Group *management* is
+  admin-only in the UI, so this is an inconsistency — but membership isn't
+  story content, everyone in it is already named on the family tree, and
+  dropping the file would make a restored backup lose its groups entirely.
+- **`people/*/account.json` is in every export too**, so any family member
+  can download every account's password hash. Pre-existing since F19 and
+  unrelated to groups; the hashes are scrypt and this is a household app,
+  but it is worth knowing before handing someone a Family account.
+
+`pytest` (1060) and `ruff check .` green.
