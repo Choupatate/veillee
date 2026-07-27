@@ -13,6 +13,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 <script src="{{ url_for('static', filename='js/safe-storage.js') }}"></script>
 <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+{# The handful of strings JS files render at runtime (save-button states,
+   camera/voice messages, the tree's "Recenter" button…) come from the
+   same English-source-keyed table templates use (app/i18n.py's
+   JS_STRINGS) — one dictionary, read here via window.storybookT(). #}
+<script type="application/json" id="storybook-i18n-data">{{ js_strings | tojson }}</script>
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
 {# Deliberately a blocking script in <head>: it applies the stored theme
    before first paint. Inline would be simpler but F36's CSP forbids
    inline scripts so that markdown-smuggled ones are refused too. #}

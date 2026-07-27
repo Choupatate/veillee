@@ -198,14 +198,14 @@
 
     var urlInput = document.createElement("input");
     urlInput.type = "url";
-    urlInput.placeholder = "https://...";
+    urlInput.placeholder = window.storybookT("https://...");
     urlInput.className = "editor__source-url";
     urlInput.value = url || "";
     urlInput.addEventListener("input", markDirty);
 
     var noteInput = document.createElement("input");
     noteInput.type = "text";
-    noteInput.placeholder = "Note (optional)";
+    noteInput.placeholder = window.storybookT("Note (optional)");
     noteInput.className = "editor__source-note";
     noteInput.value = note || "";
     noteInput.addEventListener("input", markDirty);
@@ -213,7 +213,7 @@
     var removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "btn editor__source-remove";
-    removeBtn.setAttribute("aria-label", "Remove source");
+    removeBtn.setAttribute("aria-label", window.storybookT("Remove source"));
     removeBtn.textContent = "✕";
     removeBtn.addEventListener("click", function () {
       row.remove();
@@ -266,7 +266,11 @@
   var unionsDataEl = document.getElementById("editor-unions-data");
   var unionsMessageEl = document.getElementById("editor-unions-message");
   var showUnionsMessage = makeMessageSetter(unionsMessageEl);
-  var UNION_KINDS = [["wedding", "Wedding"], ["pacs", "PACS"], ["union", "Union"]];
+  var UNION_KINDS = [
+    ["wedding", window.storybookT("Wedding")],
+    ["pacs", window.storybookT("PACS")],
+    ["union", window.storybookT("Union")],
+  ];
 
   function partnerName(slug) {
     var row = document.querySelector('#family-partners .people-picker__row[data-person-slug="' + slug + '"]');
@@ -302,21 +306,21 @@
     var sinceInput = document.createElement("input");
     sinceInput.type = "date";
     sinceInput.className = "editor__union-since";
-    sinceInput.title = "Since";
+    sinceInput.title = window.storybookT("Since");
     sinceInput.value = since || "";
     sinceInput.addEventListener("input", markDirty);
 
     var untilInput = document.createElement("input");
     untilInput.type = "date";
     untilInput.className = "editor__union-until";
-    untilInput.title = "Until (optional)";
+    untilInput.title = window.storybookT("Until (optional)");
     untilInput.value = until || "";
     untilInput.addEventListener("input", markDirty);
 
     var removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "btn editor__union-remove";
-    removeBtn.setAttribute("aria-label", "Remove union");
+    removeBtn.setAttribute("aria-label", window.storybookT("Remove union"));
     removeBtn.textContent = "✕";
     removeBtn.addEventListener("click", function () {
       row.remove();
@@ -347,7 +351,7 @@
     unionsAddBtn.addEventListener("click", function () {
       var available = partnersPicker.getSelected();
       if (!available.length) {
-        showUnionsMessage("Add a partner above first.");
+        showUnionsMessage(window.storybookT("Add a partner above first."));
         return;
       }
       showUnionsMessage("");
@@ -476,7 +480,7 @@
     if (photoPreview) photoPreview.hidden = false;
     if (photoImg) photoImg.src = mediaUrl;
     if (photoSepiaGroup) photoSepiaGroup.hidden = false;
-    if (photoUploadLabel) photoUploadLabel.textContent = "Change photo";
+    if (photoUploadLabel) photoUploadLabel.textContent = window.storybookT("Change photo");
     setPhotoSepia(30);
   }
 
@@ -904,7 +908,7 @@
       deleteBtn.type = "button";
       deleteBtn.className = "btn editor__voice-delete";
       deleteBtn.dataset.filename = filename;
-      deleteBtn.textContent = "Delete";
+      deleteBtn.textContent = window.storybookT("Delete");
       li.appendChild(deleteBtn);
 
       voiceListEl.appendChild(li);
@@ -924,7 +928,7 @@
     function resetRecordUI() {
       recordBtn.hidden = false;
       pauseBtn.hidden = true;
-      pauseBtn.textContent = "Pause";
+      pauseBtn.textContent = window.storybookT("Pause");
       stopBtn.hidden = true;
       timerEl.hidden = true;
       timerEl.textContent = "00:00";
@@ -966,7 +970,7 @@
                   recordBtn.disabled = false;
                 })
                 .catch(function (error) {
-                  showVoiceMessage((error && error.message) || "Could not save the recording.");
+                  showVoiceMessage((error && error.message) || window.storybookT("Could not save the recording."));
                   resetRecordUI();
                   recordBtn.disabled = false;
                 });
@@ -981,7 +985,7 @@
             timerInterval = setInterval(updateTimer, 1000);
           })
           .catch(function () {
-            showVoiceMessage("Microphone access was denied.");
+            showVoiceMessage(window.storybookT("Microphone access was denied."));
           });
       });
 
@@ -991,11 +995,11 @@
           mediaRecorder.pause();
           elapsedBeforePause += Date.now() - recordStartTime;
           recordStartTime = null;
-          pauseBtn.textContent = "Resume";
+          pauseBtn.textContent = window.storybookT("Resume");
         } else if (mediaRecorder.state === "paused") {
           mediaRecorder.resume();
           recordStartTime = Date.now();
-          pauseBtn.textContent = "Pause";
+          pauseBtn.textContent = window.storybookT("Pause");
         }
       });
 
@@ -1017,7 +1021,7 @@
         if (response.ok) {
           btn.closest(".editor__voice-item").remove();
         } else {
-          showVoiceMessage("Could not delete the recording.");
+          showVoiceMessage(window.storybookT("Could not delete the recording."));
         }
       });
     });
@@ -1258,7 +1262,7 @@
     cameraBtn.addEventListener("click", function () {
       window.StorybookCamera.open().then(function (file) {
         if (!file) return;
-        showCameraMessage("Adding the photo…");
+        showCameraMessage(window.storybookT("Adding the photo…"));
         cameraBtn.disabled = true;
         uploadImage(file)
           .then(function (filename) {
@@ -1267,7 +1271,7 @@
             markDirty();
           })
           .catch(function (error) {
-            showCameraMessage((error && error.message) || "Could not add that photo.");
+            showCameraMessage((error && error.message) || window.storybookT("Could not add that photo."));
           })
           .then(function () {
             cameraBtn.disabled = false;
@@ -1383,7 +1387,7 @@
     }
     showSaveMessage("");
     saveButton.disabled = true;
-    saveButton.textContent = "Saving…";
+    saveButton.textContent = window.storybookT("Saving…");
     if (saveSpinner) saveSpinner.hidden = false;
     var payload = buildStoryPayload(title, editor.getMarkdown());
 

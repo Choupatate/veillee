@@ -33,7 +33,7 @@
     var closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "lightbox__close";
-    closeBtn.setAttribute("aria-label", "Close");
+    closeBtn.setAttribute("aria-label", window.storybookT("Close"));
     closeBtn.textContent = "×";
     closeBtn.addEventListener("click", function (event) {
       event.stopPropagation();

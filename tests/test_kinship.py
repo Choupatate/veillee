@@ -239,3 +239,75 @@ def test_generation_group_label_table():
     assert kinship.generation_group_label(-1, "Milo") == "Children’s generation"
     assert kinship.generation_group_label(-2, "Milo") == "Grandchildren’s generation"
     assert kinship.generation_group_label(-3, "Milo") == "Great-grandchildren’s generation"
+
+
+# --- French phrasing (FEATURES.md F38 follow-up) -----------------------------
+#
+# `lang` defaults to "en" everywhere above, so none of those assertions
+# move. French compounds a "great-"/"grand-" step differently depending
+# on direction (arrière-grand-père, but grand-oncle/arrière-grand-oncle;
+# petit-fils, but petit-neveu/arrière-petit-neveu) — see kinship.py's
+# `_label_for_updown_fr`.
+
+LABELS_FR = [
+    ("papa", "ton père"),
+    ("maman", "ta mère"),
+    ("georges", "ton grand-père"),
+    ("lise", "ta grand-mère"),
+    ("adele", "ta arrière-grand-mère"),
+    ("grandoncle-henri", "ton grand-oncle"),
+    ("soeur-emma", "ta sœur"),
+    ("demi-frere", "ton frère"),
+    ("oncle-paul", "ton oncle"),
+    ("tante-claire", "ta tante"),
+    ("tante-rose", "la femme de ton oncle"),
+    ("cousin-lea", "ton cousin"),
+    ("neveu-theo", "ton neveu"),
+    ("ami-jean", None),
+    ("solo-gaston", None),
+    ("autre-maman", None),
+]
+
+
+@pytest.mark.parametrize("slug,expected", LABELS_FR)
+def test_kinship_label_table_fr(family, slug, expected):
+    assert kinship.kinship_label(family, "milo", slug, "fr") == expected
+
+
+def test_kinship_label_great_great_grandparent_fr(family):
+    # adele is milo's great-grandmother (up=3); one more generation up
+    # doubles the "arrière-" prefix rather than repeating "grand-".
+    people = list(family.nodes.values()) + [
+        Person(
+            slug="bisaieule", name="Bisaieule", created=None, updated=None,
+            parents=[], partners=[], friend_of=[], gender="f",
+        ),
+    ]
+    graph = kinship.build_graph(
+        [p for p in people if p.slug != "adele"]
+        + [
+            Person(
+                slug="adele", name="Great-Grandma Adele", created=None, updated=None,
+                parents=["bisaieule"], partners=[], friend_of=[], gender="f",
+            ),
+        ]
+    )
+    assert kinship.kinship_label(graph, "milo", "bisaieule", "fr") == "ta arrière-arrière-grand-mère"
+
+
+def test_kinship_label_reverse_direction_from_grandparent_fr(family):
+    assert kinship.kinship_label(family, "georges", "milo", "fr") == "ton petit-fils"
+
+
+def test_kinship_label_great_grandchild_reverse_fr(family):
+    assert kinship.kinship_label(family, "adele", "milo", "fr") == "ton arrière-petit-fils"
+
+
+def test_generation_group_label_table_fr():
+    assert kinship.generation_group_label(0, "Milo", "fr") == "La génération de Milo"
+    assert kinship.generation_group_label(1, "Milo", "fr") == "La génération des parents"
+    assert kinship.generation_group_label(2, "Milo", "fr") == "La génération des grands-parents"
+    assert kinship.generation_group_label(3, "Milo", "fr") == "La génération des arrière-grands-parents"
+    assert kinship.generation_group_label(-1, "Milo", "fr") == "La génération des enfants"
+    assert kinship.generation_group_label(-2, "Milo", "fr") == "La génération des petits-enfants"
+    assert kinship.generation_group_label(-3, "Milo", "fr") == "La génération des arrière-petits-enfants"

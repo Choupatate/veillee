@@ -30,7 +30,7 @@ from flask import (
     url_for,
 )
 
-from . import dates, epub, life_events, people, prompts, storage
+from . import epub, i18n, life_events, people, prompts, storage
 from .auth import login_required
 from .rendering import render_markdown
 
@@ -198,7 +198,7 @@ def random_page():
 def manifest():
     """Web app manifest for home-screen install (FEATURES.md F9). No login
     required — the manifest and icons must be fetchable before install."""
-    title = current_app.config["TITLE"]
+    title = current_app.config["TITLE"] or i18n._("Storybook")
     data = {
         "name": title,
         "short_name": title,
@@ -244,7 +244,7 @@ def book():
         entries.append({
             "story": full, "body_html": body_html, "author_color": author_color,
             "chapter_year": year if year != prev_year else None,
-            "chapter_age": dates.age_label(birthdate, full.date) if birthdate else None,
+            "chapter_age": i18n.age_label(birthdate, full.date, i18n.current_language()) if birthdate else None,
         })
         prev_year = year
     people_by_slug = {p.slug: p for p in people.list_people(_people_dir())}
@@ -279,7 +279,7 @@ def book_epub():
         path = stories_dir / story_id / filename
         return path.read_bytes() if path.is_file() else None
 
-    title = current_app.config["TITLE"]
+    title = current_app.config["TITLE"] or i18n._("Storybook")
     buf = epub.build_epub(
         title,
         readable[0].date.year if readable else None,

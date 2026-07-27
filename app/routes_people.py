@@ -5,12 +5,11 @@ module's docstring/bottom-of-file import for why these live in a separate
 file without a separate blueprint.
 """
 
-import calendar
 from datetime import date
 
 from flask import abort, current_app, render_template
 
-from . import kinship, life_events, people, storage
+from . import i18n, kinship, life_events, people, storage
 from .auth import login_required
 from .rendering import render_markdown
 from .routes_pages import (
@@ -63,8 +62,9 @@ def almanac():
     months = {}
     for entry in entries:
         months.setdefault(entry["date"].month, []).append(entry)
+    lang = i18n.current_language()
     month_groups = [
-        {"name": calendar.month_name[month], "entries": month_entries}
+        {"name": i18n.format_date(date(2000, month, 1), lang, "month").capitalize(), "entries": month_entries}
         for month, month_entries in sorted(months.items())
     ]
     return render_template("almanac.html", month_groups=month_groups)
@@ -85,7 +85,7 @@ def person_page(slug):
     friend_of_line = None
     if not p.relation:
         if anchor:
-            kinship_line = kinship.kinship_label(graph, anchor, slug)
+            kinship_line = kinship.kinship_label(graph, anchor, slug, i18n.current_language())
         if kinship_line is None and p.friend_of:
             friend_of_line = _person_ref(people_by_slug, p.friend_of[0])
 
@@ -146,7 +146,7 @@ def tree_page():
                     continue
                 key = None
                 if anchor:
-                    ref["kinship"] = kinship.kinship_label(graph, anchor, p.slug)
+                    ref["kinship"] = kinship.kinship_label(graph, anchor, p.slug, i18n.current_language())
                     key = kinship.generation_offset(graph, anchor, p.slug)
                 buckets.setdefault(key, []).append(ref)
                 continue
@@ -161,13 +161,13 @@ def tree_page():
             anchor_name = people_by_slug[anchor].name
             for offset in sorted((k for k in buckets if k is not None), reverse=True):
                 generations.append({
-                    "heading": kinship.generation_group_label(offset, anchor_name),
+                    "heading": kinship.generation_group_label(offset, anchor_name, i18n.current_language()),
                     "people": buckets[offset],
                 })
             if None in buckets:
-                generations.append({"heading": "Other family", "people": buckets[None]})
+                generations.append({"heading": i18n._("Other family"), "people": buckets[None]})
         elif buckets:
-            generations.append({"heading": "Family", "people": buckets[None]})
+            generations.append({"heading": i18n._("Family"), "people": buckets[None]})
 
     return render_template(
         "tree.html", has_family_links=has_family_links, others=others, generations=generations,

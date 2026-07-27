@@ -112,9 +112,11 @@ def _gender_word(graph: Graph, slug: str, m_word: str, f_word: str, neutral_word
     return neutral_word
 
 
-def _label_for_updown(graph: Graph, person_slug: str, up: int, down: int) -> Optional[str]:
+def _label_for_updown(graph: Graph, person_slug: str, up: int, down: int, lang: str = "en") -> Optional[str]:
     if up == 0 and down == 0:
         return None
+    if lang == "fr":
+        return _label_for_updown_fr(graph, person_slug, up, down)
     if down == 0:
         if up == 1:
             return _gender_word(graph, person_slug, "your father", "your mother", "your parent")
@@ -134,6 +136,43 @@ def _label_for_updown(graph: Graph, person_slug: str, up: int, down: int) -> Opt
         base = _gender_word(graph, person_slug, "nephew", "niece", "niece or nephew")
         return f"your {'great-' * (down - 2)}{base}"
     return "your cousin"
+
+
+def _label_for_updown_fr(graph: Graph, person_slug: str, up: int, down: int) -> Optional[str]:
+    """French kinship phrasing (informal "tu/ton/ta", matching
+    translations_fr.py's tone note). French compounds a "great-" step
+    differently depending on direction — "arrière-grand-père" but
+    "grand-oncle"/"arrière-grand-oncle", "petit-fils" but
+    "petit-neveu"/"arrière-petit-neveu" — so the prefix isn't a single
+    repeated word the way English's "great-" is."""
+    if down == 0:
+        if up == 1:
+            return _gender_word(graph, person_slug, "ton père", "ta mère", "ton parent")
+        base = _gender_word(graph, person_slug, "grand-père", "grand-mère", "grand-parent")
+        poss = _gender_word(graph, person_slug, "ton", "ta", "ton")
+        return f"{poss} {'arrière-' * (up - 2)}{base}"
+    if up == 0:
+        if down == 1:
+            return _gender_word(graph, person_slug, "ton fils", "ta fille", "ton enfant")
+        base = _gender_word(graph, person_slug, "petit-fils", "petite-fille", "petit-enfant")
+        poss = _gender_word(graph, person_slug, "ton", "ta", "ton")
+        return f"{poss} {'arrière-' * (down - 2)}{base}"
+    if up == 1 and down == 1:
+        return _gender_word(graph, person_slug, "ton frère", "ta sœur", "ton frère ou ta sœur")
+    if down == 1 and up >= 2:
+        base = _gender_word(graph, person_slug, "oncle", "tante", "tante ou oncle")
+        poss = _gender_word(graph, person_slug, "ton", "ta", "ton")
+        extra = up - 2
+        prefix = "" if extra == 0 else "grand-" if extra == 1 else f"{'arrière-' * (extra - 1)}grand-"
+        return f"{poss} {prefix}{base}"
+    if up == 1 and down >= 2:
+        base = _gender_word(graph, person_slug, "neveu", "nièce", "neveu ou nièce")
+        poss = _gender_word(graph, person_slug, "ton", "ta", "ton")
+        extra = down - 2
+        petit = _gender_word(graph, person_slug, "petit-", "petite-", "petit-")
+        prefix = "" if extra == 0 else petit if extra == 1 else f"{'arrière-' * (extra - 1)}{petit}"
+        return f"{poss} {prefix}{base}"
+    return "ton cousin"
 
 
 def _blood_updown(graph: Graph, anchor_slug: str, person_slug: str) -> Optional[tuple]:
@@ -158,11 +197,11 @@ def _blood_updown(graph: Graph, anchor_slug: str, person_slug: str) -> Optional[
     return anchor_depths[best], person_depths[best]
 
 
-def _blood_kinship(graph: Graph, anchor_slug: str, person_slug: str) -> Optional[str]:
+def _blood_kinship(graph: Graph, anchor_slug: str, person_slug: str, lang: str = "en") -> Optional[str]:
     updown = _blood_updown(graph, anchor_slug, person_slug)
     if updown is None:
         return None
-    return _label_for_updown(graph, person_slug, updown[0], updown[1])
+    return _label_for_updown(graph, person_slug, updown[0], updown[1], lang)
 
 
 def _partner_blood_updown(graph: Graph, anchor_slug: str, person_slug: str) -> Optional[tuple]:
@@ -178,16 +217,18 @@ def _partner_blood_updown(graph: Graph, anchor_slug: str, person_slug: str) -> O
     return None
 
 
-def kinship_label(graph: Graph, anchor_slug: Optional[str], person_slug: str) -> Optional[str]:
+def kinship_label(graph: Graph, anchor_slug: Optional[str], person_slug: str, lang: str = "en") -> Optional[str]:
     """The label for `person_slug` relative to `anchor_slug` — always about
     the person, from the anchor's point of view ("your uncle"), never the
-    reverse. None when unset, unreachable, or self."""
+    reverse. None when unset, unreachable, or self. `lang` defaults to
+    "en" so every existing call site/test is unaffected; pass "fr" for
+    the French phrasing (see translations_fr.py's tone note)."""
     if not graph or not anchor_slug or anchor_slug not in graph.nodes:
         return None
     if person_slug not in graph.nodes or anchor_slug == person_slug:
         return None
 
-    label = _blood_kinship(graph, anchor_slug, person_slug)
+    label = _blood_kinship(graph, anchor_slug, person_slug, lang)
     if label is not None:
         return label
 
@@ -195,8 +236,13 @@ def kinship_label(graph: Graph, anchor_slug: Optional[str], person_slug: str) ->
     partner_match = _partner_blood_updown(graph, anchor_slug, person_slug)
     if partner_match is not None:
         partner_slug, updown = partner_match
-        relative_label = _label_for_updown(graph, partner_slug, updown[0], updown[1])
+        relative_label = _label_for_updown(graph, partner_slug, updown[0], updown[1], lang)
         if relative_label:
+            if lang == "fr":
+                word, article = _gender_word(
+                    graph, person_slug, ("mari", "le"), ("femme", "la"), ("partenaire", "le")
+                )
+                return f"{article} {word} de {relative_label}"
             word = _gender_word(graph, person_slug, "husband", "wife", "partner")
             return f"{relative_label}'s {word}"
     return None
@@ -228,9 +274,20 @@ def generation_offset(graph: Graph, anchor_slug: Optional[str], person_slug: str
     return None
 
 
-def generation_group_label(offset: int, anchor_name: str) -> str:
+def generation_group_label(offset: int, anchor_name: str, lang: str = "en") -> str:
     """A heading for a bucket of people at `offset` generations from the
-    anchor, e.g. "Grandparents' generation" or "Milo's generation"."""
+    anchor, e.g. "Grandparents' generation" or "Milo's generation".
+    `lang` defaults to "en" so every existing call site/test is
+    unaffected; pass "fr" for the French phrasing."""
+    if lang == "fr":
+        if offset == 0:
+            return f"La génération de {anchor_name}"
+        great = "arrière-" * (abs(offset) - 2)
+        if offset > 0:
+            word = "parents" if offset == 1 else f"{great}grands-parents"
+        else:
+            word = "enfants" if offset == -1 else f"{great}petits-enfants"
+        return f"La génération des {word}"
     if offset == 0:
         return f"{anchor_name}’s generation"
     great = "great-" * (abs(offset) - 2)

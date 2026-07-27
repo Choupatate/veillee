@@ -40,12 +40,16 @@
         if (!res.ok) {
           if (spinner) spinner.hidden = true;
           result.classList.add("import__result--error");
-          result.textContent = (res.data && res.data.error) || "Import failed.";
+          result.textContent = (res.data && res.data.error) || window.storybookT("Import failed.");
           return;
         }
         var count = res.data.imported;
-        result.textContent =
-          "Imported " + count + (count === 1 ? " story" : " stories") + ". Reloading…";
+        var lang = document.documentElement.lang;
+        var isSingular = lang === "fr" ? Math.abs(count) < 2 : count === 1;
+        var template = window.storybookT(
+          isSingular ? "Imported {n} story. Reloading…" : "Imported {n} stories. Reloading…"
+        );
+        result.textContent = template.replace("{n}", count);
         setTimeout(function () {
           window.location.href = "/";
         }, 1200);
@@ -54,7 +58,9 @@
         result.hidden = false;
         if (spinner) spinner.hidden = true;
         result.classList.add("import__result--error");
-        result.textContent = "Could not import. Please check your connection and try again.";
+        result.textContent = window.storybookT(
+          "Could not import. Please check your connection and try again."
+        );
       });
   });
 })();
