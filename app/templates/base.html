@@ -41,7 +41,9 @@
     <a class="site-nav__link" href="{{ url_for('pages.help_page') }}">{{ _("Help") }}</a>
     {% if config.ACCOUNTS_ENABLED and session.get('role') == 'admin' %}
     <a class="site-nav__link" href="{{ url_for('pages.admin_accounts') }}">{{ _("Accounts") }}</a>
-    <a class="site-nav__link" href="{{ url_for('pages.admin_groups') }}">{{ _("Groups") }}</a>
+    {% endif %}
+    {% if config.ACCOUNTS_ENABLED %}
+    <a class="site-nav__link" href="{{ url_for('pages.groups_page') }}">{{ _("Groups") }}</a>
     {% endif %}
     {% if config.ACCOUNTS_ENABLED and session.get('person_slug') %}
     <a class="site-nav__link" href="{{ url_for('pages.account_home') }}">{{ _("Account") }}</a>

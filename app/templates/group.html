@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+{% block content %}
+<div class="admin">
+  <p class="admin__back"><a href="{{ url_for('pages.groups_page') }}">&lsaquo; {{ _("Groups") }}</a></p>
+  <h1 class="admin__title">{{ group.name }}</h1>
+  {# The count is only for people who can act on it. To anyone else it would
+     say how many stories exist that they can't read — exactly what F40 keeps
+     the timeline's "kept to a group" pill from leaking to an outsider. #}
+  {% if can_manage %}
+  <p class="admin__hint">
+    {{ _n("{n} story is kept to this group.", "{n} stories are kept to this group.", story_count) }}
+    {{ _("Taking someone out means they stop seeing those stories straight away.") }}
+  </p>
+  {% endif %}
+  {% if can_manage and others_count %}
+  <p class="admin__hint admin__hint--warn">
+    {{ _n("{n} of them was written by someone else. Adding a person here opens their writing too, not only yours.",
+          "{n} of them were written by someone else. Adding a person here opens their writing too, not only yours.",
+          others_count) }}
+  </p>
+  {% endif %}
+
+  {% if can_manage %}
+  <form class="admin__form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="login__label" for="group-name">{{ _("Name") }}</label>
+    <input class="login__input" type="text" id="group-name" name="name"
+           value="{{ group.name }}" required>
+
+    <fieldset class="admin__field-group">
+      <legend class="login__label">{{ _("Who's in it") }}</legend>
+      {% for row in member_rows %}
+      <label class="admin__checkbox-label">
+        <input type="checkbox" name="members" value="{{ row.person.slug }}"
+               {% if row.is_member %}checked{% endif %}>
+        {{ row.person.name }}
+        {% if not row.has_account %}
+        <span class="admin__row-hint">{{ _("can't log in yet") }}</span>
+        {% endif %}
+      </label>
+      {% endfor %}
+    </fieldset>
+    {% if viewer_is_member %}
+    <p class="admin__hint">
+      {{ _("A group is changed by the people in it, so if you take yourself out you won't be able to change it again.") }}
+    </p>
+    {% endif %}
+
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Save group") }}</button>
+  </form>
+  {% else %}
+  <h2 class="admin__subtitle">{{ _("Who's in it") }}</h2>
+  {% set members = member_rows|selectattr('is_member')|list %}
+  {% if members %}
+  <ul class="admin__list">
+    {% for row in members %}
+    <li class="admin__row">
+      <span class="admin__row-name">{{ row.person.name }}</span>
+      {% if not row.has_account %}
+      <span class="admin__row-hint">{{ _("can't log in yet") }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="admin__empty">{{ _("nobody yet") }}</p>
+  {% endif %}
+  <p class="admin__hint">
+    {{ _("A group is changed by the people in it, or by an admin.") }}
+    {% if creator_name %}{{ _("{name} made this one.", name=creator_name) }}{% endif %}
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

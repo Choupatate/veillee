@@ -58,6 +58,9 @@ the exact `F<N>.` heading text to jump to it.
 - **F40** — Groups: scoping a story to fewer people than the whole family
   (the audience rule and every surface enforcing it, plus the editor
   picker and the "kept to a group" markers)
+- **F41** — Groups anyone can make: creating a group stops being an admin
+  errand, a group is changed by the people in it, and two groups can't
+  quietly cover exactly the same people
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -4902,3 +4905,146 @@ audience intact.
   but it is worth knowing before handing someone a Family account.
 
 `pytest` (1060) and `ruff check .` green.
+
+---
+
+## F41. Groups anyone can make
+
+F40 shipped groups but kept the two screens that manage them behind
+`@admin_required`. So the feature read, in practice, as: you may keep a
+story to fewer people, provided an admin has already made the right circle
+for you. Wanting to write something for three particular people meant
+stopping, asking, and waiting — which mostly means not writing it. Groups
+are a writing tool, and a writing tool you have to file a request for is
+one nobody uses.
+
+So: **anyone in the family can make a group.** `/admin/groups` and
+`/admin/groups/<slug>` became `/groups` and `/groups/<slug>` (endpoints
+`pages.groups_page` / `pages.group_page`, templates `groups.html` /
+`group.html`), the nav link shows for everyone in accounts mode, and the
+`admin_required` decorator is gone from `routes_groups.py`. Still 404
+without accounts mode: one shared password is one identity, and a group
+would have nobody to scope a story away from.
+
+### The one thing that can't be opened up
+
+Making a group is harmless. Editing an existing one is not — if any
+logged-in person could edit any group, anyone could add themselves to
+"Just us" and read it, and the whole of F40 would collapse to a
+suggestion.
+
+`groups.can_manage(group, person_slug, is_admin)` is the gate: **a group is
+changed by the people in it, or by an admin.** A circle maintains itself,
+the way it works when a family actually talks — the people already inside
+decide who else comes in. Membership, not authorship: `created_by` is
+recorded and displayed ("made by Maman") but grants nothing on its own.
+
+Which forces one small thing to be true: **making a group puts you in it.**
+Rights follow membership, so a creator left outside would be locked out of
+the group they'd just made, with nothing on screen explaining why. The
+create form says so before you use it, and the edit form warns before you
+take yourself out, since that's the one edit you can't undo from that page.
+
+An empty group therefore has no family editors and is admin-only. That
+falls out of the rule rather than being special-cased, and it fails closed,
+which is the direction to fail in.
+
+Non-managers still get the page, read-only — a group's name isn't a secret,
+it's printed on every story kept to it, and you need to know who's in a
+group to choose it in the editor. A POST without rights is a **403, not the
+404** used elsewhere in this app to hide a page's existence: the resource is
+genuinely visible, so pretending otherwise would be a lie the UI
+immediately contradicts.
+
+### The barriers
+
+**Two groups can't cover exactly the same people.** Identical membership is
+one circle under two names, and that's worse than merely redundant: a story
+kept to one looks protected from people who can in fact read it through the
+other, and widening one leaves the other silently behind.
+`groups.scope_twin` finds the offender and the message names it — *"Just us
+already covers exactly these people"* — so the answer is to use that group
+rather than to guess.
+
+Fewer than two people never counts as a twin. An empty group is a state on
+the way to being filled in, not a scope; a group of one is a note to a
+single person, where a second name for the same person misleads nobody.
+That exemption isn't a nicety — without it the rule fights the app, because
+making a group puts you in it, so everyone's first group is {you} and it
+would collide with any existing group that happened to be {you}. Refusing a
+group at the moment someone types its name, over a membership they never
+chose, would be the feature's worst first impression.
+
+**A rename can't collide either.** The slug never changes on rename (F40:
+stories reference it by slug, and rewriting every story's frontmatter to
+track a rename is the cascading write this app avoids), so without a check
+two groups could end up *displaying* the same name — two identical-looking
+chips in the editor doing different things. Compared case-insensitively.
+
+**A cap of 40 groups** (`groups.MAX_GROUPS`). Every group is a chip in the
+audience row, on a phone, above the keyboard; past a couple of dozen that
+row stops being a choice you can make at a glance, which is when someone
+taps the wrong one. At the cap the create form is replaced by an
+explanation, rather than left there to fail on submit.
+
+**Unknown or duplicated members are rejected, not dropped.** `clean_members`
+now validates at creation too (F40 only did it on edit), de-duplicates, and
+checks each slug against `is_valid_story_id` before touching the
+filesystem. A member who silently isn't there is one who can't read what
+they were meant to, with nothing on screen saying so.
+
+### Leaks found while building it
+
+**A story count is content.** The group page said "1 story is kept to this
+group" to everyone. Fine when only admins could open it; not fine once
+every family member can, because it tells an outsider how many stories
+exist that they aren't allowed to read — precisely what F40 stops the
+timeline's "kept to a group" pill from leaking. Both the list and the group
+page now show counts only to people who can manage the group. Caught in the
+browser, not by a test; the test came after.
+
+**Widening republishes other people's writing.** Adding a person to a group
+opens every story kept to it, not only your own. Under F40 an admin did
+that knowingly; under F41 a member might not think of it. The group page
+counts the stories kept there that *someone else* wrote and says so above
+the form. It's a warning, not a block — the members of a circle are the
+right people to make that call, they just should know they're making it.
+
+### Untranslatable errors, fixed on the way past
+
+`groups.py` raised `ValueError(f"There is already a group called {name!r}.")`
+and the route did `flash(_(str(exc)))`. That reaches the French catalog
+already interpolated, so it never matched a key: every one of these
+messages was silently pinned to English since F40.
+
+`groups.GroupError` now carries the uninterpolated template plus its values
+(`GroupError("There is already a group called {name}.", name=name)`), and
+`_flash_group_error` hands both to `_()`. It subclasses `ValueError`, so
+existing `except ValueError` handlers are unchanged. Verified in the
+browser: *"Grandparents regroupe déjà exactement ces personnes."*
+
+### Also true now
+
+F40 noted that `groups.json` sitting in every export was "an inconsistency,
+since group management is admin-only in the UI". It isn't an inconsistency
+any more — group names and membership are visible to every family member by
+design. The export still carries account password hashes (F19), which is
+unrelated and still worth knowing.
+
+### Tests
+
+24 new tests in `tests/test_groups.py` (76 in the file, 1084 in the suite):
+the membership gate from both sides, an admin editing a group they're not
+in, an empty group failing closed, the read-only page, creation putting you
+in the group, the story-count leak, the widening warning appearing only
+when someone else's writing is at stake, every branch of the twin rule
+(order-independence, the exempt sizes, ignoring the group being edited),
+the rename collision, the cap and its form, duplicate and traversal-shaped
+member slugs, and `created_by` surviving a round trip and degrading to
+`None` when malformed.
+
+Verified in Chromium at 390px in English and French: the list, the editable
+page, the read-only page, creating a group end to end, and both refusal
+flashes in both languages.
+
+`pytest` (1084) and `ruff check .` green.

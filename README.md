@@ -173,12 +173,12 @@ specific person up front.
 
 By default every account reads every story, and that stays the default. A
 **group** is a named handful of people a story can be kept to, for the
-things that are for a wife and a son and nobody else. Admins manage them
-from **Groups** in the nav: give the group a name, tick who's in it. A
+things that are for a wife and a son and nobody else. Anyone can make one
+from **Groups** in the nav: give the group a name, then tick who's in it. A
 story with no group is for everyone; a story with one is visible only to
 that group's members (any of them, if it lists several).
 
-Two rules worth knowing before you rely on it:
+Three rules worth knowing before you rely on it:
 
 - **Membership governs reading; role governs managing.** An admin who
   isn't in a group can't read its stories — not on the timeline, not by
@@ -186,9 +186,22 @@ Two rules worth knowing before you rely on it:
   the editor or the API. An admin can of course add themselves to the
   group and then read it, but that's a visible change to the group rather
   than a silent power.
+- **A group is changed by the people in it** (or by an admin). Anyone can
+  create one, but only its members can rename it or change who's in it —
+  otherwise anyone could add themselves to *Just us* and read it. Making a
+  group puts you in it, so you can always maintain what you made; take
+  yourself out and you hand it over for good. Adding someone opens every
+  story kept to that group, including other people's, so the page says how
+  many of those there are before you do it.
 - **The author always sees their own story**, even if they scoped it to a
   group they aren't in. That's a safety rail against a mis-tap, not a
   permission.
+
+Two groups can't cover exactly the same people — identical membership is
+one circle under two names, and a story kept to one would look protected
+from people who can read it through the other. Nor can two groups share a
+name. A book holds up to 40 groups, because every group is a chip in the
+editor's audience row and that row has to stay readable on a phone.
 
 In the editor (and the instant composer), a **Who can see this** row of
 chips picks the groups. Nothing lit means everyone — and because an

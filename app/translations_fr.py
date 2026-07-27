@@ -136,6 +136,53 @@ TRANSLATIONS_FR = {
     "{n} story is kept to this group.": "{n} histoire est réservée à ce cercle.",
     "{n} stories are kept to this group.":
         "{n} histoires sont réservées à ce cercle.",
+
+    # --- groups anyone can make (F41) ---------------------------------------
+    "View": "Voir",
+    "made by {name}": "créé par {name}",
+    "{name} made this one.": "C'est {name} qui l'a créé.",
+    "Anyone can make one, and the people in a group are the ones who can "
+    "change it.":
+        "Tout le monde peut en créer un, et ce sont les personnes qui en font "
+        "partie qui peuvent le modifier.",
+    "Name it first, then pick who's in it on the next screen. You'll be in it "
+    "yourself.":
+        "Donnez-lui d'abord un nom, puis choisissez qui en fait partie à "
+        "l'écran suivant. Vous en ferez partie vous-même.",
+    "A group is changed by the people in it, or by an admin.":
+        "Un cercle se modifie par les personnes qui en font partie, ou par "
+        "un administrateur.",
+    "A group is changed by the people in it, so if you take yourself out you "
+    "won't be able to change it again.":
+        "Un cercle se modifie par les personnes qui en font partie : si vous "
+        "vous retirez, vous ne pourrez plus le modifier.",
+    "{n} of them was written by someone else. Adding a person here opens "
+    "their writing too, not only yours.":
+        "{n} d'entre elles a été écrite par quelqu'un d'autre. Ajouter une "
+        "personne ici ouvre aussi ses écrits, pas seulement les vôtres.",
+    "{n} of them were written by someone else. Adding a person here opens "
+    "their writing too, not only yours.":
+        "{n} d'entre elles ont été écrites par quelqu'un d'autre. Ajouter une "
+        "personne ici ouvre aussi ses écrits, pas seulement les vôtres.",
+    "This book is holding as many groups as it keeps. Rename or reuse one "
+    "instead of adding another.":
+        "Ce livre contient déjà autant de cercles qu'il en garde. Renommez ou "
+        "réutilisez-en un plutôt que d'en ajouter un autre.",
+    # Flash messages raised as groups.GroupError — the template stays the
+    # catalog key and its values arrive separately, so these match.
+    "Give the group a name.": "Donnez un nom au cercle.",
+    "There is already a group called {name}.":
+        "Il existe déjà un cercle appelé {name}.",
+    "Unknown person: {person}.": "Personne inconnue : {person}.",
+    "{other} already covers exactly these people. Use that group, or choose "
+    "a different set of people for this one.":
+        "{other} regroupe déjà exactement ces personnes. Utilisez ce cercle, "
+        "ou choisissez d'autres personnes pour celui-ci.",
+    "There are already {n} groups, which is as many as this book keeps. "
+    "Rename or reuse one instead.":
+        "Il y a déjà {n} cercles, soit autant que ce livre en garde. Renommez "
+        "ou réutilisez-en un.",
+
     "Who can see this": "Qui peut la voir",
     "Only {names}": "Seulement {names}",
     "Kept to {names}": "Réservée à {names}",
