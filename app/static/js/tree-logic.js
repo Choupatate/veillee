@@ -98,7 +98,15 @@
     });
   }
 
-  function levelLabel(level, deepest) {
+  function levelLabel(level, deepest, lang) {
+    if (lang === "fr") {
+      if (level === 0) return "Lignée directe";
+      if (level >= deepest) return "Toute la famille";
+      if (level === 1) return "Branche des parents";
+      var labelFr = "grands-parents";
+      for (var j = 0; j < level - 2; j++) labelFr = "arrière-" + labelFr;
+      return "Branche des " + labelFr;
+    }
     if (level === 0) return "Direct line";
     if (level >= deepest) return "Whole family";
     if (level === 1) return "Parents’ branch";

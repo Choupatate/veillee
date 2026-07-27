@@ -48,15 +48,15 @@
   function describeError(error) {
     var name = (error && error.name) || "";
     if (name === "NotAllowedError" || name === "SecurityError") {
-      return "Camera access was denied. You can still add a photo from your files.";
+      return window.storybookT("Camera access was denied. You can still add a photo from your files.");
     }
     if (name === "NotFoundError" || name === "OverconstrainedError") {
-      return "No camera found on this device.";
+      return window.storybookT("No camera found on this device.");
     }
     if (name === "NotReadableError") {
-      return "The camera is busy in another app. Close it and try again.";
+      return window.storybookT("The camera is busy in another app. Close it and try again.");
     }
-    return "Could not start the camera.";
+    return window.storybookT("Could not start the camera.");
   }
 
   function toFile(blob, filename) {
@@ -87,7 +87,7 @@
       var overlay = element("div", "camera");
       overlay.setAttribute("role", "dialog");
       overlay.setAttribute("aria-modal", "true");
-      overlay.setAttribute("aria-label", opts.label || "Take a photo");
+      overlay.setAttribute("aria-label", opts.label || window.storybookT("Take a photo"));
       overlay.tabIndex = -1;
 
       var stage = element("div", "camera__stage");
@@ -109,14 +109,14 @@
       overlay.appendChild(message);
 
       var controls = element("div", "camera__controls");
-      var cancelBtn = button("btn camera__btn", "Cancel");
-      var flipBtn = button("btn camera__btn", "Flip");
-      flipBtn.setAttribute("aria-label", "Switch camera");
+      var cancelBtn = button("btn camera__btn", window.storybookT("Cancel"));
+      var flipBtn = button("btn camera__btn", window.storybookT("Flip"));
+      flipBtn.setAttribute("aria-label", window.storybookT("Switch camera"));
       flipBtn.hidden = true;
-      var shutterBtn = button("btn btn--primary camera__btn camera__shutter", "Take photo");
-      var retakeBtn = button("btn camera__btn", "Retake");
+      var shutterBtn = button("btn btn--primary camera__btn camera__shutter", window.storybookT("Take photo"));
+      var retakeBtn = button("btn camera__btn", window.storybookT("Retake"));
       retakeBtn.hidden = true;
-      var useBtn = button("btn btn--primary camera__btn camera__use", "Use photo");
+      var useBtn = button("btn btn--primary camera__btn camera__use", window.storybookT("Use photo"));
       useBtn.hidden = true;
       controls.appendChild(cancelBtn);
       controls.appendChild(flipBtn);
@@ -184,7 +184,7 @@
       function capture() {
         var size = Logic.captureSize(video.videoWidth, video.videoHeight);
         if (!size) {
-          showMessage("The camera isn't ready yet — try again in a moment.");
+          showMessage(window.storybookT("The camera isn't ready yet — try again in a moment."));
           return;
         }
         var canvas = document.createElement("canvas");
@@ -198,7 +198,7 @@
           function (blob) {
             shutterBtn.disabled = false;
             if (!blob) {
-              showMessage("Could not take that photo. Try again.");
+              showMessage(window.storybookT("Could not take that photo. Try again."));
               return;
             }
             showCaptured(blob);

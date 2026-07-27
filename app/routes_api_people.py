@@ -8,7 +8,7 @@ blueprint.
 
 from flask import current_app, jsonify, request, url_for
 
-from . import kinship, people, storage
+from . import i18n, kinship, people, storage
 from .auth import login_required
 from .routes_api import (
     _error,
@@ -442,7 +442,9 @@ def api_tree():
             "url": url_for("pages.person_page", slug=p.slug),
         }
         if in_family:
-            entry["kinship"] = kinship.kinship_label(graph, anchor, p.slug) if anchor else None
+            entry["kinship"] = (
+                kinship.kinship_label(graph, anchor, p.slug, i18n.current_language()) if anchor else None
+            )
             entry["rels"] = {
                 "parents": list(graph.parents.get(p.slug, [])),
                 "partners": kinship.partners_of(graph, p.slug),

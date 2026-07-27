@@ -100,7 +100,7 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_AUTHORS` | Optional. Comma-separated `Name:#hexcolor` pairs for several narrators (see below). Unset by default. |
 | `STORYBOOK_BIRTHDATE` | Optional. The child's birth date (`YYYY-MM-DD`). Shows the child's age at each memory (see below). Unset by default. |
 | `STORYBOOK_LANGUAGE` | Optional. The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. Defaults to `en`. |
-| `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook`. |
+| `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` (English) / `La Veillée` (French), depending on the visitor's language. |
 | `STORYBOOK_CHILD` | Optional. The slug of the person page the family tree's kinship labels are computed relative to (see below). Unset by default. |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
 

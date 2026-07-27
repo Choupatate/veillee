@@ -224,3 +224,37 @@ def age_label(birthdate: date, on_date: date, lang: str = DEFAULT_LANGUAGE) -> s
     if unit == "month":
         return ngettext("{n} month old", "{n} months old", amount, lang)
     return ngettext("{n} year old", "{n} years old", amount, lang)
+
+
+# --- strings a handful of JS files need at runtime --------------------------
+#
+# The static text templates render is translated at request time (this
+# file); the few files below render text *after* the page loads (a save
+# button's state, an in-browser camera's controls, the tree's view
+# buttons) and can't go through Jinja. Rather than a second, JS-side
+# translation table, they read the exact same English-source-keyed
+# strings from here via a small JSON blob base.html embeds (see
+# static/js/i18n.js) — one dictionary, one place a translator edits.
+JS_STRINGS = (
+    "Close", "Cancel", "Flip", "Switch camera", "Take photo", "Take a photo",
+    "Retake", "Use photo", "Camera access was denied. You can still add a "
+    "photo from your files.", "No camera found on this device.",
+    "The camera is busy in another app. Close it and try again.",
+    "Could not start the camera.",
+    "The camera isn't ready yet — try again in a moment.",
+    "Could not take that photo. Try again.",
+    "Microphone access was denied.", "Could not save the recording.",
+    "Could not delete the recording.", "Adding the photo…",
+    "Could not add that photo.", "Delete", "Pause", "Resume", "Saving…",
+    "Change photo", "Note (optional)", "https://...", "Since",
+    "Until (optional)", "Remove source", "Remove union", "Wedding", "PACS",
+    "Union", "Recenter", "Recenter the family tree",
+    "Could not load the family tree.", "Everyone", "Import failed.",
+    "Could not import. Please check your connection and try again.",
+    "Imported {n} story. Reloading…", "Imported {n} stories. Reloading…",
+    "Add a partner above first.",
+)
+
+
+def js_strings(lang: str) -> dict:
+    return {text: gettext(text, lang) for text in JS_STRINGS}

@@ -88,7 +88,7 @@ def create_app(test_config=None):
     cookie_secure = os.environ.get("STORYBOOK_COOKIE_SECURE") == "1"
     authors = _parse_authors(os.environ.get("STORYBOOK_AUTHORS"))
     birthdate = _parse_birthdate(os.environ.get("STORYBOOK_BIRTHDATE"))
-    title = os.environ.get("STORYBOOK_TITLE") or "Storybook"
+    title_override = os.environ.get("STORYBOOK_TITLE") or None
     child_slug = os.environ.get("STORYBOOK_CHILD") or None
     accounts_enabled = os.environ.get("STORYBOOK_ACCOUNTS") == "1"
     trusted_proxies = int(os.environ.get("STORYBOOK_TRUSTED_PROXIES") or 0)
@@ -107,7 +107,7 @@ def create_app(test_config=None):
         DEV_MODE=password is None,
         AUTHORS=authors,
         BIRTHDATE=birthdate,
-        TITLE=title,
+        TITLE=title_override,
         CHILD_SLUG=child_slug,
         ACCOUNTS_ENABLED=accounts_enabled,
         PERMANENT_SESSION_LIFETIME=timedelta(days=90),
@@ -193,9 +193,13 @@ def create_app(test_config=None):
 
     @app.context_processor
     def inject_title():
+        # STORYBOOK_TITLE always wins when set (a family's own chosen name,
+        # e.g. "Le livre de Milo", isn't ours to translate); absent that,
+        # the app's own default name follows the reader's language too.
         return {
-            "app_title": app.config["TITLE"],
+            "app_title": app.config["TITLE"] or i18n._("Storybook"),
             "current_language": i18n.current_language(),
+            "js_strings": i18n.js_strings(i18n.current_language()),
         }
 
     @app.after_request

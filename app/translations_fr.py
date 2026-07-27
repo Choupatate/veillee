@@ -12,6 +12,10 @@ you were born"), and French keeps that familiar register — "tu", never
 """
 
 TRANSLATIONS_FR = {
+    # --- the app's own name (STORYBOOK_TITLE overrides this in either
+    # language; this is only the default when no family title is set) -----
+    "Storybook": "La Veillée",
+
     # --- navigation and chrome ---------------------------------------------
     "Skip to content": "Aller au contenu",
     "Toggle color theme": "Changer de thème",
@@ -173,6 +177,7 @@ TRANSLATIONS_FR = {
     "Family tree views": "Vues de l'arbre",
     "Friends & others": "Amis et autres",
     "friend of": "ami de",
+    "Other family": "Autre famille",
 
     # --- firsts / growth / almanac -----------------------------------------
     'Give any story a milestone label in the editor — "First steps", '
@@ -550,4 +555,47 @@ TRANSLATIONS_FR = {
     "Voice memos": "Mémos vocaux",
     "Family accounts": "Comptes de famille",
     "Keeping it safe": "Le garder en sécurité",
+
+    # --- strings only static/js/i18n.js reads (see i18n.py's JS_STRINGS) ---
+    "Close": "Fermer",
+    "Flip": "Changer",
+    "Switch camera": "Changer de caméra",
+    "Take photo": "Prendre la photo",
+    "Retake": "Reprendre",
+    "Use photo": "Utiliser la photo",
+    "Camera access was denied. You can still add a photo from your files.":
+        "L'accès à la caméra a été refusé. Vous pouvez toujours ajouter une "
+        "photo depuis vos fichiers.",
+    "No camera found on this device.": "Aucune caméra trouvée sur cet appareil.",
+    "The camera is busy in another app. Close it and try again.":
+        "La caméra est utilisée par une autre application. Fermez-la et "
+        "réessayez.",
+    "Could not start the camera.": "Impossible de démarrer la caméra.",
+    "The camera isn't ready yet — try again in a moment.":
+        "La caméra n'est pas encore prête — réessayez dans un instant.",
+    "Could not take that photo. Try again.":
+        "Impossible de prendre cette photo. Réessayez.",
+    "Microphone access was denied.": "L'accès au microphone a été refusé.",
+    "Could not save the recording.": "Impossible d'enregistrer l'audio.",
+    "Could not delete the recording.": "Impossible de supprimer l'enregistrement.",
+    "Adding the photo…": "Ajout de la photo…",
+    "Could not add that photo.": "Impossible d'ajouter cette photo.",
+    "Resume": "Reprendre",
+    "Saving…": "Enregistrement…",
+    "https://...": "https://...",
+    "Since": "Depuis",
+    "Until (optional)": "Jusqu'à (optionnel)",
+    "Remove source": "Supprimer la source",
+    "Remove union": "Supprimer l'union",
+    "Recenter": "Recentrer",
+    "Recenter the family tree": "Recentrer l'arbre généalogique",
+    "Could not load the family tree.":
+        "Impossible de charger l'arbre généalogique.",
+    "Everyone": "Tout le monde",
+    "Import failed.": "Échec de l'import.",
+    "Could not import. Please check your connection and try again.":
+        "Impossible d'importer. Vérifiez votre connexion et réessayez.",
+    "Imported {n} story. Reloading…": "{n} histoire importée. Rechargement…",
+    "Imported {n} stories. Reloading…": "{n} histoires importées. Rechargement…",
+    "Add a partner above first.": "Ajoutez d'abord un·e partenaire ci-dessus.",
 }

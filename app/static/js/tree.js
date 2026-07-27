@@ -133,21 +133,21 @@
         var row = document.createElement("div");
         row.className = "tree__views-row";
         row.appendChild(
-          makeButton("Direct line", viewLevel === 0, function () {
+          makeButton(window.TreeLogic.levelLabel(0, deepest, document.documentElement.lang), viewLevel === 0, function () {
             goToLevel(0);
           })
         );
         for (var lv = 1; lv <= deepest; lv++) {
           (function (lv) {
             row.appendChild(
-              makeButton(window.TreeLogic.levelLabel(lv, deepest), viewLevel === lv, function () {
+              makeButton(window.TreeLogic.levelLabel(lv, deepest, document.documentElement.lang), viewLevel === lv, function () {
                 goToLevel(lv);
               })
             );
           })(lv);
         }
         row.appendChild(
-          makeButton("Everyone", viewLevel === "all", function () {
+          makeButton(window.storybookT("Everyone"), viewLevel === "all", function () {
             goToLevel("all");
           })
         );
@@ -316,8 +316,8 @@
           var btn = document.createElement("button");
           btn.type = "button";
           btn.className = "btn tree__recenter-btn";
-          btn.textContent = "Recenter";
-          btn.setAttribute("aria-label", "Recenter the family tree");
+          btn.textContent = window.storybookT("Recenter");
+          btn.setAttribute("aria-label", window.storybookT("Recenter the family tree"));
           btn.addEventListener("click", recenter);
           mountEl.appendChild(btn);
         }
@@ -657,8 +657,8 @@
         var recenterBtn = document.createElement("button");
         recenterBtn.type = "button";
         recenterBtn.className = "btn tree__recenter-btn";
-        recenterBtn.textContent = "Recenter";
-        recenterBtn.setAttribute("aria-label", "Recenter the family tree");
+        recenterBtn.textContent = window.storybookT("Recenter");
+        recenterBtn.setAttribute("aria-label", window.storybookT("Recenter the family tree"));
         recenterBtn.addEventListener("click", function () {
           window.d3.select(svg).call(zoomBehavior.transform, fitTransform);
         });
@@ -732,6 +732,6 @@
       renderView();
     })
     .catch(function () {
-      container.textContent = "Could not load the family tree.";
+      container.textContent = window.storybookT("Could not load the family tree.");
     });
 })();
