@@ -428,6 +428,73 @@ def test_an_outsider_cannot_add_themselves_to_a_group(scoped_app):
     assert client.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 404
 
 
+def _second_person_named(scoped_app, name, username):
+    """A second Person carrying an existing display name, with an account —
+    the state an admin reaches by approving a request from someone whose
+    name is already in the book (F39 warns, but doesn't forbid)."""
+    people_dir = storage.people_dir(scoped_app.config["STORIES_DIR"])
+    slug = people.create_person(people_dir, name)
+    accounts.create_account(people_dir, slug, username, "hunter22", "family")
+    client = scoped_app.test_client()
+    _login(client, username, "hunter22")
+    return client, slug
+
+
+def test_a_namesake_does_not_inherit_the_authors_access(scoped_app):
+    """`can_see`'s author rail matches the author *name* a story carries,
+    so without a uniqueness check a second "Maman" would read the real
+    Maman's scoped stories."""
+    impostor, slug = _second_person_named(scoped_app, "Maman", "maman2")
+    assert slug != "maman"   # a distinct Person, same display name
+
+    scoped = scoped_app.config["SCOPED_ID"]   # authored by "Maman"
+    assert impostor.get(f"/story/{scoped}").status_code == 404
+    assert "The secret" not in impostor.get("/").data.decode()
+
+
+def test_a_namesake_differing_only_in_case_is_caught_too(scoped_app):
+    impostor, _slug = _second_person_named(scoped_app, "MAMAN", "maman3")
+    assert impostor.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 404
+
+
+def test_the_real_author_also_loses_the_rail_while_the_name_is_shared(scoped_app):
+    """Failing closed means both of them lose it, not just the newcomer —
+    the app can't tell which is which from a name. The real Maman still
+    reads her story through the group, which is how everyone else does."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    _second_person_named(scoped_app, "Maman", "maman2")
+    groups.set_members(stories_dir, "just-us", ["papa"])   # take her out of it
+
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    assert client.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 404
+
+
+def test_renaming_one_of_them_restores_the_rail(scoped_app):
+    """The fix an admin would reach for has to actually work."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+    _second_person_named(scoped_app, "Maman", "maman2")
+    groups.set_members(stories_dir, "just-us", ["papa"])
+
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    scoped = scoped_app.config["SCOPED_ID"]
+    assert client.get(f"/story/{scoped}").status_code == 404
+
+    people.update_person(people_dir, "maman-2", name="Maman Rose")
+    assert client.get(f"/story/{scoped}").status_code == 200
+
+
+def test_a_unique_name_keeps_the_rail(scoped_app):
+    """The check must not cost the ordinary case: one Maman, rail intact."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    groups.set_members(stories_dir, "just-us", ["papa"])
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    assert client.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 200
+
+
 def test_no_route_file_reaches_stories_unscoped():
     """`_visible_stories()` / `_get_story_or_404()` / `_readable_story_or_error()`
     are the only sanctioned ways into a story from a route. This counts the

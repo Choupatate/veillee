@@ -195,7 +195,9 @@ Three rules worth knowing before you rely on it:
   many of those there are before you do it.
 - **The author always sees their own story**, even if they scoped it to a
   group they aren't in. That's a safety rail against a mis-tap, not a
-  permission.
+  permission — and it's switched off for both of them if two people in the
+  book share a display name, since a name alone can't tell them apart.
+  Rename one and it comes back.
 
 Two groups can't cover exactly the same people — identical membership is
 one circle under two names, and a story kept to one would look protected

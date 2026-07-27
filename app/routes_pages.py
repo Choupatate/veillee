@@ -21,6 +21,7 @@ from flask import (
     Blueprint,
     abort,
     current_app,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -51,6 +52,32 @@ def _media_max_age(filename):
     return _LONG_CACHE_MAX_AGE if ext in _LONG_CACHE_EXTENSIONS else None
 
 
+def _unambiguous_author_name(people_dir, person):
+    """The viewer's display name, or None if some other Person shares it.
+
+    `can_see`'s author rail matches on the author *name* a story carries
+    (F1 stores a name, not a slug), so two People called "Maman" would see
+    each other's scoped stories. Reaching that state takes an admin
+    approving a second Person with a name already in the book — which is
+    what F39's duplicate hints exist to flag — but "unlikely" is not
+    "prevented", and this is an access-control comparison.
+
+    So an ambiguous name simply doesn't get the rail. Compared casefolded,
+    which is deliberately broader than the exact match it guards: erring
+    towards withholding the rail costs a safety net, while erring the other
+    way costs a private story. The real owner still reads their story
+    through the group like everyone else, and an admin renaming one of the
+    two Persons restores the rail for both.
+    """
+    if person is None:
+        return None
+    target = person.name.casefold().strip()
+    for other in people.list_people(people_dir):
+        if other.slug != person.slug and other.name.casefold().strip() == target:
+            return None
+    return person.name
+
+
 def _viewer_scope():
     """`(group_slugs, author_name)` for whoever is asking — the viewer half
     of `groups.can_see` (FEATURES.md F40).
@@ -61,13 +88,28 @@ def _viewer_scope():
     feature is inert. Callers below treat a None group set as "sees
     everything" rather than "sees nothing" — the safe direction for a
     single-password install, where every existing story must keep showing.
+
+    Nothing here reads the request. The group set comes from the session's
+    Person and `groups.json` on disk, so there is no field a client could
+    set to claim membership (FEATURES.md F41) — and it is recomputed per
+    request rather than cached in the session, which is what makes adding
+    and removing someone take effect immediately.
+
+    Memoized on `g` for the duration of one request: `story_media` reaches
+    this through `_get_story_or_404` for every single photo on a page, and
+    it now walks the people list.
     """
     if not current_app.config["ACCOUNTS_ENABLED"]:
         return None, None
-    person_slug = session.get("person_slug")
-    viewer_groups = groups.groups_for_person(current_app.config["STORIES_DIR"], person_slug)
-    person = people.get_person(_people_dir(), person_slug) if person_slug else None
-    return viewer_groups, (person.name if person else None)
+    if "viewer_scope" not in g.__dict__:
+        person_slug = session.get("person_slug")
+        people_dir = _people_dir()
+        person = people.get_person(people_dir, person_slug) if person_slug else None
+        g.viewer_scope = (
+            groups.groups_for_person(current_app.config["STORIES_DIR"], person_slug),
+            _unambiguous_author_name(people_dir, person),
+        )
+    return g.viewer_scope
 
 
 def _visible_stories():

@@ -5058,23 +5058,47 @@ change nothing; `PUT /api/stories/<id>` is a 404 even with a valid CSRF
 token; posting yourself onto the group's member list is a 403 and the
 story stays a 404 afterwards.
 
-### Two boundaries this doesn't change
+### The namesake hole in the author rail, closed
 
-- **Anyone who can read a story can edit it, including its audience.** A
-  member of *Just us* can widen a story someone else kept to it. That's the
-  app's writing model — a family journal with no per-story ownership — not
-  something groups introduced, and the group page's warning is the same
-  idea applied to membership. Worth knowing: a group protects a story from
-  people outside it, not from the people inside it.
-- **The author rail matches on display name, not person slug.** `can_see`
-  compares `story.author` to the viewer's Person name, so two People
-  sharing a display name would share author-visibility. Reaching that
-  state needs an admin to approve a second Person with a name already in
-  the book, which is exactly what F39's duplicate hints exist to flag.
+The audit turned up one path that wasn't a client-side trick and was real:
+`can_see`'s author rail compares `story.author` — a display *name*, since
+F1 stores a name rather than a slug — to the viewer's Person name. Two
+People called "Maman" therefore read each other's scoped stories, no
+tampering required. Getting there needs an admin to approve a second Person
+with a name already in the book, which is exactly what F39's duplicate
+hints flag, but "unlikely" isn't "prevented" and this is an access-control
+comparison.
+
+Rather than change what a story stores — the author name is F1's data
+model, and rewriting every story's frontmatter to carry a slug is the
+cascading write this app avoids — the *comparison* now refuses to run on an
+ambiguous name. `_unambiguous_author_name` returns the viewer's name only
+when no other Person shares it (casefolded, deliberately broader than the
+exact match it guards), and `_viewer_scope` passes None otherwise.
+
+Both namesakes lose the rail, not just the newcomer: from a name alone the
+app can't tell which is which, and withholding a safety net is the cheaper
+mistake than exposing a private story. The real author still reads her
+story through the group like everyone else, and an admin renaming either
+Person restores the rail for both — tested, since that's the fix an admin
+would actually reach for.
+
+`_viewer_scope` is now memoized on `g` for the request, because it walks
+the people list and `story_media` reaches it through `_get_story_or_404`
+once per photo on a page.
+
+### One boundary this deliberately doesn't change
+
+**Anyone who can read a story can edit it, including its audience.** A
+member of *Just us* can widen a story someone else kept to it. That's the
+app's writing model — a family journal with no per-story ownership — not
+something groups introduced, and the group page's warning is the same idea
+applied to membership. Worth knowing: a group protects a story from the
+people outside it, not from the people inside it.
 
 ### Tests
 
-37 new tests in `tests/test_groups.py` (89 in the file, 1097 in the suite):
+42 new tests in `tests/test_groups.py` (94 in the file, 1102 in the suite):
 the membership gate from both sides, an admin editing a group they're not
 in, an empty group failing closed, the read-only page, creation putting you
 in the group, the story-count leak, the widening warning appearing only
@@ -5089,10 +5113,12 @@ is believed*: forged query parameters and JSON fields on every reading
 surface, a tampered session cookie, membership taking effect (and being
 revoked) mid-session without a re-login, the outsider's HTML never carrying
 the story at all, and adding yourself to a group as the one client-side
-move that would actually grant reading.
+move that would actually grant reading, plus the namesake rail from
+every side — the impostor, a case-only difference, the real author losing
+it too, a rename restoring it, and a unique name keeping it.
 
 Verified in Chromium at 390px in English and French: the list, the editable
 page, the read-only page, creating a group end to end, and both refusal
 flashes in both languages.
 
-`pytest` (1097) and `ruff check .` green.
+`pytest` (1102) and `ruff check .` green.
