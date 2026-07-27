@@ -11,6 +11,18 @@
     {% if pending.note %}{{ _("Note:") }} &ldquo;{{ pending.note }}&rdquo;{% endif %}
   </p>
 
+  {% if hints %}
+  <p class="admin__hint admin__hint--warn">
+    {% for hint in hints %}
+    {% if hint.has_account %}
+    {{ _("{name} is already in the book and can already log in — approving this would give the same person a second account.", name=hint.person.name) }}
+    {% else %}
+    {{ _("{name} is already in the book. Bind this request to them rather than adding a second entry.", name=hint.person.name) }}
+    {% endif %}
+    {% endfor %}
+  </p>
+  {% endif %}
+
   <form class="admin__form" method="post"
         action="{{ url_for('pages.admin_review_pending', username=pending.username) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

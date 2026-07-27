@@ -175,6 +175,7 @@ PUBLIC_GET_ENDPOINTS = {
     "pages.manifest",          # must stay public for home-screen install
     "pages.request_account",   # gated by ACCOUNTS_ENABLED + invite code
     "pages.use_write_link",    # bearer token is the credential
+    "pages.accept_invite",     # same — bearer token, gated by ACCOUNTS_ENABLED
     "static",
 }
 

@@ -91,6 +91,7 @@ def create_app(test_config=None):
     title_override = os.environ.get("STORYBOOK_TITLE") or None
     child_slug = os.environ.get("STORYBOOK_CHILD") or None
     accounts_enabled = os.environ.get("STORYBOOK_ACCOUNTS") == "1"
+    open_requests = os.environ.get("STORYBOOK_OPEN_REQUESTS") == "1"
     trusted_proxies = int(os.environ.get("STORYBOOK_TRUSTED_PROXIES") or 0)
     default_language = os.environ.get("STORYBOOK_LANGUAGE") or None
 
@@ -110,6 +111,7 @@ def create_app(test_config=None):
         TITLE=title_override,
         CHILD_SLUG=child_slug,
         ACCOUNTS_ENABLED=accounts_enabled,
+        OPEN_REQUESTS_ENABLED=open_requests,
         PERMANENT_SESSION_LIFETIME=timedelta(days=90),
         MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH,
         SESSION_COOKIE_HTTPONLY=True,

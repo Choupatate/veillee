@@ -16,7 +16,11 @@
   {% endif %}
   <p class="login__request-link"><a href="{{ url_for('auth.login') }}">{{ _("Log in") }}</a></p>
   {% else %}
+  {% if open_requests %}
+  <p class="login__subtitle">{{ _("Ask to join, and someone in the family will let you in.") }}</p>
+  {% else %}
   <p class="login__subtitle">{{ _("Ask whoever set this up for the invite code.") }}</p>
+  {% endif %}
   <form class="login__form" method="post" action="{{ url_for('pages.request_account') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="login__label" for="display-name">{{ _("Your name") }}</label>
@@ -33,8 +37,14 @@
     <label class="login__label" for="note">{{ _("Note (optional)") }}</label>
     <input class="login__input" type="text" id="note" name="note" placeholder="{{ _('e.g. Milo\'s godmother') }}">
 
+    {% if open_requests %}
+    <label class="login__label" for="invite-code">{{ _("Invite code (optional)") }}</label>
+    <input class="login__input" type="password" id="invite-code" name="invite_code">
+    <p class="login__hint">{{ _("Leave this empty if you weren't given one — an admin will review your request.") }}</p>
+    {% else %}
     <label class="login__label" for="invite-code">{{ _("Invite code") }}</label>
     <input class="login__input" type="password" id="invite-code" name="invite_code" required>
+    {% endif %}
 
     <button class="btn btn--primary login__submit" type="submit">{{ _("Request account") }}</button>
   </form>

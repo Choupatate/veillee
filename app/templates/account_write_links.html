@@ -11,7 +11,7 @@
 
   {% if new_link_url %}
   <p class="admin__hint"><strong>{{ _("Copy this now — it won't be shown again:") }}</strong></p>
-  <p class="admin__row"><code>{{ new_link_url }}</code></p>
+  <p class="admin__token"><code>{{ new_link_url }}</code></p>
   {% endif %}
 
   <form class="admin__form" method="post" action="{{ url_for('pages.account_write_links') }}">

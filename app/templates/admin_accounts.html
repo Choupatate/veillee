@@ -7,22 +7,47 @@
   <p class="admin__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <div class="admin__header">
     <h1 class="admin__title">{{ _("Accounts") }}</h1>
+    <a class="btn btn--new" href="{{ url_for('pages.admin_invite') }}">{{ _("+ Invite") }}</a>
     <a class="btn btn--new" href="{{ url_for('pages.admin_new_account') }}">{{ _("+ New account") }}</a>
   </div>
-  {% if pending %}
+  {% if pending_rows %}
   <h2 class="admin__subtitle">{{ _("Pending requests") }}</h2>
   <ul class="admin__list">
-    {% for p in pending %}
+    {% for row in pending_rows %}
     <li class="admin__row">
-      <span class="admin__row-name">{{ p.display_name }}</span>
-      <span class="admin__row-username">{{ p.username }}</span>
-      <a class="btn admin__row-action" href="{{ url_for('pages.admin_review_pending', username=p.username) }}">{{ _("Review") }}</a>
-      {{ macros.action_button_form(url_for('pages.admin_reject_pending', username=p.username), _("Reject")) }}
+      <span class="admin__row-name">{{ row.request.display_name }}</span>
+      <span class="admin__row-username">{{ row.request.username }}</span>
+      {% for hint in row.hints %}
+      <span class="admin__row-hint">
+        {% if hint.has_account %}
+        {{ _("{name} already has an account", name=hint.person.name) }}
+        {% else %}
+        {{ _("already in the book: {name}", name=hint.person.name) }}
+        {% endif %}
+      </span>
+      {% endfor %}
+      <a class="btn admin__row-action" href="{{ url_for('pages.admin_review_pending', username=row.request.username) }}">{{ _("Review") }}</a>
+      {{ macros.action_button_form(url_for('pages.admin_reject_pending', username=row.request.username), _("Reject")) }}
     </li>
     {% endfor %}
   </ul>
   {% endif %}
-  {% if pending %}<h2 class="admin__subtitle">{{ _("Accounts") }}</h2>{% endif %}
+  {% if invite_rows %}
+  <h2 class="admin__subtitle">{{ _("Invitations sent") }}</h2>
+  <ul class="admin__list">
+    {% for row in invite_rows %}
+    <li class="admin__row">
+      <span class="admin__row-name">{{ row.person.name if row.person else row.invite.person_slug }}</span>
+      <span class="admin__row-username">{{ _(row.invite.role|capitalize) }}</span>
+      {% if row.invite.expires_at %}
+      <span class="admin__row-hint">{{ _("expires {date}", date=row.invite.expires_at.strftime('%d/%m/%Y')) }}</span>
+      {% endif %}
+      {{ macros.action_button_form(url_for('pages.admin_revoke_invite', person_slug=row.invite.person_slug, invite_id=row.invite.id), _("Withdraw")) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if pending_rows or invite_rows %}<h2 class="admin__subtitle">{{ _("Accounts") }}</h2>{% endif %}
   {% if not rows %}
   <p class="admin__empty">{{ _("No accounts yet.") }}</p>
   {% else %}

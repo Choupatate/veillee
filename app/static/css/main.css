@@ -389,6 +389,12 @@ mark {
   color: var(--color-error);
 }
 
+/* First used by the invite acceptance hand-off (F39): "your account is
+   ready, now log in" is the one flash in the app that carries good news. */
+.flash--success {
+  border-color: var(--color-accent);
+}
+
 /* ---------------------------------------------------------------------- */
 /* Login page                                                              */
 /* ---------------------------------------------------------------------- */
@@ -409,6 +415,14 @@ mark {
 .login__subtitle {
   color: var(--color-text-dim);
   margin: 0 0 2rem;
+}
+
+/* A note under a field, explaining what it wants — used by the invite
+   acceptance form and the optional invite code on the request form (F39). */
+.login__hint {
+  color: var(--color-text-dim);
+  font-size: 0.8125rem;
+  margin: -0.5rem 0 1rem;
 }
 
 .login__illo {
@@ -1149,6 +1163,12 @@ img.people__portrait {
   color: var(--color-text-dim);
 }
 
+/* The duplicate-account warning on a pending request (F39) — the one place
+   in the admin screens where a hint is a caution, not an aside. */
+.admin__hint--warn {
+  color: var(--color-error);
+}
+
 .admin__empty {
   color: var(--color-text-dim);
 }
@@ -1183,6 +1203,27 @@ img.people__portrait {
 .admin__row-username {
   color: var(--color-text-dim);
   font-size: 0.8125rem;
+}
+
+/* A freshly-minted invite or write-link URL, shown exactly once. The token
+   is a single ~43-character unbreakable word, so without `overflow-wrap` it
+   pushes the whole page sideways on a phone — which is where someone is
+   most likely to be copying it into a message. */
+.admin__token {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-bg-raised);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+/* Inline aside on an account row: a duplicate-name match on a pending
+   request, or an invitation's expiry date (F39). */
+.admin__row-hint {
+  color: var(--color-text-dim);
+  font-size: 0.8125rem;
+  font-style: italic;
 }
 
 .admin__row-status {

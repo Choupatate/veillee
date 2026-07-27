@@ -62,6 +62,56 @@ TRANSLATIONS_FR = {
         "qu'administrateur.",
     "Thanks — an admin will review your request soon.":
         "Merci — un administrateur examinera votre demande bientôt.",
+
+    # --- invitations and open requests (F39) --------------------------------
+    "Ask to join, and someone in the family will let you in.":
+        "Demandez à nous rejoindre, et quelqu'un de la famille vous ouvrira.",
+    "Invite code (optional)": "Code d'invitation (facultatif)",
+    "Leave this empty if you weren't given one — an admin will review your "
+    "request.":
+        "Laissez vide si on ne vous en a pas donné — un administrateur "
+        "examinera votre demande.",
+    "There are too many requests waiting to be reviewed. Try again later.":
+        "Trop de demandes attendent d'être examinées. Réessayez plus tard.",
+    "+ Invite": "+ Inviter",
+    "Invite someone": "Inviter quelqu'un",
+    "Pick who this is for and send them the link. They choose their own "
+    "username and password — you never have to handle either.":
+        "Choisissez pour qui, puis envoyez-lui le lien. Elle choisira "
+        "elle-même son nom d'utilisateur et son mot de passe — vous n'avez "
+        "jamais à les manipuler.",
+    "Expires after (days)": "Expire après (jours)",
+    "Create invitation": "Créer l'invitation",
+    "Invitations sent": "Invitations envoyées",
+    "Withdraw": "Retirer",
+    "expires {date}": "expire le {date}",
+    "Choose your login": "Choisissez vos identifiants",
+    "You've been invited as {name}. Choose a username and a password — "
+    "nobody else will see them.":
+        "Vous avez été invité·e en tant que {name}. Choisissez un nom "
+        "d'utilisateur et un mot de passe — personne d'autre ne les verra.",
+    "3-32 characters: lowercase letters, numbers, hyphens.":
+        "3 à 32 caractères : minuscules, chiffres, tirets.",
+    "Confirm password": "Confirmer le mot de passe",
+    "Create my account": "Créer mon compte",
+    "Your account is ready — log in with it below.":
+        "Votre compte est prêt — connectez-vous avec ci-dessous.",
+    "Invitation not valid": "Invitation non valable",
+    "This invitation isn't valid anymore — it may have already been used, "
+    "withdrawn, or expired. Ask whoever sent it to you for a new one.":
+        "Cette invitation n'est plus valable — elle a peut-être déjà été "
+        "utilisée, retirée, ou elle a expiré. Demandez-en une nouvelle à la "
+        "personne qui vous l'a envoyée.",
+    "{name} already has an account": "{name} a déjà un compte",
+    "already in the book: {name}": "déjà dans le livre : {name}",
+    "{name} is already in the book and can already log in — approving this "
+    "would give the same person a second account.":
+        "{name} est déjà dans le livre et peut déjà se connecter — approuver "
+        "cette demande donnerait un deuxième compte à la même personne.",
+    "{name} is already in the book. Bind this request to them rather than "
+    "adding a second entry.":
+        "{name} est déjà dans le livre. Rattachez cette demande à cette "
+        "personne plutôt que d'en ajouter une deuxième.",
     "Change password": "Changer le mot de passe",
     "Current password": "Mot de passe actuel",
     "New password": "Nouveau mot de passe",

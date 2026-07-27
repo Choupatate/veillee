@@ -53,6 +53,8 @@ the exact `F<N>.` heading text to jump to it.
   pages on a phone)
 - **F38** — The interface in French, with a flag picker each reader sets
   for themselves
+- **F39** — Invitations and open requests (admin-issued invite links, an
+  optional-code request form, duplicate-account hints)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -4179,3 +4181,216 @@ pages (`18 juin`, `18 juin 2023 · 0 jour`), no horizontal overflow, and
 zero console errors.
 
 `pytest` (923: 888 existing + 35 new) and `ruff check .` green.
+
+---
+
+## F39. Invitations, open requests, and not letting one person in twice
+
+F19 Phase 2 gave the app a request queue: a stranger who knows the shared
+invite code fills in a form, and an admin approves or rejects it from
+**Accounts**. That flow was already admin-validated — but in use it turns
+out to answer only one of the three questions a family actually has about
+letting someone in, and to answer that one from the wrong end.
+
+The three, and what this feature does about each:
+
+1. **"I want to add my mother, but she'd have to pick a password and send
+   it to me."** Approving a request means the newcomer set their
+   credentials before the admin ever saw the request. There was no way to
+   go the other direction — decide first, let them fill in the rest. Now
+   there is: an admin-issued **invitation**.
+2. **"My cousin found the book but was never given the code."** The invite
+   code was mandatory, so "just ask, and wait" wasn't expressible.
+   `STORYBOOK_OPEN_REQUESTS=1` makes the code optional.
+3. **"How do I know this isn't the same person again?"** Username
+   uniqueness and one-account-per-Person were already enforced; the same
+   human requesting twice under two usernames was not, and can't be, since
+   this app has no email address to key an identity on. The honest answer
+   is to put the likely match in front of the admin at the moment they
+   decide.
+
+Nothing here changes the permission model. F19 said plainly that an
+approved family account can read and edit the whole book, and that stays
+true — this is entirely about *how someone gets a login*, not what a login
+can then do.
+
+## Invitations (`app/invites.py`)
+
+An admin opens **Accounts → + Invite**, picks the Person (an existing one
+with no account, or a new one created from a name on the spot) and the
+role, and gets back a URL to send. The recipient opens it, chooses their
+own username and password, and is redirected to the login page to use
+them.
+
+```
+stories/people/mamie-rose/
+  index.md          # the Person, untouched
+  invites.json      # this feature
+  account.json      # appears once the invitation is accepted
+```
+
+Mechanically this is `write_links.py` again — a `secrets.token_urlsafe`
+bearer token with only its SHA-256 hash persisted, an expiry, a revoke
+flag, a bounded scan across `people/*/invites.json` to resolve a token.
+The same fast-hash reasoning applies: ~192 bits of entropy needs a hash
+that isn't reversible, not one that resists brute force on a weak input.
+
+**Why a separate module rather than generalising `write_links.py`.** The
+two look alike and behave differently everywhere it counts. A write-link
+grants one story and never an identity; an invitation grants a real login
+and nothing else. An invitation is always single-use, always carries a
+role, and dies the moment its Person acquires an account by any other
+route — none of which a write-link has an opinion about. Merging them
+would mean a shared record where half the fields are inapplicable to
+whichever kind you're holding, which is how a "token" table ends up being
+the thing nobody dares touch.
+
+Decisions worth stating:
+
+- **Re-issuing revokes the previous invitation.** One seat, one live
+  token. An admin re-sending because the link was lost, or went to the
+  wrong chat, should end up with exactly one thing that works — and only
+  one could ever be redeemed anyway, since accepting creates the account
+  that makes every other invitation for that Person invalid. Making that
+  explicit at creation beats leaving a stale token alive until someone
+  discovers it doesn't work.
+- **History survives.** Revoked and accepted invitations stay in the file;
+  only `list_all_active` filters them out. How an account came to exist is
+  worth keeping, and this app doesn't delete things.
+- **Accepting never logs you in.** It redirects to the login page instead.
+  An account that has never survived a real login round-trip is one typo
+  away from needing an admin password reset; this way the typo surfaces
+  while the person is still at the keyboard. It costs one extra form
+  submission and removes the app's most annoying possible support call —
+  there being no email, and therefore no self-service reset.
+- **Every uniqueness rule is re-checked at acceptance, not trusted from
+  creation.** An invitation can sit in an inbox for two weeks while the
+  world changes: the Person may have been given an account directly, and
+  the chosen username may have been claimed by an account or by a request
+  still sitting in the queue. `accept_invite` re-validates all of it.
+- **`LookupError` vs `ValueError`.** The route has to distinguish "this
+  link is dead, show the invalid page" from "your form is wrong, try
+  again" — and getting that backwards would either burn a good invitation
+  on a typo or keep showing a form for a token that can never work.
+  `accept_invite` raises `LookupError` for the first and `ValueError` for
+  the second, so the route branches on the exception type rather than on
+  string-matching a message.
+
+## Open requests (`STORYBOOK_OPEN_REQUESTS`)
+
+Off by default; requires accounts mode. When on, the invite code field on
+`/request-account` becomes optional and the page's wording changes from
+"ask whoever set this up for the invite code" to "ask to join, and someone
+in the family will let you in."
+
+Two properties are load-bearing rather than incidental, and both have
+tests named after them:
+
+- **A codeless request can never become the bootstrap admin.** The very
+  first request ever submitted auto-approves as admin — there being no
+  admin yet to review it. Opening the form up without guarding that would
+  hand the entire book to the first stranger to find a freshly deployed
+  install. `approve_if_first` now only runs when the code was actually
+  supplied and correct.
+- **A wrong code is still a wrong code.** Only *omitting* it is newly
+  allowed. Submitting a wrong one fails and counts against the F36
+  throttle exactly as before, so the code doesn't become guessable one
+  attempt at a time by anyone who noticed the field went optional.
+
+An open form is also an unauthenticated endpoint that appends to a file on
+disk, so `accounts.MAX_PENDING_REQUESTS` (25) caps the queue. Rejecting
+frees a slot, as it already freed the username. The number is set so a
+real family never meets it: an admin with 25 people genuinely waiting has
+a reviewing problem, not a capacity one.
+
+Considered and rejected: rate-limiting requests per IP on top of the cap.
+The existing throttle is shared with login, so spending its budget on the
+request form would let someone lock the family out of their own book by
+spamming a public form — the cap achieves the same protection without
+handing an attacker that lever.
+
+## Duplicate hints
+
+`accounts.similar_people(all_people, display_name)` — pure, takes the list
+of People rather than a directory, compares through `storage.slugify` so
+case, accents and punctuation fold together ("Jean-Luc" matches "jean
+luc"). An exact match counts at any length; "one contains the other" only
+counts once both names are at least 4 characters, or "Jo" would flag every
+Joseph and Jocelyne in the book and the hint would become noise the admin
+learns to skip.
+
+Shown in two places, worded by severity: on the **Accounts** list as a
+quiet inline note, and on the **Review request** screen as a warning. A
+match that already has an account is the real duplicate signal ("approving
+this would give the same person a second account"); a match without one is
+just the Person this request should be bound to instead of creating a
+second entry for the same human.
+
+This is deliberately a prompt and not a refusal. Two family members really
+can share a name, and the app has no way to tell that case from a
+duplicate — refusing outright would make the honest case unfixable without
+hand-editing files, which is exactly what the accounts module exists to
+avoid.
+
+## Implementation
+
+- **`app/invites.py`** (new): `Invite` dataclass, `create_invite`,
+  `get_invite`/`list_invites`/`list_all_active`, `find_by_token`,
+  `is_invite_valid`, `revoke_invite`, `accept_invite`.
+- **`app/accounts.py`**: `MAX_PENDING_REQUESTS` enforced in
+  `create_pending_request`; `similar_people` added.
+- **`app/__init__.py`**: `OPEN_REQUESTS_ENABLED` from
+  `STORYBOOK_OPEN_REQUESTS`.
+- **`app/routes_accounts.py`**: `/admin/accounts/invite` (GET/POST),
+  `/admin/accounts/invite/<person_slug>/<invite_id>/revoke`,
+  `/invite/<token>` (public, GET/POST); `request_account` grows the
+  optional-code branch; `admin_accounts`/`admin_review_pending` grow
+  duplicate hints via a shared `_duplicate_hints` helper.
+- **Templates**: `admin_invite.html`, `accept_invite.html`,
+  `invite_invalid.html` (new); `admin_accounts.html`,
+  `admin_review_pending.html`, `request_account.html` updated. The invite
+  form reuses the existing `person_picker` macro rather than growing a
+  second Person-picking widget.
+- **CSS**: `.admin__token`, `.admin__row-hint`, `.admin__hint--warn`,
+  `.login__hint`, `.flash--success` (the app's first success flash).
+- **French**: every new string translated in `translations_fr.py`, which
+  `tests/test_i18n.py`'s coverage test enforces anyway.
+
+### A pre-existing bug this found
+
+`.admin__token` exists because the browser pass caught the freshly-created
+invitation URL running 261px off the right edge of a 390px viewport: a
+token is one unbreakable ~43-character word, and the old markup put it in
+`.admin__row`, a flex container with nothing to make it wrap.
+`account_write_links.html` had shipped with the identical defect since F19
+Phase 3 — same markup, same overflow, on the one screen you are most
+likely to be looking at from a phone while pasting the link into a
+message. Both now use `.admin__token`, which wraps mid-token.
+
+### Tests
+
+`tests/test_invites.py` (30) covers the data layer: token stored only as a
+hash, the default 14-day expiry, re-issue revoking its predecessor while
+keeping history, every rejection path in `accept_invite` (revoked,
+expired, already accepted, unknown token, taken username, username sitting
+in the pending queue, short password, bad username, Person given an
+account by another route), the queue cap, and every branch of
+`similar_people`.
+
+`tests/test_invite_routes.py` (29) covers the HTTP surface: admin-only
+access to the invite screens, creating for an existing or new Person, the
+token appearing exactly once and never again, an invited Person dropping
+out of the picker, withdrawing, and the recipient's flow — accepting,
+working exactly once, and the two failures that must *not* burn the
+invitation (mismatched passwords, taken username). Plus open requests: the
+codeless path, the bootstrap-admin guard, the wrong-code guard, the cap,
+and both duplicate-hint wordings.
+
+Verified in Chromium at 390px across the whole flow in both languages:
+open request form, bootstrap, codeless request, the admin list with a
+duplicate flagged, the review warning, creating an invitation, accepting
+it (with a deliberate password typo first), logging in with the new
+credentials, and re-opening the burnt link. Zero horizontal overflow on
+every screen after the `.admin__token` fix.
+
+`pytest` (1007: 948 existing + 59 new) and `ruff check .` green.

@@ -103,6 +103,7 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` (English) / `La Veillée` (French), depending on the visitor's language. |
 | `STORYBOOK_CHILD` | Optional. The slug of the person page the family tree's kinship labels are computed relative to (see below). Unset by default. |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
+| `STORYBOOK_OPEN_REQUESTS` | Optional. Set to `1` to let someone request an account without knowing the invite code, waiting for an admin instead (see below). Requires `STORYBOOK_ACCOUNTS=1`. Unset by default. |
 
 ### Family accounts (optional, off by default)
 
@@ -128,6 +129,47 @@ bound to a brand-new person page built from the display name — if that
 duplicates a person who already existed, an admin can re-link the account
 to the existing person page from **Accounts** at any time, leaving the
 duplicate in place but unbound rather than deleting anything.
+
+#### Inviting someone, instead of waiting to be asked
+
+Approving a request means the newcomer chose their own username and
+password before you ever saw them. Going the other way — **Accounts** →
+**+ Invite** — an admin picks who the account is for (an existing person
+page, or a new one created on the spot) and what role it gets, and gets
+back a one-off link to send them. The recipient opens it, chooses their
+own username and password, and lands on the login page ready to sign in.
+Nobody ever has to type someone else's password or send one over a chat
+app.
+
+An invitation expires after 14 days by default (adjustable, or never),
+works exactly once, and can be withdrawn at any time from **Accounts**,
+where every outstanding one is listed. Issuing a fresh invitation for the
+same person quietly withdraws the previous one, so a link that went to the
+wrong place stops working the moment you replace it. The link is shown
+once, at creation — only a hash of it is ever stored, so there's no way to
+look it up again later.
+
+#### Letting people ask without the code
+
+Set `STORYBOOK_OPEN_REQUESTS=1` and the invite code on the request form
+becomes optional: a relative who was never given it can still ask, and
+simply waits for an admin. Two things stay true, both deliberately:
+submitting a *wrong* code still fails (only leaving it blank is newly
+allowed, so the code never becomes guessable one attempt at a time), and a
+codeless request can never be the auto-approved first admin — bootstrapping
+the book still requires proving you know the code. The queue holds at most
+25 unreviewed requests, so an open form can't be used to grow a file on
+your disk without limit.
+
+Whichever way a request arrives, the review screen flags a pending request
+whose name matches someone already in the book — loudly if that person can
+already log in, since approving it would give one human two accounts. This
+app has no email address to key an identity on, so this is a prompt for the
+admin's judgement rather than something the code can refuse outright;
+invitations avoid the question entirely, since the seat is set aside for a
+specific person up front.
+
+#### Managing accounts
 
 Disabling an account, resetting its password, or changing its role (from
 the same page) all take effect immediately, not whenever its browser
