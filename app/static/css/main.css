@@ -1304,6 +1304,14 @@ img.people__portrait {
   margin-bottom: 1.5rem;
 }
 
+/* "Your backup will be incomplete" (F40). Must read as a caution rather
+   than another paragraph of intro — someone who skims past this is the one
+   person who ends up with a partial backup they believe is whole. Declared
+   after .import__intro so it wins on equal specificity. */
+.import__intro--warn {
+  color: var(--color-error);
+}
+
 .import__form {
   display: flex;
   flex-direction: column;

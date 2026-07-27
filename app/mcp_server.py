@@ -11,6 +11,16 @@ app locally in the first place: whoever can launch this process already has
 filesystem access to `stories/`. Do not run this anywhere reachable over a
 network.
 
+**This surface is not audience-scoped.** Audience groups (FEATURES.md F40)
+let a story be kept to a few people, and every web route enforces that
+against the logged-in session. This server has no session to enforce
+against — it is stdio, running as whoever started it, with the whole
+folder already readable to that user. So its tools see and can edit every
+story, scoped or not. That is stated here rather than left to be
+discovered: building a viewer identity into a single-user local tool would
+be ceremony, not security, but someone deciding whether to run it deserves
+to know that it reads past every group.
+
 Every write goes through the same `storage.py`/`people.py` functions the web
 editor uses underneath (atomic index.md writes, `.versions/` snapshots,
 image re-encoding via Pillow, symmetric partner/union syncing) — this module

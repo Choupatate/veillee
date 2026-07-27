@@ -18,8 +18,8 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, current_app, jsonify, request, session
 
-from . import people, storage
-from .auth import login_required
+from . import groups, people, storage
+from .auth import admin_required_in_accounts_mode, login_required
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -248,6 +248,58 @@ def _validate_sources(data):
     return cleaned, None
 
 
+def _validate_audience(data):
+    """Resolve and validate the optional 'audience' field: the group slugs
+    a story is scoped to (FEATURES.md F40). None means absent ("leave
+    unchanged" on update), an empty list means "everyone".
+
+    Unknown group slugs are rejected rather than dropped. Silently dropping
+    one would turn a story the writer believed was scoped into a public
+    one, which is the single worst way this feature could fail.
+    """
+    if "audience" not in data:
+        return None, None
+    valid_slugs = {g.slug for g in groups.list_groups(current_app.config["STORIES_DIR"])}
+    raw = data.get("audience")
+    if not isinstance(raw, list):
+        raw = []
+    cleaned = []
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        item = item.strip()
+        if not item or item in cleaned:
+            continue
+        if item not in valid_slugs:
+            return None, _error(f"Unknown group: {item}.", 400)
+        cleaned.append(item)
+    return cleaned, None
+
+
+def _readable_story_or_error(story_id):
+    """The story, or a 404 response if it doesn't exist or the caller isn't
+    in its audience (FEATURES.md F40).
+
+    Every mutating story endpoint goes through this. A story you may not
+    read is one you may not write either — otherwise `PUT /stories/<id>`
+    is a way to overwrite, or simply read back, something scoped away from
+    you. Returns (story, None) or (None, error_response).
+    """
+    # Imported here rather than at module scope: routes_pages imports this
+    # module's blueprint siblings, and the viewer helpers live there.
+    from .routes_pages import _viewer_scope
+
+    if not storage.is_valid_story_id(story_id):
+        return None, _error("Story not found.", 404)
+    story = storage.get_story(current_app.config["STORIES_DIR"], story_id)
+    if story is None:
+        return None, _error("Story not found.", 404)
+    viewer_groups, author_name = _viewer_scope()
+    if viewer_groups is not None and not groups.can_see(story, viewer_groups, author_name):
+        return None, _error("Story not found.", 404)
+    return story, None
+
+
 def _parse_story_fields(data):
     """The raw title/date/markdown/draft/archived fields shared by
     create/update, plus the one validation rule both apply identically
@@ -302,11 +354,15 @@ def create_story():
     milestone, error = _validate_milestone(data)
     if error:
         return error
+    audience, error = _validate_audience(data)
+    if error:
+        return error
 
     story_id = storage.create_story(
         current_app.config["STORIES_DIR"], title, story_date, markdown, author=author,
         draft=draft, unlock=unlock, archived=archived, kind=kind,
         people=story_people, tags=tags, sources=sources, milestone=milestone,
+        audience=audience,
     )
     return jsonify({"id": story_id, "title": title})
 
@@ -314,8 +370,9 @@ def create_story():
 @bp.route("/stories/<story_id>", methods=["PUT"])
 @login_required
 def update_story(story_id):
-    if not storage.is_valid_story_id(story_id):
-        return _error("Story not found.", 404)
+    _story, error = _readable_story_or_error(story_id)
+    if error:
+        return error
 
     data = request.get_json(silent=True) or {}
     fields, error = _parse_story_fields(data)
@@ -346,12 +403,16 @@ def update_story(story_id):
     milestone, error = _validate_milestone(data)
     if error:
         return error
+    audience, error = _validate_audience(data)
+    if error:
+        return error
 
     try:
         storage.save_story(
             current_app.config["STORIES_DIR"], story_id, title, story_date, markdown,
             cover=cover, author=author, draft=draft, unlock=unlock, archived=archived,
             people=story_people, tags=tags, sources=sources, milestone=milestone,
+            audience=audience,
         )
     except FileNotFoundError:
         return _error("Story not found.", 404)
@@ -362,6 +423,9 @@ def update_story(story_id):
 @bp.route("/stories/<story_id>/versions/<version_id>/restore", methods=["POST"])
 @login_required
 def restore_version(story_id, version_id):
+    _story, error = _readable_story_or_error(story_id)
+    if error:
+        return error
     try:
         storage.restore_version(current_app.config["STORIES_DIR"], story_id, version_id)
     except (storage.InvalidStoryId, storage.InvalidVersionId, FileNotFoundError):
@@ -370,7 +434,7 @@ def restore_version(story_id, version_id):
 
 
 @bp.route("/import", methods=["POST"])
-@login_required
+@admin_required_in_accounts_mode
 def import_backup():
     file_storage = request.files.get("file")
     if file_storage is None or not file_storage.filename:
@@ -397,8 +461,9 @@ def import_backup():
 @bp.route("/stories/<story_id>/images", methods=["POST"])
 @login_required
 def upload_image(story_id):
-    if not storage.is_valid_story_id(story_id):
-        return _error("Story not found.", 404)
+    _story, error = _readable_story_or_error(story_id)
+    if error:
+        return error
 
     file_storage = request.files.get("file")
     if file_storage is None or not file_storage.filename:
@@ -417,8 +482,9 @@ def upload_image(story_id):
 @bp.route("/stories/<story_id>/memos", methods=["POST"])
 @login_required
 def upload_memo(story_id):
-    if not storage.is_valid_story_id(story_id):
-        return _error("Story not found.", 404)
+    _story, error = _readable_story_or_error(story_id)
+    if error:
+        return error
 
     file_storage = request.files.get("file")
     if file_storage is None or not file_storage.filename:
@@ -439,7 +505,8 @@ def upload_memo(story_id):
 @bp.route("/stories/<story_id>/memos/<filename>", methods=["DELETE"])
 @login_required
 def delete_memo(story_id, filename):
-    if not storage.is_valid_story_id(story_id):
+    _story, error = _readable_story_or_error(story_id)
+    if error:
         return _error("Memo not found.", 404)
 
     deleted = storage.delete_memo(current_app.config["STORIES_DIR"], story_id, filename)

@@ -27,11 +27,12 @@ from flask import (
     request,
     send_file,
     send_from_directory,
+    session,
     url_for,
 )
 
-from . import epub, i18n, life_events, people, prompts, storage
-from .auth import login_required
+from . import epub, groups, i18n, life_events, people, prompts, storage
+from .auth import admin_required_in_accounts_mode, login_required
 from .rendering import render_markdown
 
 bp = Blueprint("pages", __name__)
@@ -50,9 +51,58 @@ def _media_max_age(filename):
     return _LONG_CACHE_MAX_AGE if ext in _LONG_CACHE_EXTENSIONS else None
 
 
+def _viewer_scope():
+    """`(group_slugs, author_name)` for whoever is asking — the viewer half
+    of `groups.can_see` (FEATURES.md F40).
+
+    `(None, None)` means "scoping does not apply here": with
+    STORYBOOK_ACCOUNTS off there is one shared password and therefore one
+    identity, so there is nobody to scope a story *away from* and the whole
+    feature is inert. Callers below treat a None group set as "sees
+    everything" rather than "sees nothing" — the safe direction for a
+    single-password install, where every existing story must keep showing.
+    """
+    if not current_app.config["ACCOUNTS_ENABLED"]:
+        return None, None
+    person_slug = session.get("person_slug")
+    viewer_groups = groups.groups_for_person(current_app.config["STORIES_DIR"], person_slug)
+    person = people.get_person(_people_dir(), person_slug) if person_slug else None
+    return viewer_groups, (person.name if person else None)
+
+
+def _visible_stories():
+    """Every story the current viewer may see, in `list_stories` order.
+
+    **The only way a page route should reach the story list.** Calling
+    `storage.list_stories` directly from a route is how a scoped story
+    leaks, and `tests/test_groups.py` walks the route files to make sure
+    nothing does.
+    """
+    all_stories = storage.list_stories(current_app.config["STORIES_DIR"])
+    viewer_groups, author_name = _viewer_scope()
+    if viewer_groups is None:
+        return all_stories
+    return groups.visible_stories(all_stories, viewer_groups, author_name)
+
+
+def _visible_page_stories():
+    """`storage.readable_page_stories` narrowed to what the viewer may see
+    — the candidate set for anything that turns pages (F15 random, F2
+    reading order). Without the gate here the page-turn arrows and the
+    random button would both hand out the titles of scoped stories."""
+    return [s for s in storage.readable_stories(_visible_stories()) if s.kind == "story"]
+
+
 def _get_story_or_404(stories_dir, story_id):
+    """A single story by id, 404 if it doesn't exist *or* the viewer isn't
+    in its audience — deliberately the same 404 either way, so a scoped
+    story's existence isn't discoverable by URL (the app's existing
+    pattern: `admin_required` 404s a non-admin rather than 403ing)."""
     s = storage.get_story(stories_dir, story_id)
     if s is None:
+        abort(404)
+    viewer_groups, author_name = _viewer_scope()
+    if viewer_groups is not None and not groups.can_see(s, viewer_groups, author_name):
         abort(404)
     return s
 
@@ -116,7 +166,7 @@ def _author_color(authors, author_colors, name):
 @bp.route("/")
 @login_required
 def timeline():
-    all_stories = storage.list_stories(current_app.config["STORIES_DIR"])
+    all_stories = _visible_stories()
     stories = [s for s in all_stories if not s.draft and not s.archived]
     draft_count = sum(1 for s in all_stories if s.draft and not s.archived)
     archived_count = sum(1 for s in all_stories if s.archived)
@@ -154,7 +204,7 @@ def timeline():
 @bp.route("/growth")
 @login_required
 def growth():
-    all_stories = storage.list_stories(current_app.config["STORIES_DIR"])
+    all_stories = _visible_stories()
     birthdate = current_app.config.get("BIRTHDATE")
     photos = storage.growth_photos(all_stories, birthdate) if birthdate else []
     return render_template("growth.html", photos=photos, birthdate=birthdate)
@@ -163,7 +213,7 @@ def growth():
 @bp.route("/firsts")
 @login_required
 def firsts():
-    all_stories = storage.list_stories(current_app.config["STORIES_DIR"])
+    all_stories = _visible_stories()
     return render_template("firsts.html", firsts=storage.stories_with_milestones(all_stories))
 
 
@@ -183,8 +233,7 @@ def random_page():
     """Open a random readable story (FEATURES.md F15). Drafts, sealed
     letters, and instants (page-turning is for stories) are never chosen;
     `?not=<id>` excludes one story id (e.g. the one you're already on)."""
-    stories_dir = current_app.config["STORIES_DIR"]
-    candidates = storage.readable_page_stories(stories_dir)
+    candidates = _visible_page_stories()
     exclude_id = request.args.get("not")
     if exclude_id:
         candidates = [s for s in candidates if s.id != exclude_id]
@@ -231,7 +280,7 @@ def book():
     A year-chapter title page (FEATURES.md F31) precedes the first entry of
     each calendar year, one per year rather than one per story."""
     stories_dir = current_app.config["STORIES_DIR"]
-    readable = storage.readable_stories(storage.list_stories(stories_dir))
+    readable = storage.readable_stories(_visible_stories())
     authors, author_colors = _authors_and_colors()
     birthdate = current_app.config.get("BIRTHDATE")
     entries = []
@@ -265,7 +314,7 @@ def book_epub():
     """The whole book as a downloadable EPUB (readable in any e-reader app,
     unlike the browser-print PDF flow at /book)."""
     stories_dir = current_app.config["STORIES_DIR"]
-    readable = storage.readable_stories(storage.list_stories(stories_dir))
+    readable = storage.readable_stories(_visible_stories())
     authors = current_app.config.get("AUTHORS") or []
     entries = []
     for s in readable:
@@ -292,32 +341,75 @@ def book_epub():
     return send_file(buf, mimetype=epub.MIMETYPE, as_attachment=True, download_name=filename)
 
 
+def _export_is_scoped():
+    """Whether this viewer's backup would leave stories out — what the
+    import/export page needs to warn them about, since a partial backup
+    someone believes is complete is the one real cost of scoping exports."""
+    allowed_ids = _exportable_story_ids()
+    if allowed_ids is None:
+        return False
+    return len(storage.list_stories(current_app.config["STORIES_DIR"])) > len(allowed_ids)
+
+
+def _exportable_story_ids():
+    """Which story folders the current viewer's backup zip may contain, or
+    None for "all of them" (FEATURES.md F40).
+
+    A backup is scoped to what you can see. The alternative — a complete
+    zip for whoever clicks it — would make `/export` the way around every
+    group, since the zip carries `.versions/` and photos too. The cost of
+    this choice is that a backup taken by someone who can't see every story
+    is partial, which the import/export page says in as many words rather
+    than leaving it to be discovered.
+    """
+    viewer_groups, author_name = _viewer_scope()
+    if viewer_groups is None:
+        return None
+    return {s.id for s in groups.visible_stories(
+        storage.list_stories(current_app.config["STORIES_DIR"]), viewer_groups, author_name
+    )}
+
+
 @bp.route("/export")
 @login_required
 def export():
-    """Stream a zip of the entire stories directory (FEATURES.md F8)."""
+    """Stream a zip of the stories directory (FEATURES.md F8), minus any
+    story the viewer isn't in the audience for (F40)."""
     stories_dir = current_app.config["STORIES_DIR"]
+    allowed_ids = _exportable_story_ids()
     tmp = tempfile.TemporaryFile()
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:
         for path in sorted(stories_dir.rglob("*")):
             if path.is_dir() or path.name.endswith(".tmp"):
                 continue
-            zf.write(path, path.relative_to(stories_dir))
+            relative = path.relative_to(stories_dir)
+            # The first path segment is the story id for anything under a
+            # story folder; people/, groups.json and the other root-level
+            # files aren't stories and are never audience-scoped.
+            top = relative.parts[0]
+            if (
+                allowed_ids is not None
+                and top not in ("people", groups.GROUPS_FILENAME)
+                and (stories_dir / top).is_dir()
+                and top not in allowed_ids
+            ):
+                continue
+            zf.write(path, relative)
     tmp.seek(0)
     filename = f"storybook-backup-{date.today().isoformat()}.zip"
     return send_file(tmp, mimetype="application/zip", as_attachment=True, download_name=filename)
 
 
 @bp.route("/import")
-@login_required
+@admin_required_in_accounts_mode
 def import_page():
-    return render_template("import.html")
+    return render_template("import.html", export_is_scoped=_export_is_scoped())
 
 
 @bp.route("/drafts")
 @login_required
 def drafts():
-    all_stories = storage.list_stories(current_app.config["STORIES_DIR"])
+    all_stories = _visible_stories()
     draft_stories = [s for s in all_stories if s.draft and not s.archived]
     draft_stories.sort(key=lambda s: s.updated or datetime.min, reverse=True)
     authors, author_colors = _authors_and_colors()
@@ -329,7 +421,7 @@ def drafts():
 @bp.route("/archived")
 @login_required
 def archived():
-    all_stories = storage.list_stories(current_app.config["STORIES_DIR"])
+    all_stories = _visible_stories()
     archived_stories = [s for s in all_stories if s.archived]
     archived_stories.sort(key=lambda s: s.updated or datetime.min, reverse=True)
     authors, author_colors = _authors_and_colors()
@@ -365,7 +457,7 @@ def _reading_order_neighbors(stories_dir, current):
     stories)."""
     if current.draft or current.archived or current.kind != "story":
         return None, None
-    readable = storage.readable_page_stories(stories_dir)
+    readable = _visible_page_stories()
     for i, r in enumerate(readable):
         if r.id == current.id:
             prev_story = readable[i - 1] if i > 0 else None
@@ -385,6 +477,10 @@ def story_history(story_id):
 @bp.route("/story/<story_id>/media/<filename>")
 @login_required
 def story_media(story_id, filename):
+    # Gated on the story, not just the filename: without this the page
+    # 404s for a non-member but every photo in it stays fetchable by
+    # direct URL, which is most of what a scoped story is protecting.
+    _get_story_or_404(current_app.config["STORIES_DIR"], story_id)
     return _serve_media(current_app.config["STORIES_DIR"], story_id, filename)
 
 
@@ -446,6 +542,7 @@ def _other_people_refs(exclude_slug=None):
     ]
 
 
-# Registers routes_people.py's and routes_accounts.py's routes onto `bp`
-# (see module docstring) — must come after every helper they import above.
-from . import routes_accounts, routes_people  # noqa: E402,F401
+# Registers routes_people.py's, routes_accounts.py's and routes_groups.py's
+# routes onto `bp` (see module docstring) — must come after every helper
+# they import above.
+from . import routes_accounts, routes_groups, routes_people  # noqa: E402,F401

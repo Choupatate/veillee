@@ -122,6 +122,27 @@ def admin_required(view):
     return login_required(wrapped_view)
 
 
+def admin_required_in_accounts_mode(view):
+    """`login_required`, plus an admin role *only when accounts mode is on*
+    (FEATURES.md F40).
+
+    With `STORYBOOK_ACCOUNTS` off there is one shared password and one
+    trust level, so `session["role"]` is never set and a plain
+    `admin_required` would lock every single-password install out of its
+    own routes. This is the gate for actions that aren't reading a story
+    but would let someone write their way around an audience group —
+    restoring a backup, most of all, since a zip carries whatever
+    frontmatter it likes.
+    """
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if current_app.config["ACCOUNTS_ENABLED"] and session.get("role") != "admin":
+            abort(404)
+        return view(*args, **kwargs)
+
+    return login_required(wrapped_view)
+
+
 def delegate_required(view):
     @wraps(view)
     def wrapped_view(*args, **kwargs):

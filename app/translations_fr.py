@@ -112,6 +112,37 @@ TRANSLATIONS_FR = {
     "adding a second entry.":
         "{name} est déjà dans le livre. Rattachez cette demande à cette "
         "personne plutôt que d'en ajouter une deuxième.",
+
+    # --- audience groups (F40) ----------------------------------------------
+    "Groups": "Cercles",
+    "New group": "Nouveau cercle",
+    "Create group": "Créer le cercle",
+    "Save group": "Enregistrer le cercle",
+    "No groups yet.": "Aucun cercle pour l'instant.",
+    "e.g. Just us": "ex. Rien que nous",
+    "nobody yet": "personne pour l'instant",
+    "Who's in it": "Qui en fait partie",
+    "can't log in yet": "ne peut pas encore se connecter",
+    "A group is a handful of people a story can be kept to. Stories with no "
+    "group are for everyone — that stays the default.":
+        "Un cercle, c'est une poignée de personnes à qui une histoire peut "
+        "être réservée. Les histoires sans cercle sont pour tout le monde — "
+        "et ça reste le cas par défaut.",
+    "Taking someone out means they stop seeing those stories straight away.":
+        "Retirer quelqu'un lui retire l'accès à ces histoires "
+        "immédiatement.",
+    "{n} story": "{n} histoire",
+    "{n} stories": "{n} histoires",
+    "{n} story is kept to this group.": "{n} histoire est réservée à ce cercle.",
+    "{n} stories are kept to this group.":
+        "{n} histoires sont réservées à ce cercle.",
+    "Note: some stories are kept to groups you're not in, so a backup you "
+    "download leaves them out. A complete backup has to come from someone "
+    "who can see every story.":
+        "À noter : certaines histoires sont réservées à des cercles dont "
+        "vous ne faites pas partie, donc une sauvegarde téléchargée par vous "
+        "les laissera de côté. Une sauvegarde complète doit venir de "
+        "quelqu'un qui voit toutes les histoires.",
     "Change password": "Changer le mot de passe",
     "Current password": "Mot de passe actuel",
     "New password": "Nouveau mot de passe",

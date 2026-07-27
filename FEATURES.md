@@ -56,8 +56,9 @@ the exact `F<N>.` heading text to jump to it.
 - **F39** — Invitations and open requests (admin-issued invite links, an
   optional-code request form, duplicate-account hints)
 - **F40** — Groups: scoping a story to fewer people than the whole family
-  (**spec only, not built** — design discussion written up ahead of
-  implementation the way F1 and F19 were)
+  (Phase 1 shipped: the audience rule and every surface enforcing it.
+  Phase 2, the editor picker and the "who can see this" marker, is still
+  spec only)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -4660,3 +4661,103 @@ Phase 1 is the one with real risk in it. Phases 2 and 3 are ordinary work.
   rule in the app, and the frontmatter says plainly who a story was for —
   which is the right behavior when the family reads these files in thirty
   years without the app.
+
+---
+
+### F40 Phase 1 implementation round — the wall
+
+Built as the spec above describes, with the three `(confirm)` items
+resolved to their recommended answers. Phase 1 is deliberately the
+security half only: the audience rule, every surface enforcing it, and
+admin screens to manage groups. No editor picker yet (Phase 2) — an
+`audience` is set through the API or by hand, which is enough to prove
+the wall holds before building a UI on top of it.
+
+**`app/groups.py`** (new): `Group` dataclass, `list_groups`/`get_group`/
+`create_group`/`rename_group`/`set_members`, `groups_for_person`, and the
+two functions the rest of the app actually leans on — `can_see` and
+`visible_stories`, both pure, no Flask and no filesystem, so who-reads-what
+is one testable statement rather than a rule smeared across fourteen
+routes. Groups live in `stories/groups.json`; a story names them in an
+`audience:` frontmatter list, absent meaning everyone.
+
+**One chokepoint, not a parameter.** `storage.readable_stories` stays
+viewer-unaware; the gate is `_visible_stories()` / `_get_story_or_404()`
+in `routes_pages.py`, and every page route goes through them.
+`storage.py` never learns what a session is. A story a viewer may not see
+404s rather than 403s — the same choice `admin_required` already makes, so
+a scoped story's *existence* isn't discoverable by URL either.
+
+Decisions that came out of building it:
+
+- **Restoring a version deliberately does not restore `audience`.** The
+  spec flagged `restore_version` as the likeliest place to build a quiet
+  leak, and the fix turned out to be the opposite of the obvious one.
+  Threading `audience` through faithfully means pulling up a version from
+  before a story was scoped silently republishes it to the whole family —
+  a leak nobody performed and nobody would see. Restoring is about getting
+  old *words* back; a story's audience is a standing decision about who
+  may read it today. So `restore_version` omits the field and `save_story`
+  carries the current one over. `test_restoring_an_old_version_keeps_the_current_audience`
+  asserts both halves: the body came back, the audience didn't move.
+- **An unknown group slug is a 400, not a dropped value.** Every other
+  list field in `routes_api.py` silently drops junk. Here, dropping one
+  turns a story the writer believed was scoped into a public one — the
+  single worst way this feature could fail — so `_validate_audience`
+  rejects instead.
+- **Writes are gated on readability.** `_readable_story_or_error` guards
+  update, restore, image upload, memo upload and memo delete. A story you
+  can't read is one you can't write, or `PUT /stories/<id>` becomes a way
+  to overwrite — or simply read back — something scoped away from you.
+- **`story_media` is gated on the story, not just the filename.** Gate the
+  page and not this and every photo stays fetchable by direct URL, which
+  is most of what a scoped story is protecting.
+- **`/import` and `/api/import` became admin-only** — but only in accounts
+  mode, via a new `auth.admin_required_in_accounts_mode`. A plain
+  `admin_required` would lock every single-password install out of its own
+  import page, since `session["role"]` is never set there. A backup zip
+  can carry whatever frontmatter it likes, so restoring one is a way to
+  write around a group.
+- **Export is scoped to what you can see**, and the import page says so in
+  red when it applies. The alternative — a complete zip for whoever clicks
+  it — would make `/export` the way around every group, since the zip
+  carries `.versions/` and photos too. The cost is that a partial backup
+  can be mistaken for a whole one, so the notice is blunt rather than a
+  footnote.
+- **The MCP server stays unscoped**, documented in its module docstring
+  and in README. It's stdio running as whoever launched it, against a
+  folder that user can already read; building a viewer identity into a
+  single-user local tool would be ceremony, not security. But someone
+  deciding whether to run it deserves to know it reads past every group.
+
+### Tests
+
+`tests/test_groups.py` (38), in three layers. The pure rule first
+(everyone by default, membership required, union across several groups,
+the author's own story, order preserved). Then the storage round-trip,
+including the restore-version trap and a malformed `audience:` key being
+ignored rather than fatal.
+
+Then the leak perimeter, which is the point of the file: a fixture builds
+a book with one public story, one scoped story, an admin deliberately
+*outside* the group and a family member inside it, and asserts the
+outsider gets nothing — no title on any listing page (`/`, `/book`,
+`/firsts`, `/growth`, `/drafts`, `/archived`, the person page), no body in
+`/book`, nothing in the EPUB, 404 from the story page, editor, history and
+media URLs, no page-turn neighbour, never a `/random` landing, 404 from
+every mutating endpoint, and a backup zip with the scoped folder missing —
+while the insider sees all of it and the public story is untouched.
+
+Two guard tests keep that honest as the app grows:
+`test_no_page_route_reaches_the_story_list_directly` walks the route files
+and fails if one calls `storage.list_stories` instead of
+`_visible_stories()`, and `test_accounts_mode_off_means_no_scoping_at_all`
+pins that a single-password install is unaffected.
+
+Verified in Chromium at 390px in both languages: creating a group, adding
+a member, an admin outside the group finding no trace of a story scoped to
+it while the member sees it normally, and the partial-backup warning
+reading as a caution rather than another line of intro (it first shipped
+sharing a class with `.import__intro` and lost the color to it).
+
+`pytest` (1045: 1007 existing + 38 new) and `ruff check .` green.
