@@ -252,7 +252,7 @@ JS_STRINGS = (
     "Could not load the family tree.", "Everyone", "Import failed.",
     "Could not import. Please check your connection and try again.",
     "Imported {n} story. Reloading…", "Imported {n} stories. Reloading…",
-    "Add a partner above first.",
+    "Add a partner above first.", "Only {names}",
 )
 
 

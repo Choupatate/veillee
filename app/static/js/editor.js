@@ -61,6 +61,12 @@
   wireToggleButton(draftToggle);
   wireToggleButton(archiveToggle);
 
+  // Who this story is kept to (F40). Absent entirely when no groups exist,
+  // or when accounts mode is off — the route simply doesn't pass any.
+  var audiencePicker = window.createAudiencePicker
+    ? window.createAudiencePicker(document.getElementById("editor-audience"), markDirty)
+    : null;
+
   if (unlockInput) {
     unlockInput.addEventListener("input", markDirty);
   }
@@ -822,6 +828,7 @@
     if (milestoneInput) payload.milestone = milestoneInput.value.trim();
     if (sourcesListEl) payload.sources = getSources();
     if (unionsListEl) payload.unions = getUnions();
+    if (audiencePicker) payload.audience = audiencePicker.getSelected();
     return payload;
   }
 

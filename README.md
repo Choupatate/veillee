@@ -190,6 +190,14 @@ Two rules worth knowing before you rely on it:
   group they aren't in. That's a safety rail against a mis-tap, not a
   permission.
 
+In the editor (and the instant composer), a **Who can see this** row of
+chips picks the groups. Nothing lit means everyone — and because an
+invisible default is the kind that gets someone in trouble, the current
+audience is always spelled out underneath in words: *Everyone*, or *Only
+Just us*. A scoped story then says **Kept to Just us** under its title,
+and carries a small *kept to a group* marker on the timeline, so you can
+tell at a glance which stories are for the whole family and which aren't.
+
 Restoring an older version of a story brings back its old *words* and
 leaves its audience alone — widening who can read something stays a
 deliberate act, never a side effect of undoing an edit.

@@ -39,6 +39,9 @@
     {{ macros.people_picker("story-people", _("Who's in this story"), story.people if story else [], all_people) }}
   </fieldset>
   {% endif %}
+  {% if all_groups %}
+  {{ macros.audience_picker(all_groups, story.audience if story else []) }}
+  {% endif %}
   <div class="editor__toolrow" id="editor-toolrow">
     {% if authors and not config.ACCOUNTS_ENABLED %}
     {{ macros.author_chip_row(authors, story.author if story else none) }}

@@ -408,6 +408,78 @@ def test_the_api_refuses_an_unknown_group(admin_client):
     assert "Unknown group" in resp.get_json()["error"]
 
 
+# ---------------------------------------------------------------------------
+# Phase 2: the audience picker and the "who can see this" markers
+
+
+def test_the_editor_offers_every_group(insider, scoped_app):
+    html = insider.get("/new").data.decode()
+    assert 'data-group-slug="just-us"' in html
+    assert "Who can see this" in html
+
+
+def _chip_pressed(html, slug):
+    """Whether the audience chip for `slug` is lit, read out of the markup
+    rather than inferred from "some chip somewhere is pressed"."""
+    import re
+
+    match = re.search(
+        r'data-group-slug="' + re.escape(slug) + r'"[^>]*aria-pressed="(\w+)"', html
+    )
+    assert match, f"no audience chip rendered for {slug}"
+    return match.group(1) == "true"
+
+
+def test_the_editor_preselects_a_scoped_storys_groups(insider, scoped_app):
+    html = insider.get(f"/edit/{scoped_app.config['SCOPED_ID']}").data.decode()
+    assert _chip_pressed(html, "just-us")
+
+
+def test_the_editor_leaves_chips_unlit_for_a_public_story(insider, scoped_app):
+    html = insider.get(f"/edit/{scoped_app.config['PUBLIC_ID']}").data.decode()
+    assert not _chip_pressed(html, "just-us")
+
+
+def test_the_instant_composer_offers_groups_too(insider):
+    """The original ask was "stories or instants" — an instant you can't
+    scope would be a hole you'd only find after posting one."""
+    html = insider.get("/new-instant").data.decode()
+    assert 'data-group-slug="just-us"' in html
+
+
+def test_no_picker_without_accounts(auth_client):
+    assert "Who can see this" not in auth_client.get("/new").data.decode()
+    assert "Who can see this" not in auth_client.get("/new-instant").data.decode()
+
+
+def test_no_picker_when_no_groups_exist(app_factory):
+    app = app_factory(ACCOUNTS_ENABLED=True)
+    client = app.test_client()
+    _bootstrap_admin(client)
+    _login(client, "papa", "hunter22")
+    assert "Who can see this" not in client.get("/new").data.decode()
+
+
+def test_the_story_page_says_who_it_is_kept_to(insider, scoped_app):
+    html = insider.get(f"/story/{scoped_app.config['SCOPED_ID']}").data.decode()
+    assert "Kept to Just us" in html
+
+
+def test_a_public_story_says_nothing_about_audience(insider, scoped_app):
+    html = insider.get(f"/story/{scoped_app.config['PUBLIC_ID']}").data.decode()
+    assert "Kept to" not in html
+
+
+def test_the_timeline_marks_a_scoped_story(insider):
+    assert "kept to a group" in insider.get("/").data.decode()
+
+
+def test_the_timeline_does_not_mark_anything_for_an_outsider(outsider):
+    """An outsider can't see the scoped story at all, so there is nothing
+    to mark — the pill must not leak its existence either."""
+    assert "kept to a group" not in outsider.get("/").data.decode()
+
+
 def test_the_api_accepts_a_real_group(admin_client):
     stories_dir = admin_client.application.config["STORIES_DIR"]
     groups.create_group(stories_dir, "Just us")

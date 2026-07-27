@@ -136,6 +136,10 @@ TRANSLATIONS_FR = {
     "{n} story is kept to this group.": "{n} histoire est réservée à ce cercle.",
     "{n} stories are kept to this group.":
         "{n} histoires sont réservées à ce cercle.",
+    "Who can see this": "Qui peut la voir",
+    "Only {names}": "Seulement {names}",
+    "Kept to {names}": "Réservée à {names}",
+    "kept to a group": "réservée à un cercle",
     "Note: some stories are kept to groups you're not in, so a backup you "
     "download leaves them out. A complete backup has to come from someone "
     "who can see every story.":

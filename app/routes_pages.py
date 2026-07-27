@@ -85,6 +85,22 @@ def _visible_stories():
     return groups.visible_stories(all_stories, viewer_groups, author_name)
 
 
+def _available_groups():
+    """The groups the audience picker offers (FEATURES.md F40 Phase 2).
+
+    Empty outside accounts mode, which makes the picker disappear entirely
+    rather than offering a choice that couldn't mean anything — the same
+    way F1's author chips vanish without STORYBOOK_AUTHORS.
+
+    Every group is offered, not just the writer's own: scoping a story to a
+    group you aren't in is legitimate (writing something for the
+    grandparents), and `can_see` keeps the author's own access either way.
+    """
+    if not current_app.config["ACCOUNTS_ENABLED"]:
+        return []
+    return groups.list_groups(current_app.config["STORIES_DIR"])
+
+
 def _visible_page_stories():
     """`storage.readable_page_stories` narrowed to what the viewer may see
     — the candidate set for anything that turns pages (F15 random, F2
@@ -493,7 +509,7 @@ def new_story():
     return render_template(
         "editor.html", story=None, today=date.today(), authors=authors,
         prompts=prompt_list, initial_prompt=initial_prompt, memos=[],
-        all_people=_other_people_refs(),
+        all_people=_other_people_refs(), all_groups=_available_groups(),
     )
 
 
@@ -501,7 +517,10 @@ def new_story():
 @login_required
 def new_instant():
     authors = current_app.config.get("AUTHORS") or []
-    return render_template("instant.html", today=date.today(), authors=authors)
+    return render_template(
+        "instant.html", today=date.today(), authors=authors,
+        all_groups=_available_groups(),
+    )
 
 
 @bp.route("/edit/<story_id>")
@@ -512,7 +531,7 @@ def edit_story(story_id):
     memos = storage.list_memos(current_app.config["STORIES_DIR"] / story_id)
     return render_template(
         "editor.html", story=s, today=date.today(), authors=authors, memos=memos,
-        all_people=_other_people_refs(),
+        all_people=_other_people_refs(), all_groups=_available_groups(),
     )
 
 

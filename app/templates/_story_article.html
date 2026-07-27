@@ -21,6 +21,19 @@ control. #}
     {% endif %}
   </p>
   <h1 class="story__title">{{ story.title }}</h1>
+  {# Who this one is kept to (F40). Shown on the story itself rather than
+     only in the editor: a writer who can't tell a scoped story from a
+     public one at a glance is a writer who eventually puts something
+     private in the wrong place. #}
+  {% if story.audience and group_names %}
+  {% set audience_names = [] %}
+  {% for slug in story.audience %}
+  {% if group_names.get(slug) %}{{ audience_names.append(group_names[slug]) or "" }}{% endif %}
+  {% endfor %}
+  {% if audience_names %}
+  <p class="story__audience">{{ _("Kept to {names}", names=audience_names|join(', ')) }}</p>
+  {% endif %}
+  {% endif %}
   {% if story.milestone %}
   <p class="story__milestone"><span class="story__milestone-pill">{{ story.milestone }}</span></p>
   {% endif %}

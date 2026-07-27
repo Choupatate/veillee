@@ -781,6 +781,20 @@ mark {
   color: var(--color-text-dim);
 }
 
+/* "kept to a group" on a timeline row (F40 Phase 2) — deliberately quieter
+   than the milestone pill next to it: it's a fact about the story, not a
+   celebration of one. */
+.timeline__audience-pill {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  letter-spacing: 0.03em;
+  padding: 0.1em 0.6em;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+}
+
 .timeline__milestone-pill {
   display: inline-block;
   font-family: var(--font-sans);
@@ -1434,6 +1448,14 @@ img.people__portrait {
 
 .story__milestone {
   margin: 0 0 0.75rem;
+}
+
+/* "Kept to Just us" under a story's title (F40 Phase 2). */
+.story__audience {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-text-dim);
+  margin: 0.35rem 0 0;
 }
 
 .story__milestone-pill {
@@ -2419,6 +2441,30 @@ img.person-family__thumb {
 
 .editor__toggle-chip[aria-pressed="true"] {
   border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Who a story is kept to (F40 Phase 2). The chips reuse the toggle-chip
+   look; the state line under them is the part that matters, because "no
+   chips lit" and "everyone can read this" have to read as the same thing. */
+.editor__audience {
+  margin: 0.75rem 0;
+}
+
+.editor__audience-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.editor__audience-state {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-text-dim);
+  margin: 0.5rem 0 0;
+}
+
+.editor__audience-state--scoped {
   color: var(--color-accent);
 }
 

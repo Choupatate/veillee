@@ -56,9 +56,8 @@ the exact `F<N>.` heading text to jump to it.
 - **F39** — Invitations and open requests (admin-issued invite links, an
   optional-code request form, duplicate-account hints)
 - **F40** — Groups: scoping a story to fewer people than the whole family
-  (Phase 1 shipped: the audience rule and every surface enforcing it.
-  Phase 2, the editor picker and the "who can see this" marker, is still
-  spec only)
+  (the audience rule and every surface enforcing it, plus the editor
+  picker and the "kept to a group" markers)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -4761,3 +4760,73 @@ reading as a caution rather than another line of intro (it first shipped
 sharing a class with `.import__intro` and lost the color to it).
 
 `pytest` (1045: 1007 existing + 38 new) and `ruff check .` green.
+
+---
+
+### F40 Phase 2 implementation round — the writing experience
+
+Phase 1 built the wall but left `audience` settable only through the API,
+which meant the app had a privacy feature nobody could use and — worse —
+no way to tell a scoped story from a public one while writing. Phase 2 is
+the picker and the two markers.
+
+**The picker** is a row of chips ("Who can see this") built by a shared
+`audience_picker` macro and driven by `app/static/js/audience.js`, a
+factory both `editor.js` and `instant.js` call. Nothing lit means
+everyone.
+
+The state line under the chips is the reason this is a module rather than
+three lines inlined twice. **"No chips lit" and "the whole family can read
+this" have to read as the same thing**, and a picker whose default is
+invisible is one where somebody eventually writes something private into a
+public story. So the current audience is spelled out in words in every
+state — *Everyone*, or *Only Just us* — and turns accent-colored the
+moment it stops being everyone.
+
+**Instants get the picker too.** The original ask was "stories or
+instants", and an instant you can't scope is a hole you'd only discover
+after posting one. Worth noting how it survives the instant's two-step
+save: the create carries `audience`, and the follow-up PUT that attaches
+the uploaded cover omits it — which is correct precisely because
+`save_story` treats an absent `audience` as "leave unchanged". Verified on
+disk rather than assumed.
+
+**The markers.** A scoped story says *Kept to Just us* under its title
+(in `_story_article.html`, so the story page and the book view both get
+it) and carries a quiet *kept to a group* pill on the timeline. The pill
+is deliberately plainer than the milestone pill beside it: it states a
+fact about the story, it isn't celebrating one.
+
+`group_names` (slug → display name) comes from a **context processor**
+rather than a per-route argument. The marker rides along with the shared
+story partial, which four routes render; threading a dict through each is
+four chances to forget, and forgetting means a scoped story that looks
+public to its own writer. Empty outside accounts mode, so the whole thing
+stays invisible on a single-password install.
+
+`_available_groups()` offers *every* group, not only the writer's own:
+scoping a story to a group you aren't in is legitimate (writing something
+for the grandparents), and `can_see`'s author rule keeps your own access
+either way.
+
+### Tests
+
+`tests/test_groups.py` grows to 48 (10 new): the editor offers every
+group and pre-lights a scoped story's chips (read out of the markup with a
+regex, not inferred from "some chip somewhere is pressed"), leaves them
+unlit for a public story, the instant composer offers them too, no picker
+appears without accounts mode or without any groups, the story page names
+the groups, a public story says nothing, the timeline marks a scoped
+story — and an outsider's timeline carries no pill at all, since the pill
+would otherwise leak the existence of a story they can't see.
+
+Verified in Chromium at 390px in both languages, driving the real UI:
+lighting a chip and watching the state line go *Everyone* → *Only Just
+us*, writing and saving a story through the editor, its marker on the
+story page and pill on the timeline, re-opening the editor with the chip
+still lit, and saving a scoped instant with a photo — then checking
+`audience: [just-us]` really landed in its `index.md`. Zero horizontal
+overflow, zero console errors, French correct throughout (*Tout le
+monde* / *Seulement Just us* / *Réservée à Just us*).
+
+`pytest` (1055: 1007 existing + 48 F40) and `ruff check .` green.
