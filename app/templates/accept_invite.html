@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Choose your login") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-login{% endblock %}
+{% block content %}
+<div class="login">
+  <h1 class="login__title">{{ app_title }}</h1>
+  <p class="login__subtitle">
+    {{ _("You've been invited as {name}. Choose a username and a password — nobody else will see them.", name=person_name) }}
+  </p>
+  <form class="login__form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="login__label" for="username">{{ _("Username") }}</label>
+    <input class="login__input" type="text" id="username" name="username"
+           autocomplete="username" pattern="[a-z0-9-]{3,32}" autofocus required>
+    <p class="login__hint">{{ _("3-32 characters: lowercase letters, numbers, hyphens.") }}</p>
+
+    <label class="login__label" for="password">{{ _("Password") }}</label>
+    <input class="login__input" type="password" id="password" name="password"
+           autocomplete="new-password" minlength="8" required>
+
+    <label class="login__label" for="confirm-password">{{ _("Confirm password") }}</label>
+    <input class="login__input" type="password" id="confirm-password" name="confirm_password"
+           autocomplete="new-password" minlength="8" required>
+
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Create my account") }}</button>
+  </form>
+</div>
+{% endblock %}

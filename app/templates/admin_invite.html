@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_macros.html" as macros %}
+{% block title %}{{ _("Invite someone") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+{% block content %}
+<div class="admin">
+  <p class="admin__back"><a href="{{ url_for('pages.admin_accounts') }}">&lsaquo; {{ _("Accounts") }}</a></p>
+  <h1 class="admin__title">{{ _("Invite someone") }}</h1>
+  <p class="admin__hint">
+    {{ _("Pick who this is for and send them the link. They choose their own username and password — you never have to handle either.") }}
+  </p>
+
+  {% if new_invite_url %}
+  <p class="admin__hint"><strong>{{ _("Copy this now — it won't be shown again:") }}</strong></p>
+  <p class="admin__token"><code>{{ new_invite_url }}</code></p>
+  {% endif %}
+
+  <form class="admin__form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {{ macros.person_picker(invitable) }}
+
+    <label class="login__label" for="invite-role">{{ _("Role") }}</label>
+    <select class="login__input" id="invite-role" name="role">
+      {% for role in roles %}
+      <option value="{{ role }}" {% if role == 'family' %}selected{% endif %}>{{ _(role|capitalize) }}</option>
+      {% endfor %}
+    </select>
+
+    <label class="login__label" for="invite-expires">{{ _("Expires after (days)") }}</label>
+    <input class="login__input" type="number" min="1" id="invite-expires" name="expires_days"
+           value="{{ default_expiry_days }}" placeholder="{{ _('Never') }}">
+
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Create invitation") }}</button>
+  </form>
+</div>
+{% endblock %}

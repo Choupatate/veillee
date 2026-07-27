@@ -35,6 +35,15 @@ PENDING_FILENAME = "pending_accounts.json"
 ROLES = ("admin", "family")
 MIN_PASSWORD_LENGTH = 8
 
+# How many unreviewed requests may sit in the queue at once. Only really
+# load-bearing once STORYBOOK_OPEN_REQUESTS is on (FEATURES.md F39): without
+# the invite code in front of it, /request-account is an unauthenticated
+# endpoint that appends to a file on disk, and a cap is what keeps a bored
+# stranger from growing pending_accounts.json without limit. Generous
+# enough that a real family never meets it — an admin who genuinely has 25
+# people waiting has a reviewing problem, not a capacity one.
+MAX_PENDING_REQUESTS = 25
+
 # Serializes the "is this the very first request ever?" check against the
 # approval that follows (see approve_if_first) — the app runs as a single
 # process (waitress's default), so a plain in-memory lock is enough to close
@@ -428,6 +437,10 @@ def create_pending_request(
         raise ValueError("Enter your name.")
     if is_username_reserved(stories_dir, username):
         raise ValueError(f"Username already taken: {username!r}")
+    if len(list_pending(stories_dir)) >= MAX_PENDING_REQUESTS:
+        raise ValueError(
+            "There are too many requests waiting to be reviewed. Try again later."
+        )
 
     pending = PendingRequest(
         username=username,
@@ -513,3 +526,40 @@ def approve_if_first(stories_dir, username: str) -> bool:
             return False
         approve_pending(stories_dir, username, "admin", new_person_name=pending.display_name)
         return True
+
+
+# Below this length, a name is too short for "one contains the other" to
+# mean anything — "Jo" would flag every Joseph, Jocelyne and Joachim in the
+# book. Exact matches still count at any length.
+_SUBSTRING_MATCH_MIN_LEN = 4
+
+
+def similar_people(all_people: list, display_name: str) -> list:
+    """People whose name plausibly refers to the same human as a pending
+    request's `display_name` — the duplicate-account hint the admin review
+    screens show (FEATURES.md F39).
+
+    This app has no email address or phone number to key an identity on, so
+    a second request from someone who already has an account is not
+    something the code can refuse; the honest fix is to put the likely
+    match in front of the admin at the moment they decide. Names are
+    compared through `storage.slugify`, which already folds case, accents
+    and punctuation ("Jean-Luc" and "jean luc" match).
+
+    Pure: takes the list of People, not a directory, so it's testable
+    without touching the filesystem.
+    """
+    target = storage.slugify(display_name or "")
+    if not target or target == "untitled":
+        return []
+    matches = []
+    for person in all_people:
+        candidate = storage.slugify(person.name or "")
+        if not candidate or candidate == "untitled":
+            continue
+        long_enough = min(len(candidate), len(target)) >= _SUBSTRING_MATCH_MIN_LEN
+        if candidate == target or (
+            long_enough and (candidate in target or target in candidate)
+        ):
+            matches.append(person)
+    return matches

@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 from flask import abort, current_app, flash, redirect, render_template, request, session, url_for
 
-from . import accounts, people, storage, write_links
+from . import accounts, invites, people, storage, write_links
 from .i18n import _
 from .auth import (
     admin_required,
@@ -32,10 +32,30 @@ def request_account():
     request ever submitted auto-approves as admin, bound to a brand-new
     Person from its display name — there's no admin yet to review it, and
     already knowing the invite code is the only proof of ownership this
-    self-hosted app has."""
+    self-hosted app has.
+
+    With STORYBOOK_OPEN_REQUESTS on (FEATURES.md F39) the code becomes
+    optional: a relative who was never given it can still ask, and simply
+    waits for an admin instead. Two things stay true in that mode, and both
+    are load-bearing rather than incidental:
+
+    - **A codeless request can never be the bootstrap admin.** `approve_if_first`
+      only runs when the code was actually supplied and correct, so opening
+      the form up can't hand the whole book to the first stranger who finds
+      it on a book with no accounts yet.
+    - **A wrong code is still a wrong code.** Submitting one fails and
+      counts against the throttle exactly as before; only *omitting* it is
+      newly allowed, so the code never becomes guessable-for-free.
+    """
     if not current_app.config["ACCOUNTS_ENABLED"]:
         abort(404)
     stories_dir = current_app.config["STORIES_DIR"]
+    open_requests = current_app.config["OPEN_REQUESTS_ENABLED"]
+
+    def _render(**context):
+        return render_template(
+            "request_account.html", open_requests=open_requests, **context
+        )
 
     if request.method == "POST":
         invite_code = request.form.get("invite_code", "")
@@ -48,9 +68,13 @@ def request_account():
         # guessing the login password — same throttle, same key (F36).
         throttle = current_app.extensions["failure_throttle"]
         if throttle.is_blocked(throttle_key(), time.time()):
-            return throttled_response("request_account.html", submitted=False)
+            return throttled_response("request_account.html", submitted=False,
+                                      open_requests=open_requests)
 
-        if not hmac.compare_digest(invite_code, current_app.config["PASSWORD"]):
+        code_verified = hmac.compare_digest(invite_code, current_app.config["PASSWORD"])
+        code_optional = open_requests and not invite_code
+
+        if not code_verified and not code_optional:
             throttle.register_failure(throttle_key(), time.time())
             time.sleep(1)
             flash(_("Incorrect invite code."), "error")
@@ -62,12 +86,26 @@ def request_account():
             except ValueError as exc:
                 flash(_(str(exc)), "error")
             else:
-                auto_approved = accounts.approve_if_first(stories_dir, pending.username)
-                return render_template(
-                    "request_account.html", submitted=True, auto_approved=auto_approved
+                auto_approved = (
+                    accounts.approve_if_first(stories_dir, pending.username)
+                    if code_verified else False
                 )
+                return _render(submitted=True, auto_approved=auto_approved)
 
-    return render_template("request_account.html", submitted=False)
+    return _render(submitted=False)
+
+
+def _duplicate_hints(all_people, people_dir, display_name):
+    """The "you may already have them" list a pending request is shown
+    with (FEATURES.md F39): every Person whose name looks like the same
+    human, tagged with whether they can already log in. A match that
+    already has an account is the actual duplicate signal; one without is
+    just the Person this request should probably be bound to instead of
+    creating a second."""
+    return [
+        {"person": p, "has_account": accounts.get_account(people_dir, p.slug) is not None}
+        for p in accounts.similar_people(all_people, display_name)
+    ]
 
 
 @bp.route("/admin/accounts")
@@ -75,20 +113,145 @@ def request_account():
 def admin_accounts():
     stories_dir = current_app.config["STORIES_DIR"]
     people_dir = storage.people_dir(stories_dir)
-    people_by_slug = {p.slug: p for p in people.list_people(people_dir)}
-    unbound_people = [p for p in people_by_slug.values() if accounts.get_account(people_dir, p.slug) is None]
+    all_people = people.list_people(people_dir)
+    people_by_slug = {p.slug: p for p in all_people}
+    unbound_people = [p for p in all_people if accounts.get_account(people_dir, p.slug) is None]
     rows = [
         {"account": a, "person": people_by_slug.get(a.person_slug)}
         for a in accounts.list_accounts(people_dir)
+    ]
+    pending_rows = [
+        {"request": p, "hints": _duplicate_hints(all_people, people_dir, p.display_name)}
+        for p in accounts.list_pending(stories_dir)
+    ]
+    invite_rows = [
+        {"invite": invite, "person": people_by_slug.get(invite.person_slug)}
+        for invite in invites.list_all_active(people_dir)
     ]
     link_rows = [
         {"link": link, "person": people_by_slug.get(link.person_slug)}
         for link in write_links.list_all_active(people_dir)
     ]
     return render_template(
-        "admin_accounts.html", rows=rows, pending=accounts.list_pending(stories_dir),
-        link_rows=link_rows, roles=accounts.ROLES, unbound_people=unbound_people,
+        "admin_accounts.html", rows=rows, pending_rows=pending_rows,
+        invite_rows=invite_rows, link_rows=link_rows, roles=accounts.ROLES,
+        unbound_people=unbound_people,
     )
+
+
+@bp.route("/admin/accounts/invite", methods=["GET", "POST"])
+@admin_required
+def admin_invite():
+    """Issue an invite link (FEATURES.md F39): the admin picks the Person
+    and the role, the recipient picks their own username and password. The
+    inverse of the request queue, and the reason it exists — approving a
+    request means typing someone else's credentials for them, or asking
+    them to send a password over a chat app.
+
+    The raw token is shown exactly once, here, right after creation; only
+    its hash is stored, so there is no "show it again" to build later.
+    """
+    people_dir = _people_dir()
+    new_invite_url = None
+
+    if request.method == "POST":
+        person_slug = request.form.get("person_slug") or None
+        new_person_name = (request.form.get("new_person_name") or "").strip()
+        role = request.form.get("role") or "family"
+        expires_raw = (request.form.get("expires_days") or "").strip()
+        expires_in_days = int(expires_raw) if expires_raw.isdigit() else None
+
+        error = None
+        if role not in accounts.ROLES:
+            error = "Invalid role."
+        else:
+            person_slug, error = _bind_and_create(people_dir, person_slug, new_person_name)
+
+        if error is None:
+            try:
+                _invite, token = invites.create_invite(
+                    people_dir, person_slug, role, expires_in_days=expires_in_days,
+                    created_by=session.get("account_username"),
+                )
+            except (ValueError, FileNotFoundError) as exc:
+                error = str(exc)
+            else:
+                new_invite_url = url_for("pages.accept_invite", token=token, _external=True)
+
+        if error:
+            flash(_(error), "error")
+
+    # Rebuilt after the POST so a Person invited just now is gone from the
+    # picker (they have a live invite; a second one would only revoke it).
+    invitable = [
+        p for p in people.list_people(people_dir)
+        if accounts.get_account(people_dir, p.slug) is None
+        and not any(invites.is_invite_valid(i) for i in invites.list_invites(people_dir, p.slug))
+    ]
+    return render_template(
+        "admin_invite.html", invitable=invitable, roles=accounts.ROLES,
+        new_invite_url=new_invite_url,
+        default_expiry_days=invites.DEFAULT_EXPIRY_DAYS,
+    )
+
+
+@bp.route("/admin/accounts/invite/<person_slug>/<invite_id>/revoke", methods=["POST"])
+@admin_required
+def admin_revoke_invite(person_slug, invite_id):
+    try:
+        invites.revoke_invite(_people_dir(), person_slug, invite_id)
+    except FileNotFoundError:
+        abort(404)
+    return redirect(url_for("pages.admin_accounts"))
+
+
+@bp.route("/invite/<token>", methods=["GET", "POST"])
+def accept_invite(token):
+    """Public, unauthenticated: the recipient of an invite link chooses
+    their own username and password (FEATURES.md F39).
+
+    Never logs anyone in on success — it redirects to the login page for
+    them to use the credentials they just set. An account that has never
+    survived a real login round-trip is one typo away from needing an admin
+    password reset, and this way that typo surfaces immediately, while the
+    person is still at the keyboard.
+    """
+    if not current_app.config["ACCOUNTS_ENABLED"]:
+        abort(404)
+    stories_dir = current_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+
+    invite = invites.find_by_token(people_dir, token)
+    if invite is None or not invites.is_invite_valid(invite):
+        return render_template("invite_invalid.html"), 404
+    person = people.get_person(people_dir, invite.person_slug)
+    if person is None:
+        return render_template("invite_invalid.html"), 404
+
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip().lower()
+        password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
+
+        error = None
+        if password != confirm_password:
+            error = "Passwords don't match."
+        else:
+            try:
+                invites.accept_invite(stories_dir, token, username, password)
+            except LookupError:
+                # Redeemed, revoked or expired between the GET and the POST.
+                return render_template("invite_invalid.html"), 404
+            except (ValueError, FileNotFoundError) as exc:
+                error = str(exc)
+
+        if error:
+            flash(_(error), "error")
+        else:
+            flash(_("Your account is ready — log in with it below."), "success")
+            return redirect(url_for("auth.login"))
+
+    return render_template("accept_invite.html", person_name=person.name, role=invite.role)
 
 
 def _admin_mutate_account(person_slug, mutator, *args, on_success=None):
@@ -247,8 +410,9 @@ def admin_review_pending(username):
     pending = accounts.get_pending(stories_dir, username)
     if pending is None:
         abort(404)
+    all_people = people.list_people(people_dir)
     unbound_people = [
-        p for p in people.list_people(people_dir) if accounts.get_account(people_dir, p.slug) is None
+        p for p in all_people if accounts.get_account(people_dir, p.slug) is None
     ]
 
     if request.method == "POST":
@@ -279,6 +443,7 @@ def admin_review_pending(username):
     return render_template(
         "admin_review_pending.html", pending=pending, unbound_people=unbound_people,
         roles=accounts.ROLES,
+        hints=_duplicate_hints(all_people, people_dir, pending.display_name),
     )
 
 
