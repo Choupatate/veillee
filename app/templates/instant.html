@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "_macros.html" as macros %}
-{% block title %}New instant — {{ app_title }}{% endblock %}
+{% block title %}{{ _("New instant") }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-instant{% endblock %}
 {% block content %}
 <form id="instant-form" class="instant">
@@ -8,15 +8,15 @@
        alt="" loading="lazy" decoding="async" width="522" height="652">
   <label class="instant__photo-picker" id="instant-photo-picker" for="instant-photo">
     <img class="instant__photo-preview" id="instant-photo-preview" alt="" hidden>
-    <span class="instant__photo-label" id="instant-photo-label">Add a photo</span>
+    <span class="instant__photo-label" id="instant-photo-label">{{ _("Add a photo") }}</span>
     <input type="file" id="instant-photo" name="photo" class="instant__file" accept="image/*">
   </label>
   {# Shown by instant.js only where getUserMedia exists (F34). #}
   <button type="button" id="instant-camera" class="btn instant__camera" hidden>
-    <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">Take a photo
+    <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">{{ _("Take a photo") }}
   </button>
   <input type="text" id="instant-line" name="line" class="instant__line"
-         placeholder="One line&hellip;" maxlength="200">
+         placeholder="{{ _('One line…') }}" maxlength="200">
   <input type="date" id="instant-date" name="date" class="instant__date"
          value="{{ today.isoformat() }}" required>
   {% if authors and not config.ACCOUNTS_ENABLED %}
@@ -24,7 +24,7 @@
   {% endif %}
   <div class="instant__save-row">
     <button type="submit" id="instant-save" class="btn btn--primary instant__save">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-save.png') }}" alt="" width="20" height="20">Save
+      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-save.png') }}" alt="" width="20" height="20">{{ _("Save") }}
     </button>
     <img class="lasso-spinner" id="instant-spinner" src="{{ url_for('static', filename='img/lasso-ring.png') }}"
          alt="" width="40" height="40" hidden>

@@ -34,7 +34,8 @@ from flask import (
     url_for,
 )
 
-from . import accounts, storage, write_links
+from . import accounts, i18n, storage, write_links
+from .i18n import _, _n
 
 bp = Blueprint("auth", __name__)
 
@@ -60,7 +61,11 @@ def throttled_response(template, **context):
     retry_after = throttle.retry_after(throttle_key(), time.time())
     minutes = max(1, (retry_after + 59) // 60)
     flash(
-        f"Too many attempts. Try again in about {minutes} minute{'s' if minutes > 1 else ''}.",
+        _n(
+            "Too many attempts. Try again in about {n} minute.",
+            "Too many attempts. Try again in about {n} minutes.",
+            minutes,
+        ),
         "error",
     )
     response = current_app.make_response(render_template(template, **context))
@@ -166,7 +171,7 @@ def login():
                 return redirect(_safe_next_url(request.args.get("next", "")))
             throttle.register_failure(key, time.time())
             time.sleep(1)
-            flash("Incorrect username or password.", "error")
+            flash(_("Incorrect username or password."), "error")
         else:
             password = request.form.get("password", "")
             correct = hmac.compare_digest(password, current_app.config["PASSWORD"])
@@ -178,7 +183,7 @@ def login():
                 return redirect(_safe_next_url(request.args.get("next", "")))
             throttle.register_failure(key, time.time())
             time.sleep(1)
-            flash("Incorrect password.", "error")
+            flash(_("Incorrect password."), "error")
 
     return render_template(
         "login.html", accounts_enabled=accounts_enabled, no_accounts_yet=no_accounts_yet
@@ -189,3 +194,31 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("auth.login"))
+
+
+@bp.route("/language/<lang>", methods=["POST"])
+def set_language(lang):
+    """Remember a language choice (FEATURES.md F38).
+
+    Deliberately not `@login_required`: the login page has the picker too,
+    so someone who doesn't read English can switch before typing a
+    password. A cookie rather than the session because it must survive
+    logging out, and rather than a per-account setting because it has to
+    work before there is an account.
+
+    POST-only and CSRF-protected like every other state change, and the
+    redirect target goes through the same allowlist as the login `next`,
+    so this can't be turned into an open redirect.
+    """
+    if not i18n.is_supported(lang):
+        abort(404)
+    response = redirect(_safe_next_url(request.form.get("next", "")))
+    response.set_cookie(
+        i18n.COOKIE_NAME,
+        lang,
+        max_age=i18n.COOKIE_MAX_AGE,
+        httponly=False,  # harmless to JS and lets a future picker read it
+        samesite="Lax",
+        secure=current_app.config["SESSION_COOKIE_SECURE"],
+    )
+    return response

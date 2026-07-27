@@ -12,6 +12,7 @@ from datetime import date, datetime
 from flask import abort, current_app, flash, redirect, render_template, request, session, url_for
 
 from . import accounts, people, storage, write_links
+from .i18n import _
 from .auth import (
     admin_required,
     delegate_required,
@@ -52,14 +53,14 @@ def request_account():
         if not hmac.compare_digest(invite_code, current_app.config["PASSWORD"]):
             throttle.register_failure(throttle_key(), time.time())
             time.sleep(1)
-            flash("Incorrect invite code.", "error")
+            flash(_("Incorrect invite code."), "error")
         else:
             try:
                 pending = accounts.create_pending_request(
                     stories_dir, username, password, display_name, note
                 )
             except ValueError as exc:
-                flash(str(exc), "error")
+                flash(_(str(exc)), "error")
             else:
                 auto_approved = accounts.approve_if_first(stories_dir, pending.username)
                 return render_template(
@@ -101,7 +102,7 @@ def _admin_mutate_account(person_slug, mutator, *args, on_success=None):
     try:
         mutator(_people_dir(), person_slug, *args)
     except (ValueError, FileNotFoundError) as exc:
-        flash(str(exc), "error")
+        flash(_(str(exc)), "error")
     else:
         if on_success:
             on_success()
@@ -170,7 +171,7 @@ def admin_reset_password(person_slug):
             except ValueError as exc:
                 error = str(exc)
         if error:
-            flash(error, "error")
+            flash(_(error), "error")
         else:
             return redirect(url_for("pages.admin_accounts"))
 
@@ -229,7 +230,7 @@ def admin_new_account():
                 error = str(exc)
 
         if error:
-            flash(error, "error")
+            flash(_(error), "error")
         else:
             return redirect(url_for("pages.admin_accounts"))
 
@@ -271,7 +272,7 @@ def admin_review_pending(username):
                 error = str(exc)
 
         if error:
-            flash(error, "error")
+            flash(_(error), "error")
         else:
             return redirect(url_for("pages.admin_accounts"))
 
@@ -330,7 +331,7 @@ def account_password():
                 error = str(exc)
 
         if error:
-            flash(error, "error")
+            flash(_(error), "error")
         else:
             # Refresh this session's own session_version — set_password just
             # bumped it, and without this the very next request would lock
@@ -460,7 +461,7 @@ def delegate_write():
             error = "Enter a title."
 
         if error:
-            flash(error, "error")
+            flash(_(error), "error")
         else:
             story_id = storage.create_story(
                 current_app.config["STORIES_DIR"], title, story_date, body, author=person.name

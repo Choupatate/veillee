@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ current_language }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,29 +20,30 @@
 {% block head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
-<a class="skip-link" href="#content">Skip to content</a>
+<a class="skip-link" href="#content">{{ _("Skip to content") }}</a>
 <nav class="site-nav">
   <div class="site-nav__row">
     <a class="site-nav__brand" href="{{ url_for('pages.timeline') }}">{{ app_title }}</a>
-    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme">
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="{{ _('Toggle color theme') }}">
       <span aria-hidden="true">&#9680;</span>
     </button>
   </div>
+  {% include "_language_picker.html" %}
   {% if session.get('authed') %}
   <div class="site-nav__actions">
-    <a class="site-nav__link" href="{{ url_for('pages.people_page') }}">People</a>
-    <a class="site-nav__link" href="{{ url_for('pages.help_page') }}">Help</a>
+    <a class="site-nav__link" href="{{ url_for('pages.people_page') }}">{{ _("People") }}</a>
+    <a class="site-nav__link" href="{{ url_for('pages.help_page') }}">{{ _("Help") }}</a>
     {% if config.ACCOUNTS_ENABLED and session.get('role') == 'admin' %}
-    <a class="site-nav__link" href="{{ url_for('pages.admin_accounts') }}">Accounts</a>
+    <a class="site-nav__link" href="{{ url_for('pages.admin_accounts') }}">{{ _("Accounts") }}</a>
     {% endif %}
     {% if config.ACCOUNTS_ENABLED and session.get('person_slug') %}
-    <a class="site-nav__link" href="{{ url_for('pages.account_home') }}">Account</a>
+    <a class="site-nav__link" href="{{ url_for('pages.account_home') }}">{{ _("Account") }}</a>
     {% endif %}
     <a class="btn btn--new" href="{{ url_for('pages.new_story') }}">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-new-story.png') }}" alt="" width="20" height="20">+ New story
+      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-new-story.png') }}" alt="" width="20" height="20">{{ _("+ New story") }}
     </a>
     <a class="btn btn--instant" href="{{ url_for('pages.new_instant') }}">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">+ Instant
+      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">{{ _("+ Instant") }}
     </a>
   </div>
   {% endif %}

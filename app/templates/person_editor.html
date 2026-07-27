@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "_macros.html" as macros %}
-{% block title %}{% if person %}Edit person{% else %}New person{% endif %} — {{ app_title }}{% endblock %}
+{% block title %}{% if person %}{{ _("Edit person") }}{% else %}{{ _("New person") }}{% endif %} — {{ app_title }}{% endblock %}
 {% block body_class %}page-editor{% endblock %}
 {% block head %}
 {% include "_editor_head.html" %}
@@ -16,18 +16,18 @@
       data-redirect-template="{{ url_for('pages.person_page', slug='__ID__') }}"
       data-edit-url-template="{{ url_for('pages.edit_person', slug='__ID__') }}">
   <input class="editor__title" id="story-title" name="title" type="text"
-         placeholder="Name" value="{{ person.name if person else '' }}" required>
+         placeholder="{{ _('Name') }}" value="{{ person.name if person else '' }}" required>
   <input class="editor__relation" id="person-relation" name="relation" type="text"
-         placeholder="Relation (e.g. your grandmother)" value="{{ (person.relation or '') if person else '' }}">
+         placeholder="{{ _('Relation (e.g. your grandmother)') }}" value="{{ (person.relation or '') if person else '' }}">
 
   <div class="editor__life-dates" id="editor-life-dates">
     <div class="editor__family-group">
-      <label class="editor__family-label" for="person-born">Born</label>
+      <label class="editor__family-label" for="person-born">{{ _("Born") }}</label>
       <input class="editor__born" id="person-born" type="date"
              value="{{ person.born.isoformat() if person and person.born else '' }}">
     </div>
     <div class="editor__family-group">
-      <label class="editor__family-label" for="person-died">Died</label>
+      <label class="editor__family-label" for="person-died">{{ _("Died") }}</label>
       <input class="editor__died" id="person-died" type="date"
              value="{{ person.died.isoformat() if person and person.died else '' }}">
     </div>
@@ -35,14 +35,14 @@
 
   {% if config.ACCOUNTS_ENABLED %}
   <div class="editor__author-color">
-    <label class="editor__family-label" for="person-author-color">Byline color</label>
+    <label class="editor__family-label" for="person-author-color">{{ _("Byline color") }}</label>
     <input type="color" id="person-author-color" name="author_color"
            value="{{ (person.author_color if person else none) or default_author_color }}">
   </div>
   {% endif %}
 
   <div class="editor__photo" id="editor-photo">
-    <p class="editor__family-label">Photo</p>
+    <p class="editor__family-label">{{ _("Photo") }}</p>
 
     <div class="editor__photo-preview" id="editor-photo-preview" {% if not (person and person.photo) %}hidden{% endif %}>
       <img class="editor__photo-preview-img" id="editor-photo-img" alt=""
@@ -52,14 +52,14 @@
            {% endif %}>
     </div>
     <span class="editor__photo-placeholder" id="editor-photo-placeholder"
-          {% if person and person.photo %}hidden{% endif %}>No photo yet</span>
+          {% if person and person.photo %}hidden{% endif %}>{{ _("No photo yet") }}</span>
 
     <input type="file" accept="image/*" id="editor-photo-file" class="editor__photo-file-input">
     <div class="editor__photo-actions">
-      <label for="editor-photo-file" class="btn editor__photo-upload-btn" id="editor-photo-upload-label">{% if person and person.photo %}Change photo{% else %}Add a photo{% endif %}</label>
+      <label for="editor-photo-file" class="btn editor__photo-upload-btn" id="editor-photo-upload-label">{% if person and person.photo %}{{ _("Change photo") }}{% else %}{{ _("Add a photo") }}{% endif %}</label>
       {# Unhidden by editor.js only where getUserMedia exists (F34). #}
       <button type="button" class="btn editor__photo-camera-btn" id="editor-photo-camera" hidden>
-        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">Take a photo
+        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">{{ _("Take a photo") }}
       </button>
     </div>
     <p class="editor__save-message" id="editor-photo-message" hidden></p>
@@ -70,20 +70,20 @@
         <div class="editor__photo-cropper-ring" aria-hidden="true"></div>
       </div>
       <div class="editor__photo-zoom-controls">
-        <button type="button" class="editor__photo-zoom-btn" id="editor-photo-zoom-out" aria-label="Zoom out">&minus;</button>
-        <input type="range" min="0" max="100" value="0" id="editor-photo-zoom-range" aria-label="Zoom">
-        <button type="button" class="editor__photo-zoom-btn" id="editor-photo-zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" class="editor__photo-zoom-btn" id="editor-photo-zoom-out" aria-label="{{ _('Zoom out') }}">&minus;</button>
+        <input type="range" min="0" max="100" value="0" id="editor-photo-zoom-range" aria-label="{{ _('Zoom') }}">
+        <button type="button" class="editor__photo-zoom-btn" id="editor-photo-zoom-in" aria-label="{{ _('Zoom in') }}">+</button>
       </div>
-      <p class="editor__photo-cropper-hint">Drag the photo to reposition it.</p>
+      <p class="editor__photo-cropper-hint">{{ _("Drag the photo to reposition it.") }}</p>
       <div class="editor__photo-cropper-actions">
-        <button type="button" class="btn" id="editor-photo-crop-cancel">Cancel</button>
-        <button type="button" class="btn btn--primary" id="editor-photo-crop-confirm">Use this photo</button>
+        <button type="button" class="btn" id="editor-photo-crop-cancel">{{ _("Cancel") }}</button>
+        <button type="button" class="btn btn--primary" id="editor-photo-crop-confirm">{{ _("Use this photo") }}</button>
       </div>
     </div>
 
     <div class="editor__photo-sepia-group" id="editor-photo-sepia-group"
          {% if not (person and person.photo) %}hidden{% endif %}>
-      <label class="editor__family-label" for="editor-photo-sepia-range">Sepia tone</label>
+      <label class="editor__family-label" for="editor-photo-sepia-range">{{ _("Sepia tone") }}</label>
       <div class="editor__photo-sepia-controls">
         <input type="range" min="0" max="100" id="editor-photo-sepia-range"
                value="{% if person and person.photo %}{{ person.photo_sepia }}{% else %}30{% endif %}">
@@ -96,14 +96,14 @@
 
   {% if other_people %}
   <fieldset class="editor__family" id="editor-family">
-    <legend class="editor__family-legend">Family</legend>
-    {{ macros.people_picker("family-parents", "Parents (up to two)", person.parents if person else [], other_people) }}
-    {{ macros.people_picker("family-partners", "Partner", person.partners if person else [], other_people) }}
+    <legend class="editor__family-legend">{{ _("Family") }}</legend>
+    {{ macros.people_picker("family-parents", _("Parents (up to two)"), person.parents if person else [], other_people) }}
+    {{ macros.people_picker("family-partners", _("Partner"), person.partners if person else [], other_people) }}
     <div class="editor__unions" id="editor-unions">
-      <p class="editor__family-label">Unions</p>
+      <p class="editor__family-label">{{ _("Unions") }}</p>
       <div class="editor__unions-list" id="editor-unions-list"></div>
       <p class="editor__unions-message" id="editor-unions-message" hidden></p>
-      <button type="button" class="btn" id="editor-unions-add">+ Add union</button>
+      <button type="button" class="btn" id="editor-unions-add">{{ _("+ Add union") }}</button>
     </div>
     {# Built field-by-field rather than `{{ person.unions | tojson }}` — a
        union's since/until are `date` objects, and Flask's default JSON
@@ -114,28 +114,27 @@
 {"partner": {{ u.partner | tojson }}, "kind": {{ u.kind | tojson }}, "since": {{ u.since.isoformat() | tojson }}, "until": {{ (u.until.isoformat() if u.until else none) | tojson }}}{% if not loop.last %},{% endif %}
 {%- endfor -%}
 ]</script>
-    {{ macros.people_picker("family-friend-of", "Friend of", person.friend_of if person else [], other_people) }}
+    {{ macros.people_picker("family-friend-of", _("Friend of"), person.friend_of if person else [], other_people) }}
     <div class="editor__family-group">
-      <p class="editor__family-label">Gender</p>
+      <p class="editor__family-label">{{ _("Gender") }}</p>
       <div class="editor__gender-segmented" id="family-gender">
         <button type="button" class="btn editor__gender-btn" data-gender="m"
                 aria-pressed="{{ 'true' if person and person.gender == 'm' else 'false' }}">M</button>
         <button type="button" class="btn editor__gender-btn" data-gender="f"
                 aria-pressed="{{ 'true' if person and person.gender == 'f' else 'false' }}">F</button>
         <button type="button" class="btn editor__gender-btn" data-gender=""
-                aria-pressed="{{ 'true' if not person or not person.gender else 'false' }}">Unset</button>
+                aria-pressed="{{ 'true' if not person or not person.gender else 'false' }}">{{ _("Unset") }}</button>
       </div>
     </div>
   </fieldset>
   {% else %}
-  <p class="editor__family-hint">Add another person and you'll be able to link parents, a
-    partner, and gender here — those pickers need someone else to point at.</p>
+  <p class="editor__family-hint">{{ _("Add another person and you'll be able to link parents, a partner, and gender here — those pickers need someone else to point at.") }}</p>
   {% endif %}
   <div class="editor__sources" id="editor-sources">
-    <p class="editor__family-label">Sources</p>
+    <p class="editor__family-label">{{ _("Sources") }}</p>
     <div class="editor__sources-list" id="editor-sources-list"></div>
     <button type="button" class="btn" id="editor-sources-add">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-source.png') }}" alt="" width="20" height="20">+ Add source
+      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-source.png') }}" alt="" width="20" height="20">{{ _("+ Add source") }}
     </button>
   </div>
   <script type="application/json" id="editor-sources-data">{{ (person.sources if person else []) | tojson }}</script>

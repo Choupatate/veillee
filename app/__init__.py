@@ -4,8 +4,9 @@ import secrets
 from datetime import date, timedelta
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, g, jsonify, render_template, request
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .throttle import DEFAULT_LIMIT, DEFAULT_WINDOW_SECONDS, FailureThrottle
@@ -91,6 +92,7 @@ def create_app(test_config=None):
     child_slug = os.environ.get("STORYBOOK_CHILD") or None
     accounts_enabled = os.environ.get("STORYBOOK_ACCOUNTS") == "1"
     trusted_proxies = int(os.environ.get("STORYBOOK_TRUSTED_PROXIES") or 0)
+    default_language = os.environ.get("STORYBOOK_LANGUAGE") or None
 
     if password and not secret_key and not test_config:
         raise RuntimeError(
@@ -113,6 +115,7 @@ def create_app(test_config=None):
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=cookie_secure,
+        DEFAULT_LANGUAGE=default_language,
         LOGIN_ATTEMPT_LIMIT=DEFAULT_LIMIT,
         LOGIN_ATTEMPT_WINDOW=DEFAULT_WINDOW_SECONDS,
     )
@@ -145,7 +148,7 @@ def create_app(test_config=None):
     app.config["STORIES_DIR"] = Path(app.config["STORIES_DIR"])
     app.config["STORIES_DIR"].mkdir(parents=True, exist_ok=True)
 
-    from . import auth, dates, routes_api, routes_pages, storage
+    from . import auth, i18n, routes_api, routes_pages, storage
 
     CSRFProtect(app)
 
@@ -153,13 +156,47 @@ def create_app(test_config=None):
     app.register_blueprint(routes_pages.bp)
     app.register_blueprint(routes_api.bp)
 
+    @app.before_request
+    def resolve_language():
+        """One language per request (F38): the reader's own choice from
+        the picker, else their browser's preference, else the book's own
+        default (STORYBOOK_LANGUAGE), else English."""
+        g.lang = i18n.pick_language(
+            request.cookies.get(i18n.COOKIE_NAME),
+            request.headers.get("Accept-Language"),
+            app.config.get("DEFAULT_LANGUAGE"),
+        )
+
     app.jinja_env.globals["is_sealed"] = storage.is_sealed
-    app.jinja_env.globals["age_label"] = dates.age_label
     app.jinja_env.globals["thumb_filename"] = storage.thumb_filename
+    app.jinja_env.globals["_"] = i18n._
+    app.jinja_env.globals["_n"] = i18n._n
+    app.jinja_env.globals["LANGUAGES"] = i18n.LANGUAGES
+
+    # Templates call age_label(birthdate, date) with no language argument;
+    # bind the current request's language here so every caller localizes.
+    app.jinja_env.globals["age_label"] = lambda b, d: i18n.age_label(
+        b, d, i18n.current_language()
+    )
+
+    def _date_filter(style):
+        return lambda value: i18n.format_date(value, i18n.current_language(), style)
+
+    for name, style in (
+        ("longdate", "long"), ("shortdate", "short"),
+        ("shortdateyear", "short_year"), ("monthyear", "month_year"),
+    ):
+        app.jinja_env.filters[name] = _date_filter(style)
+    app.jinja_env.filters["datetimestamp"] = lambda v: i18n.format_datetime(
+        v, i18n.current_language()
+    )
 
     @app.context_processor
     def inject_title():
-        return {"app_title": app.config["TITLE"]}
+        return {
+            "app_title": app.config["TITLE"],
+            "current_language": i18n.current_language(),
+        }
 
     @app.after_request
     def security_headers(response):
@@ -188,14 +225,99 @@ def create_app(test_config=None):
             response.cache_control.public = False
         return response
 
+    def _error_page(status, heading, message, api_message=None, hint=None):
+        """Every error a family member can hit must render through
+        base.html — it carries the viewport meta and the stylesheet. A bare
+        Werkzeug error page has neither, so on a phone it lays out at 980px
+        and reads as "the site is broken" (F37)."""
+        if request.path.startswith("/api/"):
+            return jsonify({"error": api_message or message}), status
+        return render_template(
+            "error.html", heading=heading, message=message, hint=hint
+        ), status
+
     @app.errorhandler(404)
     def not_found(error):
+        if request.path.startswith("/api/"):
+            return jsonify({"error": i18n._("Not found.")}), 404
         return render_template("404.html"), 404
 
     @app.errorhandler(413)
     def too_large(error):
-        if request.path.startswith("/api/"):
-            return jsonify({"error": "File too large (max 128 MB)."}), 413
-        return render_template("404.html"), 413
+        return _error_page(
+            413,
+            i18n._("That file is too big"),
+            i18n._(
+                "The upload limit is 128 MB. Try a smaller file, or copy it "
+                "straight into the stories folder instead."
+            ),
+            api_message=i18n._("File too large (max 128 MB)."),
+        )
+
+    @app.errorhandler(CSRFError)
+    def csrf_error(error):
+        """A CSRF failure is nearly always one of two ordinary things: a
+        page left open until its session expired, or a reverse proxy that
+        isn't passing the browser's real host through. Say so, instead of
+        Werkzeug's bare "Bad Request"."""
+        referrer_mismatch = "referrer" in (error.description or "").lower()
+        if referrer_mismatch:
+            hint = i18n._(
+                "This usually means the reverse proxy in front of this app "
+                "isn't forwarding the address you typed. Whoever set it up "
+                "should check that it sends X-Forwarded-Host and "
+                "X-Forwarded-Proto, and that STORYBOOK_TRUSTED_PROXIES is set."
+            )
+        else:
+            hint = None
+        return _error_page(
+            400,
+            i18n._("That page had gone stale"),
+            i18n._(
+                "For safety this app refuses a form it can't match to your "
+                "current session. Log in again and redo that last step — "
+                "nothing was saved or lost."
+            ),
+            api_message=i18n._("Your session expired. Reload the page and try again."),
+            hint=hint,
+        )
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return _error_page(
+            400,
+            i18n._("Something was wrong with that request"),
+            i18n._(
+                "The app couldn't make sense of what the browser sent. "
+                "Reload the page and try again."
+            ),
+        )
+
+    @app.errorhandler(403)
+    def forbidden(error):
+        return _error_page(
+            403,
+            i18n._("Not allowed"),
+            i18n._("You don't have access to that."),
+        )
+
+    @app.errorhandler(429)
+    def too_many_requests(error):
+        return _error_page(
+            429,
+            i18n._("Too many attempts"),
+            i18n._("Wait a few minutes and try again."),
+        )
+
+    @app.errorhandler(500)
+    def server_error(error):
+        return _error_page(
+            500,
+            i18n._("Something went wrong"),
+            i18n._(
+                "That's a fault in the app, not anything you did. Your stories "
+                "are files on disk and are unaffected."
+            ),
+        )
 
     return app

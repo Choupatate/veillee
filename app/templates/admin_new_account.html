@@ -1,31 +1,31 @@
 {% extends "base.html" %}
 {% import "_macros.html" as macros %}
-{% block title %}New account — {{ app_title }}{% endblock %}
+{% block title %}{{ _("New account") }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-admin{% endblock %}
 {% block content %}
 <div class="admin">
-  <p class="admin__back"><a href="{{ url_for('pages.admin_accounts') }}">&lsaquo; Accounts</a></p>
-  <h1 class="admin__title">New account</h1>
+  <p class="admin__back"><a href="{{ url_for('pages.admin_accounts') }}">&lsaquo; {{ _("Accounts") }}</a></p>
+  <h1 class="admin__title">{{ _("New account") }}</h1>
   <form class="admin__form" method="post" action="{{ url_for('pages.admin_new_account') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {{ macros.person_picker(unbound_people) }}
 
-    <label class="login__label" for="admin-username">Username</label>
+    <label class="login__label" for="admin-username">{{ _("Username") }}</label>
     <input class="login__input" type="text" id="admin-username" name="username"
            autocomplete="off" pattern="[a-z0-9-]{3,32}" required>
 
-    <label class="login__label" for="admin-password">Password</label>
+    <label class="login__label" for="admin-password">{{ _("Password") }}</label>
     <input class="login__input" type="password" id="admin-password" name="password"
            autocomplete="new-password" minlength="8" required>
 
-    <label class="login__label" for="admin-role">Role</label>
+    <label class="login__label" for="admin-role">{{ _("Role") }}</label>
     <select class="login__input" id="admin-role" name="role">
       {% for role in roles %}
-      <option value="{{ role }}">{{ role|capitalize }}</option>
+      <option value="{{ role }}">{{ _(role|capitalize) }}</option>
       {% endfor %}
     </select>
 
-    <button class="btn btn--primary login__submit" type="submit">Create account</button>
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Create account") }}</button>
   </form>
 </div>
 {% endblock %}

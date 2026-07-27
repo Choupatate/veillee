@@ -1,46 +1,46 @@
 {% extends "base.html" %}
 {% import "_macros.html" as macros %}
-{% block title %}Accounts — {{ app_title }}{% endblock %}
+{% block title %}{{ _("Accounts") }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-admin{% endblock %}
 {% block content %}
 <div class="admin">
-  <p class="admin__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; Timeline</a></p>
+  <p class="admin__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <div class="admin__header">
-    <h1 class="admin__title">Accounts</h1>
-    <a class="btn btn--new" href="{{ url_for('pages.admin_new_account') }}">+ New account</a>
+    <h1 class="admin__title">{{ _("Accounts") }}</h1>
+    <a class="btn btn--new" href="{{ url_for('pages.admin_new_account') }}">{{ _("+ New account") }}</a>
   </div>
   {% if pending %}
-  <h2 class="admin__subtitle">Pending requests</h2>
+  <h2 class="admin__subtitle">{{ _("Pending requests") }}</h2>
   <ul class="admin__list">
     {% for p in pending %}
     <li class="admin__row">
       <span class="admin__row-name">{{ p.display_name }}</span>
       <span class="admin__row-username">{{ p.username }}</span>
-      <a class="btn admin__row-action" href="{{ url_for('pages.admin_review_pending', username=p.username) }}">Review</a>
-      {{ macros.action_button_form(url_for('pages.admin_reject_pending', username=p.username), "Reject") }}
+      <a class="btn admin__row-action" href="{{ url_for('pages.admin_review_pending', username=p.username) }}">{{ _("Review") }}</a>
+      {{ macros.action_button_form(url_for('pages.admin_reject_pending', username=p.username), _("Reject")) }}
     </li>
     {% endfor %}
   </ul>
   {% endif %}
-  {% if pending %}<h2 class="admin__subtitle">Accounts</h2>{% endif %}
+  {% if pending %}<h2 class="admin__subtitle">{{ _("Accounts") }}</h2>{% endif %}
   {% if not rows %}
-  <p class="admin__empty">No accounts yet.</p>
+  <p class="admin__empty">{{ _("No accounts yet.") }}</p>
   {% else %}
   <ul class="admin__list">
     {% for row in rows %}
     <li class="admin__row">
       <span class="admin__row-name">{{ row.person.name if row.person else row.account.person_slug }}</span>
       <span class="admin__row-username">{{ row.account.username }}</span>
-      <span class="admin__row-status admin__row-status--{{ row.account.status }}">{{ row.account.status }}</span>
+      <span class="admin__row-status admin__row-status--{{ row.account.status }}">{{ _(row.account.status) }}</span>
       <form class="admin__row-role-form" method="post"
             action="{{ url_for('pages.admin_set_role', person_slug=row.account.person_slug) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select class="login__input" name="role">
           {% for role in roles %}
-          <option value="{{ role }}" {% if role == row.account.role %}selected{% endif %}>{{ role|capitalize }}</option>
+          <option value="{{ role }}" {% if role == row.account.role %}selected{% endif %}>{{ _(role|capitalize) }}</option>
           {% endfor %}
         </select>
-        <button type="submit" class="btn admin__row-action">Set</button>
+        <button type="submit" class="btn admin__row-action">{{ _("Set") }}</button>
       </form>
       {% if unbound_people %}
       <form class="admin__row-role-form" method="post"
@@ -48,34 +48,34 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select class="login__input" name="target_person_slug">
           <option value="{{ row.account.person_slug }}" selected>
-            {{ row.person.name if row.person else row.account.person_slug }} (current)
+            {{ _("{name} (current)", name=(row.person.name if row.person else row.account.person_slug)) }}
           </option>
           {% for p in unbound_people %}
           <option value="{{ p.slug }}">{{ p.name }}</option>
           {% endfor %}
         </select>
-        <button type="submit" class="btn admin__row-action">Link</button>
+        <button type="submit" class="btn admin__row-action">{{ _("Link") }}</button>
       </form>
       {% endif %}
       <a class="btn admin__row-action"
-         href="{{ url_for('pages.admin_reset_password', person_slug=row.account.person_slug) }}">Reset password</a>
+         href="{{ url_for('pages.admin_reset_password', person_slug=row.account.person_slug) }}">{{ _("Reset password") }}</a>
       {% if row.account.status == 'active' %}
-      {{ macros.action_button_form(url_for('pages.admin_disable_account', person_slug=row.account.person_slug), "Disable") }}
+      {{ macros.action_button_form(url_for('pages.admin_disable_account', person_slug=row.account.person_slug), _("Disable")) }}
       {% else %}
-      {{ macros.action_button_form(url_for('pages.admin_enable_account', person_slug=row.account.person_slug), "Enable") }}
+      {{ macros.action_button_form(url_for('pages.admin_enable_account', person_slug=row.account.person_slug), _("Enable")) }}
       {% endif %}
     </li>
     {% endfor %}
   </ul>
   {% endif %}
   {% if link_rows %}
-  <h2 class="admin__subtitle">Active write-links</h2>
+  <h2 class="admin__subtitle">{{ _("Active write-links") }}</h2>
   <ul class="admin__list">
     {% for row in link_rows %}
     <li class="admin__row">
       <span class="admin__row-name">{{ row.person.name if row.person else row.link.person_slug }}</span>
-      <span class="admin__row-username">{{ row.link.label or "(no label)" }}</span>
-      {{ macros.action_button_form(url_for('pages.revoke_write_link', person_slug=row.link.person_slug, link_id=row.link.id), "Revoke") }}
+      <span class="admin__row-username">{{ row.link.label or _("(no label)") }}</span>
+      {{ macros.action_button_form(url_for('pages.revoke_write_link', person_slug=row.link.person_slug, link_id=row.link.id), _("Revoke")) }}
     </li>
     {% endfor %}
   </ul>

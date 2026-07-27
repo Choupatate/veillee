@@ -1,15 +1,14 @@
 {% extends "base.html" %}
 {% import "_macros.html" as macros %}
-{% block title %}Review request — {{ app_title }}{% endblock %}
+{% block title %}{{ _("Review request") }} — {{ app_title }}{% endblock %}
 {% block body_class %}page-admin{% endblock %}
 {% block content %}
 <div class="admin">
-  <p class="admin__back"><a href="{{ url_for('pages.admin_accounts') }}">&lsaquo; Accounts</a></p>
-  <h1 class="admin__title">Review request</h1>
+  <p class="admin__back"><a href="{{ url_for('pages.admin_accounts') }}">&lsaquo; {{ _("Accounts") }}</a></p>
+  <h1 class="admin__title">{{ _("Review request") }}</h1>
   <p class="admin__hint">
-    <strong>{{ pending.display_name }}</strong> requested the username
-    <strong>{{ pending.username }}</strong>.
-    {% if pending.note %}Note: &ldquo;{{ pending.note }}&rdquo;{% endif %}
+    {{ _("{name} requested the username {username}.", name=pending.display_name, username=pending.username) }}
+    {% if pending.note %}{{ _("Note:") }} &ldquo;{{ pending.note }}&rdquo;{% endif %}
   </p>
 
   <form class="admin__form" method="post"
@@ -17,19 +16,19 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {{ macros.person_picker(unbound_people) }}
 
-    <label class="login__label" for="admin-role">Role</label>
+    <label class="login__label" for="admin-role">{{ _("Role") }}</label>
     <select class="login__input" id="admin-role" name="role">
       {% for role in roles %}
-      <option value="{{ role }}">{{ role|capitalize }}</option>
+      <option value="{{ role }}">{{ _(role|capitalize) }}</option>
       {% endfor %}
     </select>
 
-    <button class="btn btn--primary login__submit" type="submit">Approve</button>
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Approve") }}</button>
   </form>
   <form method="post"
         action="{{ url_for('pages.admin_reject_pending', username=pending.username) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn">Reject request</button>
+    <button type="submit" class="btn">{{ _("Reject request") }}</button>
   </form>
 </div>
 {% endblock %}

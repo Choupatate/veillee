@@ -49,6 +49,10 @@ the exact `F<N>.` heading text to jump to it.
   figures, no overflow)
 - **F36** — Hardening for the open internet (login lockout, CSP and
   security headers, cache privacy, the auth-perimeter test)
+- **F37** — Every error is a real page (no more bare 980px Werkzeug
+  pages on a phone)
+- **F38** — The interface in French, with a flag picker each reader sets
+  for themselves
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -3980,3 +3984,198 @@ rides on the password and the TLS in front.
   injected-script story is neutralized.
 
 `pytest` (873: 851 existing + 22 new) and `ruff check .` green.
+
+## F37. Every error is a real page
+
+Found while reproducing a reverse-proxy problem on a phone viewport, and
+partly caused by F36.
+
+### The problem
+
+`404.html` extended `base.html`, so a missing page looked like the app.
+Every *other* error fell through to Werkzeug's built-in page: bare HTML,
+no stylesheet, and — the part that matters — **no `<meta name="viewport">`**.
+Without that tag a phone lays the page out at 980px and zooms out, so
+"Bad Request" renders as a few words of unreadable type floating in a
+desktop-width void. Measured on a 390px iPhone viewport:
+`clientWidth: 980`, `styleSheets.length: 0`, `viewportMeta: null`. It
+doesn't read as "one request failed", it reads as "the whole site is
+broken".
+
+That was largely theoretical while 400s were hard to reach. F36 changed
+that: Flask-WTF's `WTF_CSRF_SSL_STRICT` referrer check only runs when
+`request.is_secure`, and `request.is_secure` only became true behind a
+reverse proxy once F36 added `ProxyFix`. On a proxy that doesn't forward
+the browser's real host, *every* form submission — login included — now
+400s. So F36 turned a rare ugly page into a likely one, and this fixes it.
+
+### The design
+
+A shared `error.html` (extending `base.html`, reusing the `empty-state`
+layout and the tumbleweed illustration) plus a `_error_page` helper, and
+handlers for 400, 403, 413, 429, 500 and `CSRFError`. Each gets a plain
+heading and a sentence written for a family member, not an operator:
+"That file is too big", "Something went wrong — that's a fault in the
+app, not anything you did. Your stories are files on disk and are
+unaffected."
+
+`/api/*` paths keep returning JSON from the same helper, so the editor's
+`fetch` error handling is unchanged (this also fixed `/api/*` 404s, which
+had been returning the HTML 404 page to JSON callers).
+
+The CSRF handler is the interesting one. A CSRF failure is nearly always
+one of two ordinary things, and the page says which:
+
+- **A stale tab** — "That page had gone stale… nothing was saved or
+  lost." The reassurance is the point; a CSRF error looks alarming.
+- **A misconfigured reverse proxy** — when the failure is specifically
+  the referrer check, an extra hint names it: check that the proxy sends
+  `X-Forwarded-Host` and `X-Forwarded-Proto`, and that
+  `STORYBOOK_TRUSTED_PROXIES` is set. Anyone hitting this is otherwise
+  stuck staring at "Bad Request" with no thread to pull.
+
+The referrer check itself is left on. It's real defense-in-depth, and the
+correct fix for a proxy that trips it is to configure the proxy, not to
+switch a security check off.
+
+### Tests
+
+`tests/test_error_pages.py`:
+
+- Each of 400/403/413/429 renders with the viewport meta and the
+  stylesheet — the exact two things whose absence caused the mobile bug.
+- `/api/*` equivalents stay JSON, and the 413 message still names the
+  128 MB limit.
+- A CSRF failure is a readable page, says "nothing was saved or lost",
+  and never says "Bad Request"; on the API it's JSON.
+- A referrer mismatch over HTTPS names the reverse proxy and
+  `X-Forwarded-Host`; a *matching* referrer over HTTPS still logs in, so
+  the guard can't fire on a correctly configured setup.
+
+Also verified by standing up a real HTTPS reverse proxy (self-signed
+cert, forwarding to the app with DSM's `X-Forwarded-*` headers) and
+driving it in Chromium at 390px with an iPhone user-agent: through a
+correctly configured proxy every page lays out at 390px with all CSS
+loaded and zero failed requests, and the CSRF page now does too.
+
+`pytest` (888: 873 existing + 15 new) and `ruff check .` green.
+
+## F38. The interface in French
+
+The README's "Ideas for later" listed i18n as deliberately out of scope,
+with the note that if it ever became worth doing it belonged in a
+discussion rather than a surprise PR. This is that discussion resolved:
+the book is for a French family, and a grandmother reading it should not
+have to work around an English interface.
+
+### What is and isn't translated
+
+The **interface** is translated. What the family **wrote** never is —
+story titles, bodies, tags, milestone labels, people's names, relation
+lines. Two readers of the same book see the same memories with different
+furniture around them. This is the whole design constraint: translation
+is a rendering concern, and `stories/` on disk is untouched by it. Not a
+byte of the storage format changed.
+
+### Why not Flask-Babel
+
+It was the obvious choice and was rejected: `.po`/`.mo` files need
+`pybabel` to compile them, which is a build step, and this project has
+none and wants none (CLAUDE.md). What it buys — plural rules for
+languages with more than two forms, message extraction tooling — is
+overkill for two languages that both have exactly two.
+
+Instead `app/i18n.py` is a dict lookup, a plural rule, and a date
+formatter, with the French strings in `app/translations_fr.py`. No new
+dependency.
+
+Keys are the **English source strings**, so templates stay readable
+(`{{ _("Back to the timeline") }}`) and a missing entry degrades to
+English rather than to a raw key like `error.notfound.title`.
+
+### The picker
+
+Two flags in the nav, present on every page including `/login` — someone
+who can't read English has to be able to switch *before* typing a
+password, so the route is deliberately not `@login_required`.
+
+- **Inline SVG flags**, not emoji. Emoji flags were the shortcut and were
+  rejected: Windows renders them as bare letters, defeating the entire
+  point. Each flag carries its `EN`/`FR` code beside it anyway, and the
+  buttons are 68×44px — a real tap target on a phone.
+- **One tiny POST form per language**, not a `<select>` plus JS: it works
+  with JavaScript off and is CSRF-protected like every other state change.
+  A hidden `next` field carries the current path so switching leaves you
+  on the page you were reading — through the same local-paths-only
+  allowlist as the login redirect, so it can't become an open redirect.
+- The current language is dimmed and marked `aria-current` rather than
+  removed, so the row never reflows when you switch.
+
+### Where the choice lives
+
+A one-year `storybook-lang` cookie, not the session and not a per-account
+setting. It has to survive logging out, and it has to work before there
+is an account at all (the login page, and the F19 request-account page).
+
+Resolution order per request: **the reader's own choice → their browser's
+`Accept-Language` → the book's own `STORYBOOK_LANGUAGE` → English**. A
+French phone therefore gets French on its very first visit without
+touching anything, and regional tags match their base language so `fr-CA`
+and `fr-BE` both land on French.
+
+`STORYBOOK_LANGUAGE` exists because this is one family's book, not a
+public site: a visitor arriving at a French family's book with no
+preference of their own should be greeted in French. It sits *below* the
+browser preference deliberately — an English-speaking relative visiting a
+French book still gets English rather than a wall of French — and below
+the reader's own pick, which always wins and is one tap away either way.
+
+### Dates, and why not strftime
+
+`strftime("%B")` is locale-dependent and needs the locale generated on
+the host, which a slim Docker image doesn't have; `%-d` is glibc-only
+besides. A month-name lookup table is smaller, deterministic, and
+identical everywhere. French also isn't English with the words swapped:
+the day comes first, there's no comma before the year, and the first of
+the month takes an ordinal — `1er mai 2026`, not `1 mai 2026`.
+
+Plural rules differ too: French keeps the singular at zero ("0 jour"),
+English doesn't ("0 days"). `ngettext` handles it per language, which is
+also how F3's age labels became `3 ans` / `1 jour` / `avant ta naissance`.
+The arithmetic behind those moved into `dates.age_parts()` so both
+languages share one implementation of the month/day rounding.
+
+Register note: the app addresses the child directly in a few places, and
+the French keeps that familiar tone — "tu", never "vous".
+
+### Tests
+
+`tests/test_i18n.py`, and the first one is the one that matters:
+
+- **Coverage** — walks every template, collects every string passed to
+  `_()`/`_n()`, and fails if any lacks a French entry. Add an
+  untranslated string and CI fails the day you write it. "Falls back to
+  English" stays a safety net rather than the normal state.
+- **Quality guards** on the dict itself: no French value identical to its
+  English key (with an explicit allowlist for words that really are the
+  same — *Parents*, *Sources*, *Zoom*…), none empty, and placeholders
+  (`{n}`, `{name}`) preserved on both sides so interpolation can't
+  silently drop a number.
+- Language resolution: cookie beats browser, quality values honoured,
+  regional tags matched, unknown/garbage input falls back to English.
+- Dates and plurals in both languages, including `1er`, and the fact that
+  no month name is missing.
+- The picker and cookie end to end: present on `/login`, switching
+  changes the page and `<html lang>`, survives logout, an unknown code is
+  404 with no cookie set, the redirect can't be turned into an open
+  redirect, and GET is 405.
+- **Story content is never translated** — a story titled "People" still
+  says "People" on a French page.
+
+Verified in Chromium at 390px and 1280px: switching on the login page
+before logging in, the choice surviving login, no English left on the
+timeline/editor/people/help/book, French dates on the timeline and story
+pages (`18 juin`, `18 juin 2023 · 0 jour`), no horizontal overflow, and
+zero console errors.
+
+`pytest` (923: 888 existing + 35 new) and `ruff check .` green.
