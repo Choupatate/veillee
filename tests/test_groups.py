@@ -311,6 +311,190 @@ ALLOWED_UNSCOPED = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Nothing the client says about groups is believed
+#
+# The perimeter above proves an outsider is refused. This section proves
+# *why* they can't talk their way in: the viewer's group set is derived on
+# the server, per request, from the session's person and `groups.json` on
+# disk. No request field feeds it, and the session itself is signed, so
+# there is nothing on the browser side to edit.
+
+
+@pytest.mark.parametrize("params", [
+    "?groups=just-us",
+    "?audience=just-us",
+    "?viewer_groups=just-us",
+    "?person_slug=maman",
+    "?role=admin",
+])
+def test_query_parameters_claiming_a_group_change_nothing(outsider, scoped_app, params):
+    scoped = scoped_app.config["SCOPED_ID"]
+    assert outsider.get(f"/story/{scoped}{params}").status_code == 404
+    assert "The secret" not in outsider.get(f"/{params}").data.decode()
+
+
+def test_form_fields_claiming_a_group_change_nothing(outsider, scoped_app):
+    """POST bodies get the same treatment as query strings — a mutating
+    endpoint must not become a side door for asserting membership."""
+    scoped = scoped_app.config["SCOPED_ID"]
+    resp = outsider.put(
+        f"/api/stories/{scoped}",
+        json={"title": "Mine now", "date": "2026-02-01", "markdown": "x",
+              "audience": [], "viewer_groups": ["just-us"], "role": "admin"},
+    )
+    assert resp.status_code == 404
+    assert storage.get_story(
+        scoped_app.config["STORIES_DIR"], scoped
+    ).audience == ["just-us"]
+
+
+def test_a_tampered_session_cookie_is_rejected_outright(outsider, scoped_app):
+    """The session is the only place the viewer's identity comes from, so
+    it has to be unforgeable. Editing a byte of it must log you out, not
+    hand you somebody else's groups."""
+    cookie = next(c for c in outsider._cookies.values() if c.key == "session")
+    outsider.set_cookie("session", cookie.value[:-4] + "AAAA")
+
+    resp = outsider.get("/")
+    assert resp.status_code == 302
+    assert "/login" in resp.headers["Location"]
+
+
+def test_membership_is_read_from_disk_on_every_request(scoped_app):
+    """Not baked into the cookie at login. Someone added to a group sees
+    its stories on their next page load, with the session they already
+    had — which is the same property that makes removal immediate."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+    slug = people.create_person(people_dir, "Mamie Rose")
+    accounts.create_account(people_dir, slug, "mamie", "hunter22", "family")
+    client = scoped_app.test_client()
+    _login(client, "mamie", "hunter22")
+    scoped = scoped_app.config["SCOPED_ID"]
+
+    assert client.get(f"/story/{scoped}").status_code == 404
+    groups.set_members(stories_dir, "just-us", ["maman", slug])
+    assert client.get(f"/story/{scoped}").status_code == 200
+
+
+def test_removal_takes_effect_without_logging_out(scoped_app):
+    """The other direction, and the one that actually matters: a member
+    who is taken out loses access on their very next request, holding the
+    session they were already using.
+
+    Mamie rather than Maman, who wrote the story and would keep seeing it
+    through the author rail no matter which groups she's in."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+    slug = people.create_person(people_dir, "Mamie Rose")
+    accounts.create_account(people_dir, slug, "mamie", "hunter22", "family")
+    groups.set_members(stories_dir, "just-us", ["maman", slug])
+    client = scoped_app.test_client()
+    _login(client, "mamie", "hunter22")
+    scoped = scoped_app.config["SCOPED_ID"]
+
+    assert client.get(f"/story/{scoped}").status_code == 200
+    groups.set_members(stories_dir, "just-us", ["maman"])
+    assert client.get(f"/story/{scoped}").status_code == 404
+    # The photos too, not just the page — the media URL is guessable.
+    assert client.get(f"/story/{scoped}/media/photo-001.jpg").status_code == 404
+
+
+def test_the_outsiders_html_never_contains_the_scoped_story(outsider, scoped_app):
+    """Omitted on the server, not hidden in the browser. If the markup
+    carried the story at all, "curious" would only need View Source."""
+    for path in ("/", "/book", "/drafts", "/archived", "/firsts", "/growth"):
+        html = outsider.get(path).data.decode()
+        assert "The secret" not in html
+        assert "scoped body" not in html
+        assert scoped_app.config["SCOPED_ID"] not in html
+
+
+def test_an_outsider_cannot_add_themselves_to_a_group(scoped_app):
+    """The one client-side move that would grant reading: edit the group
+    instead of the story."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+    slug = people.create_person(people_dir, "Mamie Rose")
+    accounts.create_account(people_dir, slug, "mamie", "hunter22", "family")
+    client = scoped_app.test_client()
+    _login(client, "mamie", "hunter22")
+
+    assert client.post(
+        "/groups/just-us", data={"name": "Just us", "members": ["maman", slug]}
+    ).status_code == 403
+    assert groups.get_group(stories_dir, "just-us").members == ["maman"]
+    assert client.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 404
+
+
+def _second_person_named(scoped_app, name, username):
+    """A second Person carrying an existing display name, with an account —
+    the state an admin reaches by approving a request from someone whose
+    name is already in the book (F39 warns, but doesn't forbid)."""
+    people_dir = storage.people_dir(scoped_app.config["STORIES_DIR"])
+    slug = people.create_person(people_dir, name)
+    accounts.create_account(people_dir, slug, username, "hunter22", "family")
+    client = scoped_app.test_client()
+    _login(client, username, "hunter22")
+    return client, slug
+
+
+def test_a_namesake_does_not_inherit_the_authors_access(scoped_app):
+    """`can_see`'s author rail matches the author *name* a story carries,
+    so without a uniqueness check a second "Maman" would read the real
+    Maman's scoped stories."""
+    impostor, slug = _second_person_named(scoped_app, "Maman", "maman2")
+    assert slug != "maman"   # a distinct Person, same display name
+
+    scoped = scoped_app.config["SCOPED_ID"]   # authored by "Maman"
+    assert impostor.get(f"/story/{scoped}").status_code == 404
+    assert "The secret" not in impostor.get("/").data.decode()
+
+
+def test_a_namesake_differing_only_in_case_is_caught_too(scoped_app):
+    impostor, _slug = _second_person_named(scoped_app, "MAMAN", "maman3")
+    assert impostor.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 404
+
+
+def test_the_real_author_also_loses_the_rail_while_the_name_is_shared(scoped_app):
+    """Failing closed means both of them lose it, not just the newcomer —
+    the app can't tell which is which from a name. The real Maman still
+    reads her story through the group, which is how everyone else does."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    _second_person_named(scoped_app, "Maman", "maman2")
+    groups.set_members(stories_dir, "just-us", ["papa"])   # take her out of it
+
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    assert client.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 404
+
+
+def test_renaming_one_of_them_restores_the_rail(scoped_app):
+    """The fix an admin would reach for has to actually work."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+    _second_person_named(scoped_app, "Maman", "maman2")
+    groups.set_members(stories_dir, "just-us", ["papa"])
+
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    scoped = scoped_app.config["SCOPED_ID"]
+    assert client.get(f"/story/{scoped}").status_code == 404
+
+    people.update_person(people_dir, "maman-2", name="Maman Rose")
+    assert client.get(f"/story/{scoped}").status_code == 200
+
+
+def test_a_unique_name_keeps_the_rail(scoped_app):
+    """The check must not cost the ordinary case: one Maman, rail intact."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    groups.set_members(stories_dir, "just-us", ["papa"])
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    assert client.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 200
+
+
 def test_no_route_file_reaches_stories_unscoped():
     """`_visible_stories()` / `_get_story_or_404()` / `_readable_story_or_error()`
     are the only sanctioned ways into a story from a route. This counts the
@@ -418,20 +602,20 @@ def admin_client(app_factory):
 
 
 def test_admin_creates_a_group(admin_client):
-    resp = admin_client.post("/admin/groups", data={"name": "Just us"})
+    resp = admin_client.post("/groups", data={"name": "Just us"})
     assert resp.status_code == 302
     stories_dir = admin_client.application.config["STORIES_DIR"]
     assert [g.slug for g in groups.list_groups(stories_dir)] == ["just-us"]
 
 
 def test_a_duplicate_group_name_is_refused(admin_client):
-    admin_client.post("/admin/groups", data={"name": "Just us"})
-    resp = admin_client.post("/admin/groups", data={"name": "Just us"}, follow_redirects=True)
+    admin_client.post("/groups", data={"name": "Just us"})
+    resp = admin_client.post("/groups", data={"name": "Just us"}, follow_redirects=True)
     assert "already a group" in resp.data.decode()
 
 
 def test_a_blank_group_name_is_refused(admin_client):
-    resp = admin_client.post("/admin/groups", data={"name": "  "})
+    resp = admin_client.post("/groups", data={"name": "  "})
     assert "Give the group a name." in resp.data.decode()
     assert groups.list_groups(admin_client.application.config["STORIES_DIR"]) == []
 
@@ -441,7 +625,7 @@ def test_admin_sets_membership(admin_client):
     slug = people.create_person(_people_dir(admin_client.application), "Mamie Rose")
     groups.create_group(stories_dir, "Just us")
 
-    admin_client.post("/admin/groups/just-us", data={"name": "Just us", "members": [slug]})
+    admin_client.post("/groups/just-us", data={"name": "Just us", "members": [slug]})
     assert groups.get_group(stories_dir, "just-us").members == [slug]
 
 
@@ -449,7 +633,7 @@ def test_membership_rejects_an_unknown_person(admin_client):
     stories_dir = admin_client.application.config["STORIES_DIR"]
     groups.create_group(stories_dir, "Just us")
     resp = admin_client.post(
-        "/admin/groups/just-us", data={"name": "Just us", "members": ["nobody"]}
+        "/groups/just-us", data={"name": "Just us", "members": ["nobody"]}
     )
     assert "Unknown person" in resp.data.decode()
     assert groups.get_group(stories_dir, "just-us").members == []
@@ -460,21 +644,300 @@ def test_renaming_keeps_the_slug(admin_client):
     silently un-scope every story pointing at the old one."""
     stories_dir = admin_client.application.config["STORIES_DIR"]
     groups.create_group(stories_dir, "Just us")
-    admin_client.post("/admin/groups/just-us", data={"name": "The four of us"})
+    admin_client.post("/groups/just-us", data={"name": "The four of us"})
     group = groups.get_group(stories_dir, "just-us")
     assert group.name == "The four of us"
     assert group.slug == "just-us"
 
 
-def test_groups_pages_are_admin_only(scoped_app):
+def test_the_groups_pages_need_a_login(scoped_app):
     client = scoped_app.test_client()
-    _login(client, "maman", "hunter22")   # family, not admin
-    assert client.get("/admin/groups").status_code == 404
-    assert client.get("/admin/groups/just-us").status_code == 404
+    assert client.get("/groups").status_code == 302
+    assert client.get("/groups/just-us").status_code == 302
 
 
 def test_unknown_group_404s(admin_client):
-    assert admin_client.get("/admin/groups/nope").status_code == 404
+    assert admin_client.get("/groups/nope").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# F41: anyone can make a group; the people in it are the ones who change it
+
+
+@pytest.fixture
+def outsider_client(scoped_app):
+    """A family account belonging to no group at all — the viewer every
+    permission rule here has to hold against."""
+    people_dir = storage.people_dir(scoped_app.config["STORIES_DIR"])
+    slug = people.create_person(people_dir, "Mamie Rose")
+    accounts.create_account(people_dir, slug, "mamie", "hunter22", "family")
+    client = scoped_app.test_client()
+    _login(client, "mamie", "hunter22")
+    return client
+
+
+def test_a_family_member_can_make_a_group(scoped_app):
+    """The point of F41 — group-making was admin-only, which made scoping
+    a story something you had to ask permission for."""
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    resp = client.post("/groups", data={"name": "Weekend crew"})
+    assert resp.status_code == 302
+
+    group = groups.get_group(scoped_app.config["STORIES_DIR"], "weekend-crew")
+    assert group is not None
+    assert group.created_by == "maman"   # recorded, for provenance
+
+
+def test_making_a_group_puts_you_in_it(scoped_app):
+    """Rights follow membership, so a creator left outside would be locked
+    out of the group they just made with nothing on screen saying why."""
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    client.post("/groups", data={"name": "Weekend crew"})
+    assert groups.get_group(scoped_app.config["STORIES_DIR"], "weekend-crew").members == ["maman"]
+
+
+def test_a_member_can_edit_the_group(scoped_app):
+    """Maman is in "Just us" and didn't make it — membership is what
+    counts."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+
+    resp = client.post("/groups/just-us", data={"name": "The two of us", "members": ["maman", "papa"]})
+    assert resp.status_code == 302
+    group = groups.get_group(stories_dir, "just-us")
+    assert group.name == "The two of us"
+    assert set(group.members) == {"maman", "papa"}
+
+
+def test_someone_outside_the_group_cannot_edit_it(scoped_app, outsider_client):
+    """The whole reason there is a gate at all: if any logged-in person
+    could edit any group, anyone could add themselves to "Just us" and read
+    it, and a group would protect nothing."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    resp = outsider_client.post(
+        "/groups/just-us", data={"name": "Mine now", "members": ["mamie-rose"]}
+    )
+    assert resp.status_code == 403
+    group = groups.get_group(stories_dir, "just-us")
+    assert group.name == "Just us"
+    assert group.members == ["maman"]
+
+
+def test_an_outsider_cannot_read_the_scoped_story_after_trying(scoped_app, outsider_client):
+    """The 403 has to actually hold, not just refuse the form: the thing
+    being protected is the story."""
+    assert outsider_client.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 404
+
+
+def test_an_admin_can_edit_a_group_they_are_not_in(scoped_app):
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    client = scoped_app.test_client()
+    _login(client, "papa", "hunter22")   # admin, not in "Just us"
+
+    resp = client.post("/groups/just-us", data={"name": "Renamed", "members": ["maman"]})
+    assert resp.status_code == 302
+    assert groups.get_group(stories_dir, "just-us").name == "Renamed"
+
+
+def test_a_group_with_nobody_in_it_is_admin_only(scoped_app, outsider_client):
+    """Membership is the gate, so an empty group has no family editors —
+    it must fail closed rather than fall open to everyone."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    groups.create_group(stories_dir, "Empty")
+    assert outsider_client.post(
+        "/groups/empty", data={"name": "Mine", "members": ["mamie-rose"]}
+    ).status_code == 403
+
+
+def test_everyone_can_see_the_group_list_and_pages(scoped_app, outsider_client):
+    """A group's name isn't a secret — it shows on every story kept to it —
+    so the page renders read-only rather than 404ing."""
+    assert outsider_client.get("/groups").status_code == 200
+    html = outsider_client.get("/groups/just-us").data.decode()
+    assert html.count('name="members"') == 0      # no form to edit with
+    assert "changed by the people in it" in html
+
+
+def test_an_outsider_is_not_told_how_many_stories_are_kept_here(scoped_app, outsider_client):
+    """A count of stories you can't read is still a count of stories you
+    can't read — the same thing F40 stops the timeline's "kept to a group"
+    pill from leaking to an outsider."""
+    for path in ("/groups", "/groups/just-us"):
+        html = outsider_client.get(path).data.decode()
+        assert "1 story" not in html
+        assert "kept to this group" not in html
+
+
+def test_a_member_is_told(scoped_app):
+    member = scoped_app.test_client()
+    _login(member, "maman", "hunter22")
+    assert "1 story is kept to this group" in member.get("/groups/just-us").data.decode()
+    assert "1 story" in member.get("/groups").data.decode()
+
+
+def test_a_member_gets_a_form_and_an_outsider_does_not(scoped_app, outsider_client):
+    member = scoped_app.test_client()
+    _login(member, "maman", "hunter22")
+    assert 'name="members"' in member.get("/groups/just-us").data.decode()
+    assert 'name="members"' not in outsider_client.get("/groups/just-us").data.decode()
+
+
+def test_the_page_warns_before_you_widen_someone_elses_writing(scoped_app):
+    """Adding a person republishes whatever other people kept to the group,
+    not only your own stories. The one place to say that is the page where
+    you'd do it."""
+    client = scoped_app.test_client()
+    _login(client, "papa", "hunter22")   # admin; the scoped story is Maman's
+    assert "written by someone else" in client.get("/groups/just-us").data.decode()
+
+
+def test_no_warning_when_the_only_stories_kept_here_are_yours(scoped_app):
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")   # she wrote the scoped story
+    assert "written by someone else" not in client.get("/groups/just-us").data.decode()
+
+
+# --- the same-scope barrier -------------------------------------------------
+
+
+def test_a_group_covering_exactly_the_same_people_is_refused(scoped_app):
+    """Two groups with identical membership are one circle under two names:
+    a story kept to one looks protected from people who can read it through
+    the other."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    groups.set_members(stories_dir, "just-us", ["maman", "papa"])
+    client = scoped_app.test_client()
+    _login(client, "papa", "hunter22")
+    client.post("/groups", data={"name": "Weekend crew"})   # -> members == ["papa"]
+
+    resp = client.post(
+        "/groups/weekend-crew", data={"name": "Weekend crew", "members": ["maman", "papa"]},
+        follow_redirects=True,
+    )
+    assert "already covers exactly these people" in resp.data.decode()
+    assert "Just us" in resp.data.decode()   # and says which group
+    assert groups.get_group(stories_dir, "weekend-crew").members == ["papa"]
+
+
+def test_a_second_group_of_one_person_is_allowed(scoped_app):
+    """A group of one is a note to a single person, and refusing one would
+    mean refusing a group the moment someone types its name — making a
+    group puts you in it, so everyone's first group is {them}."""
+    stories_dir = scoped_app.config["STORIES_DIR"]      # "Just us" is {maman}
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    assert client.post("/groups", data={"name": "Notes to self"}).status_code == 302
+    assert groups.get_group(stories_dir, "notes-to-self").members == ["maman"]
+
+
+def test_the_same_scope_check_ignores_the_group_being_edited(scoped_app):
+    """Saving a group without changing its members must not trip over
+    itself."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    groups.create_group(stories_dir, "Mine", members=["papa"])
+    client = scoped_app.test_client()
+    _login(client, "papa", "hunter22")
+    resp = client.post("/groups/mine", data={"name": "Mine still", "members": ["papa"]})
+    assert resp.status_code == 302
+    assert groups.get_group(stories_dir, "mine").name == "Mine still"
+
+
+def test_two_empty_groups_are_allowed(stories_dir):
+    """Every group starts empty on the way to being filled in — "nobody
+    yet" is a state, not a scope."""
+    groups.create_group(stories_dir, "One")
+    groups.create_group(stories_dir, "Two")
+    assert len(groups.list_groups(stories_dir)) == 2
+
+
+def test_same_scope_is_order_independent(scoped_app):
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    papa, maman = "papa", "maman"
+    groups.create_group(stories_dir, "A", members=[papa, maman])
+    with pytest.raises(groups.GroupError, match="already covers"):
+        groups.create_group(stories_dir, "B", members=[maman, papa])
+
+
+def test_a_duplicated_member_is_collapsed_not_stored_twice(scoped_app):
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    group = groups.create_group(stories_dir, "Dupes", members=["papa", "papa"])
+    assert group.members == ["papa"]
+
+
+def test_create_group_validates_its_members(stories_dir):
+    with pytest.raises(groups.GroupError, match="Unknown person"):
+        groups.create_group(stories_dir, "Ghosts", members=["nobody"])
+
+
+def test_a_member_slug_cannot_escape_the_people_directory(stories_dir):
+    with pytest.raises(groups.GroupError, match="Unknown person"):
+        groups.create_group(stories_dir, "Sneaky", members=["../../etc"])
+
+
+# --- the cap ----------------------------------------------------------------
+
+
+def test_the_group_count_is_capped(stories_dir, monkeypatch):
+    """Every group is a chip in the editor's audience row on a phone. Now
+    that anyone can add one, something has to stop the row growing until
+    it's unreadable."""
+    monkeypatch.setattr(groups, "MAX_GROUPS", 3)
+    for i in range(3):
+        groups.create_group(stories_dir, f"Group {i}")
+    with pytest.raises(groups.GroupError, match="as many as this book keeps"):
+        groups.create_group(stories_dir, "One too many")
+
+
+def test_the_create_form_disappears_at_the_cap(scoped_app, monkeypatch):
+    monkeypatch.setattr(groups, "MAX_GROUPS", 1)
+    client = scoped_app.test_client()
+    _login(client, "maman", "hunter22")
+    html = client.get("/groups").data.decode()
+    assert "Create group" not in html
+    assert "as many groups as it keeps" in html
+
+
+# --- renaming ---------------------------------------------------------------
+
+
+def test_a_rename_onto_another_groups_name_is_refused(scoped_app):
+    """The slug can't change, so without this two groups could end up
+    displaying the same name — and the audience chips would be two
+    identical-looking buttons doing different things."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    groups.create_group(stories_dir, "Mine", created_by="papa")
+    client = scoped_app.test_client()
+    _login(client, "papa", "hunter22")
+    resp = client.post("/groups/mine", data={"name": "just us"}, follow_redirects=True)
+    assert "already a group" in resp.data.decode()
+    assert groups.get_group(stories_dir, "mine").name == "Mine"
+
+
+def test_created_by_survives_a_round_trip(scoped_app):
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    groups.create_group(stories_dir, "Mine", created_by="papa")
+    assert groups.get_group(stories_dir, "mine").created_by == "papa"
+
+
+def test_a_malformed_created_by_is_ignored_not_fatal(scoped_app):
+    """`created_by` is provenance, not permission, so a garbled value costs
+    a line of display text and nothing more — but it must not take the
+    whole group down with it."""
+    import json
+
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    groups.create_group(stories_dir, "Mine", created_by="papa")
+    path = stories_dir / "groups.json"
+    data = json.loads(path.read_text())
+    data[-1]["created_by"] = 17
+    path.write_text(json.dumps(data))
+
+    group = groups.get_group(stories_dir, "mine")
+    assert group.created_by is None
+    assert group.members == ["papa"]   # still editable by the people in it
 
 
 def test_the_api_refuses_an_unknown_group(admin_client):

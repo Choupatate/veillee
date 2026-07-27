@@ -7,6 +7,7 @@
   <h1 class="admin__title">{{ _("Groups") }}</h1>
   <p class="admin__hint">
     {{ _("A group is a handful of people a story can be kept to. Stories with no group are for everyone — that stays the default.") }}
+    {{ _("Anyone can make one, and the people in a group are the ones who can change it.") }}
   </p>
 
   {% if not rows %}
@@ -21,15 +22,28 @@
         {% else %}{{ _("nobody yet") }}{% endif %}
       </span>
       <span class="admin__row-hint">
-        {{ _n("{n} story", "{n} stories", row.story_count) }}
+        {# Same reason as the group page: a count of stories you can't read
+           is still a count of stories you can't read. #}
+        {% if row.can_manage %}{{ _n("{n} story", "{n} stories", row.story_count) }}{% if row.creator_name %} · {% endif %}{% endif %}
+        {%- if row.creator_name %}{{ _("made by {name}", name=row.creator_name) }}{% endif %}
       </span>
-      <a class="btn admin__row-action" href="{{ url_for('pages.admin_group', slug=row.group.slug) }}">{{ _("Edit") }}</a>
+      <a class="btn admin__row-action" href="{{ url_for('pages.group_page', slug=row.group.slug) }}">
+        {% if row.can_manage %}{{ _("Edit") }}{% else %}{{ _("View") }}{% endif %}
+      </a>
     </li>
     {% endfor %}
   </ul>
   {% endif %}
 
   <h2 class="admin__subtitle">{{ _("New group") }}</h2>
+  {% if at_limit %}
+  <p class="admin__hint admin__hint--warn">
+    {{ _("This book is holding as many groups as it keeps. Rename or reuse one instead of adding another.") }}
+  </p>
+  {% else %}
+  <p class="admin__hint">
+    {{ _("Name it first, then pick who's in it on the next screen. You'll be in it yourself.") }}
+  </p>
   <form class="admin__form" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="login__label" for="group-name">{{ _("Name") }}</label>
@@ -37,5 +51,6 @@
            placeholder="{{ _('e.g. Just us') }}" required>
     <button class="btn btn--primary login__submit" type="submit">{{ _("Create group") }}</button>
   </form>
+  {% endif %}
 </div>
 {% endblock %}
