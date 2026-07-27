@@ -55,6 +55,9 @@ the exact `F<N>.` heading text to jump to it.
   for themselves
 - **F39** — Invitations and open requests (admin-issued invite links, an
   optional-code request form, duplicate-account hints)
+- **F40** — Groups: scoping a story to fewer people than the whole family
+  (the audience rule and every surface enforcing it, plus the editor
+  picker and the "kept to a group" markers)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -4394,3 +4397,508 @@ credentials, and re-opening the burnt link. Zero horizontal overflow on
 every screen after the `.admin__token` fix.
 
 `pytest` (1007: 948 existing + 59 new) and `ruff check .` green.
+
+---
+
+# Feature spec — F40: groups, or telling some stories to fewer people
+
+Written up before implementation, the way F1 and F19 were. Nothing here is
+built yet; this document is the design discussion, and the decisions marked
+**(confirm)** are values calls that should be settled before any code is
+written rather than discovered in review.
+
+## What this is, and what it reverses
+
+Today every account can read every story. F19 said so on purpose:
+
+> once someone has an approved Family account, they can edit/delete *any*
+> story, exactly like today. The account system answers who gets in the
+> door and how they're attributed, not who can touch what once they're in
+> — a permission-walled model would be a bigger, more blog-like feature
+> than anything else in this app.
+
+This feature reverses the read half of that call, deliberately and with
+the reason stated: a book that the whole extended family can read is a
+book you write differently. Some things are for a wife and a son and
+nobody else, and the current model's only options are "everyone sees it"
+or "don't write it down." The second option loses the memory forever,
+which is the one outcome this whole app exists to prevent.
+
+What is *not* reversed: the edit half. A family member who can see a story
+can still edit it. Per-story authorship walls would be a second
+permissions axis for no gain — the people who can see a scoped story are
+by construction the small group it was written for.
+
+**Restraint clause, same as F19's.** This must not turn the book into a
+social network with privacy settings. No per-story ACLs, no "share with
+person X" one-offs, no visibility dropdown on every screen. A group is a
+named handful of people that exists because the family actually thinks of
+it as a unit ("just us four"), and the default for every story stays what
+it is today: everyone.
+
+## The data
+
+Groups live in one file at the stories root, next to `pending_accounts.json`:
+
+```json
+// stories/groups.json
+[
+  {
+    "slug": "just-us",
+    "name": "Just us",
+    "members": ["papa", "maman", "milo"],
+    "created_at": "2026-08-01T10:00:00"
+  }
+]
+```
+
+Members are **person slugs**, not usernames — an account is already a
+login bolted onto a Person (F19), and the Person is this app's identity.
+A member who has no account yet simply can't log in to use it; adding
+their login later needs no change to the group.
+
+Scoping a story is one optional frontmatter key:
+
+```yaml
+---
+title: The night we told him
+date: 2026-08-01
+audience: [just-us]
+---
+```
+
+**Absent or empty means everyone**, exactly like `draft`/`archived`
+already work, so every story that exists today keeps working with zero
+migration and zero rewrite. A story with `audience` set is visible to
+anyone in *any* listed group (union, not intersection) — "close family
+and the godparents" is a real thing to want and costs nothing.
+
+Why one central `groups.json` rather than a `groups:` key on each Person's
+`index.md`: a group is a thing in its own right, with a name and an
+identity, not a property of a person. Membership edits stay atomic in one
+write, and the file reads as a list of groups when you open it in a text
+editor five years from now, which is the actual test.
+
+## Who sees what
+
+| | Reads a scoped story |
+|---|---|
+| Member of a listed group | Yes |
+| The story's author | Yes, always — even if they scoped it to a group they're not in |
+| Admin who is not a member | **No (confirm)** |
+| Family account, not a member | No |
+| Delegate (write-link) | No — delegates never read anything |
+| Accounts mode off | N/A — see below |
+
+Two of these need justifying.
+
+**The author always sees their own story.** Otherwise a mis-tap in the
+editor makes a story disappear from its own writer, recoverable only by
+hand-editing frontmatter. This is a safety rail, not a permission.
+
+**Admins do not get to read past a group (confirm).** This is the values
+call in the feature, and it's the one you asked for directly: "groups
+should actually be only accessible by the people in it." The consequence
+worth being sure about is that admin becomes a *management* role, not a
+superuser one — an admin can create groups, rename them, and change who's
+in them, and can therefore always add themselves and then read. The
+difference is that doing so is a visible, recorded act rather than an
+invisible capability. Membership governs reading; role governs managing.
+
+**Groups are meaningless with `STORYBOOK_ACCOUNTS` off.** One shared
+password is one identity, so there is nobody to scope *away from*. The
+entire feature must be invisible in that mode — no groups page, no
+audience picker in the editor, no `audience` key written — the same way F1
+disappears when `STORYBOOK_AUTHORS` is unset. An install that never turns
+accounts on sees no change whatsoever.
+
+## The actual work: every surface that shows a story
+
+The data model is a morning's work. This table is the feature. Today
+"readable" is a property of a story alone; it becomes a property of
+*(story, viewer)*, and every one of these currently reaches stories
+without a viewer in hand.
+
+| Surface | File | Note |
+|---|---|---|
+| Timeline (+ on-this-day, quiet-spell nudge, draft/archive counts) | `routes_pages.py:119` | |
+| Story page | `routes_pages.py:344` | |
+| **Story media** | `routes_pages.py:388` | Gate the page but not this and the photos leak by direct URL |
+| Story history | `routes_pages.py:381` | `.versions/` snapshots hold full body text |
+| Editor | `routes_pages.py:414` | |
+| Book, EPUB | `routes_pages.py:234`, `:268` | |
+| Firsts, Growth, Random | `routes_pages.py:166`, `:157`, `:187` | All compute over every story |
+| Drafts, Archived | `routes_pages.py:320`, `:332` | |
+| Person page "appears in" | `routes_people.py` | via `storage.stories_featuring` |
+| **Export** | `routes_pages.py:302` | Zips the *entire* stories dir, `.versions/` included |
+| Story create/update, image/memo upload, memo delete, version restore | `routes_api.py` | A story you can't see must 404 on write too |
+| MCP server | `mcp_server.py` | No session at all — see below |
+
+### How the gate is applied
+
+One helper in the web layer, not a new parameter on
+`storage.readable_stories`:
+
+```python
+# routes_pages.py
+def _visible_stories():
+    """Every story the current viewer may see — the only way any route
+    should reach the story list."""
+```
+
+Routes call `_visible_stories()` instead of
+`storage.list_stories(current_app.config["STORIES_DIR"])`, and
+`_visible_story_or_404()` instead of `_get_story_or_404`. `storage.py`
+stays pure and viewer-unaware; the predicate itself
+(`groups.can_see(story, viewer_slug, viewer_groups)`) is a pure function
+in the new module, unit-testable with no Flask.
+
+The reason this is worth being fussy about: a missed surface is a silent
+leak, and there are fourteen of them. So the change is deliberately
+mechanical and greppable — and backed by a test that walks the URL map the
+way F36's auth-perimeter test does, asserting that a non-member gets 404
+from every story-bearing route for a scoped story. A new route that
+forgets the gate fails that test the day it's written. **That test is not
+optional and should be written first.**
+
+### Export (confirm)
+
+`/export` currently zips everything on disk. Three options, and the choice
+matters more than it looks:
+
+1. **Admin-only.** Simplest, but contradicts the rule above — an admin
+   outside a group could read its stories by downloading them.
+2. **Complete, but only for someone who can see everything.** Honest about
+   backups, but leaves most of the family with no backup button at all.
+3. **Scoped: you export what you can see**, with the page saying plainly
+   that a backup taken by someone who can't see every story is partial.
+
+**Recommendation: 3.** It preserves the group promise exactly, keeps F8's
+one-tap backup working for everyone, and the honesty is in the wording
+rather than in a silent surprise. The risk it carries — someone treats a
+partial export as their only backup — is real, and the mitigation is that
+the notice has to be blunt, not a footnote. `/import` becomes admin-only
+regardless, since importing is how you'd otherwise write yourself past a
+group.
+
+### MCP (confirm)
+
+`mcp_server.py` has no session — it's local stdio, running as whoever
+started it, and README's trust model already says it's the owner's own
+tool on the owner's own machine. **Recommendation: it sees everything, and
+README says so in one sentence rather than leaving it to be discovered.**
+Building a viewer identity into a single-user stdio tool would be
+ceremony, not security; the honest move is to document that the MCP
+surface is unscoped and let the owner decide whether to run it.
+
+## Things that will bite
+
+- **`restore_version` drops `audience`.** `storage.py:588` rebuilds a
+  story from an old snapshot field by field, and any field not listed is
+  lost. Restoring a version from before a story was scoped would silently
+  un-scope it. `audience` must be threaded through there, and a test
+  should pin it — this is the single most likely way to build a quiet leak
+  into this feature.
+- **Media caching.** `story_media` sets a one-year `max-age`; F36 already
+  forces `private` on cached media, so a shared proxy can't hold a scoped
+  photo. Worth re-asserting in a test rather than assuming, since the
+  consequence changed: it used to be a privacy nicety, now it's the
+  difference between a photo staying in the family and not.
+- **Version history of a story whose audience changed.** Access to
+  `/story/<id>/history` and every snapshot must key off the story's
+  *current* audience, not the audience recorded in the snapshot.
+- **`_reading_order_neighbors`.** Previous/next must skip stories the
+  viewer can't see, or the page-turn arrows leak titles.
+- **Counts as an oracle.** "3 drafts" when you can see one is a small
+  leak, but it's a leak. Counts get filtered too.
+- **A group with no members** should not act as "visible to nobody but
+  behaves oddly" — a story scoped to a group whose members were all
+  removed is visible to its author only, and the groups page should say so
+  rather than leaving an invisible story.
+- **Deleting a group.** The app doesn't delete things. A group can be
+  emptied and renamed; stories referencing a gone group would be
+  author-only, which is a trap. Recommendation: groups can't be deleted,
+  only emptied — consistent with the no-deletion stance everywhere else.
+
+## Phasing
+
+**Phase 1 — the wall.** Everything security-relevant, no UI polish.
+`app/groups.py` (dataclass, CRUD, the pure `can_see` predicate), the
+`audience` frontmatter key through `create_story`/`save_story`/
+`restore_version`, `_visible_stories`/`_visible_story_or_404`, every
+surface in the table gated, `_validate_audience` in `routes_api.py`
+following the existing `_validate_slug_list` pattern, the export/import
+decision, and the perimeter-style test written first. Admin groups page
+(create, rename, membership) with plain forms. No editor picker yet —
+Phase 1 ships with `audience` settable only by an admin editing
+frontmatter, which is enough to prove the wall holds.
+
+**Phase 2 — the writing experience.** The audience picker in the editor,
+sitting with the existing Draft/Archive chips: a row of group chips,
+nothing selected meaning everyone. A quiet marker on the timeline and the
+story page saying who can see this one — without it the writer can't tell
+a scoped story from a public one, which is how someone writes something
+private into a public story. Mobile-first, checked at 390px.
+
+**Phase 3 — the edges.** EPUB and book-view scoping wording, the MCP
+sentence in README, the FEATURES.md write-up, and a French pass.
+
+Phase 1 is the one with real risk in it. Phases 2 and 3 are ordinary work.
+
+## Rejected
+
+- **Per-story person lists** ("share this with Marie and Luc"). Every
+  story becomes a permissions decision, which is exactly the blog-shaped
+  thing F19's restraint clause rules out. Groups are named because naming
+  them is what keeps this small.
+- **A "private" flag with no group** (visible only to the author). Almost
+  free to build, and it's a diary, not a book written for someone. If it
+  turns out to be wanted, it's a group of one.
+- **Encrypting scoped stories at rest.** README lists encryption as out of
+  scope, and it would break the "delete the app and the folder is still
+  readable" promise that the whole design rests on. Scoping is an access
+  rule in the app, and the frontmatter says plainly who a story was for —
+  which is the right behavior when the family reads these files in thirty
+  years without the app.
+
+---
+
+### F40 Phase 1 implementation round — the wall
+
+Built as the spec above describes, with the three `(confirm)` items
+resolved to their recommended answers. Phase 1 is deliberately the
+security half only: the audience rule, every surface enforcing it, and
+admin screens to manage groups. No editor picker yet (Phase 2) — an
+`audience` is set through the API or by hand, which is enough to prove
+the wall holds before building a UI on top of it.
+
+**`app/groups.py`** (new): `Group` dataclass, `list_groups`/`get_group`/
+`create_group`/`rename_group`/`set_members`, `groups_for_person`, and the
+two functions the rest of the app actually leans on — `can_see` and
+`visible_stories`, both pure, no Flask and no filesystem, so who-reads-what
+is one testable statement rather than a rule smeared across fourteen
+routes. Groups live in `stories/groups.json`; a story names them in an
+`audience:` frontmatter list, absent meaning everyone.
+
+**One chokepoint, not a parameter.** `storage.readable_stories` stays
+viewer-unaware; the gate is `_visible_stories()` / `_get_story_or_404()`
+in `routes_pages.py`, and every page route goes through them.
+`storage.py` never learns what a session is. A story a viewer may not see
+404s rather than 403s — the same choice `admin_required` already makes, so
+a scoped story's *existence* isn't discoverable by URL either.
+
+Decisions that came out of building it:
+
+- **Restoring a version deliberately does not restore `audience`.** The
+  spec flagged `restore_version` as the likeliest place to build a quiet
+  leak, and the fix turned out to be the opposite of the obvious one.
+  Threading `audience` through faithfully means pulling up a version from
+  before a story was scoped silently republishes it to the whole family —
+  a leak nobody performed and nobody would see. Restoring is about getting
+  old *words* back; a story's audience is a standing decision about who
+  may read it today. So `restore_version` omits the field and `save_story`
+  carries the current one over. `test_restoring_an_old_version_keeps_the_current_audience`
+  asserts both halves: the body came back, the audience didn't move.
+- **An unknown group slug is a 400, not a dropped value.** Every other
+  list field in `routes_api.py` silently drops junk. Here, dropping one
+  turns a story the writer believed was scoped into a public one — the
+  single worst way this feature could fail — so `_validate_audience`
+  rejects instead.
+- **Writes are gated on readability.** `_readable_story_or_error` guards
+  update, restore, image upload, memo upload and memo delete. A story you
+  can't read is one you can't write, or `PUT /stories/<id>` becomes a way
+  to overwrite — or simply read back — something scoped away from you.
+- **`story_media` is gated on the story, not just the filename.** Gate the
+  page and not this and every photo stays fetchable by direct URL, which
+  is most of what a scoped story is protecting.
+- **`/import` and `/api/import` became admin-only** — but only in accounts
+  mode, via a new `auth.admin_required_in_accounts_mode`. A plain
+  `admin_required` would lock every single-password install out of its own
+  import page, since `session["role"]` is never set there. A backup zip
+  can carry whatever frontmatter it likes, so restoring one is a way to
+  write around a group.
+- **Export is scoped to what you can see**, and the import page says so in
+  red when it applies. The alternative — a complete zip for whoever clicks
+  it — would make `/export` the way around every group, since the zip
+  carries `.versions/` and photos too. The cost is that a partial backup
+  can be mistaken for a whole one, so the notice is blunt rather than a
+  footnote.
+- **The MCP server stays unscoped**, documented in its module docstring
+  and in README. It's stdio running as whoever launched it, against a
+  folder that user can already read; building a viewer identity into a
+  single-user local tool would be ceremony, not security. But someone
+  deciding whether to run it deserves to know it reads past every group.
+
+### Tests
+
+`tests/test_groups.py` (38), in three layers. The pure rule first
+(everyone by default, membership required, union across several groups,
+the author's own story, order preserved). Then the storage round-trip,
+including the restore-version trap and a malformed `audience:` key being
+ignored rather than fatal.
+
+Then the leak perimeter, which is the point of the file: a fixture builds
+a book with one public story, one scoped story, an admin deliberately
+*outside* the group and a family member inside it, and asserts the
+outsider gets nothing — no title on any listing page (`/`, `/book`,
+`/firsts`, `/growth`, `/drafts`, `/archived`, the person page), no body in
+`/book`, nothing in the EPUB, 404 from the story page, editor, history and
+media URLs, no page-turn neighbour, never a `/random` landing, 404 from
+every mutating endpoint, and a backup zip with the scoped folder missing —
+while the insider sees all of it and the public story is untouched.
+
+Two guard tests keep that honest as the app grows:
+`test_no_page_route_reaches_the_story_list_directly` walks the route files
+and fails if one calls `storage.list_stories` instead of
+`_visible_stories()`, and `test_accounts_mode_off_means_no_scoping_at_all`
+pins that a single-password install is unaffected.
+
+Verified in Chromium at 390px in both languages: creating a group, adding
+a member, an admin outside the group finding no trace of a story scoped to
+it while the member sees it normally, and the partial-backup warning
+reading as a caution rather than another line of intro (it first shipped
+sharing a class with `.import__intro` and lost the color to it).
+
+`pytest` (1045: 1007 existing + 38 new) and `ruff check .` green.
+
+---
+
+### F40 Phase 2 implementation round — the writing experience
+
+Phase 1 built the wall but left `audience` settable only through the API,
+which meant the app had a privacy feature nobody could use and — worse —
+no way to tell a scoped story from a public one while writing. Phase 2 is
+the picker and the two markers.
+
+**The picker** is a row of chips ("Who can see this") built by a shared
+`audience_picker` macro and driven by `app/static/js/audience.js`, a
+factory both `editor.js` and `instant.js` call. Nothing lit means
+everyone.
+
+The state line under the chips is the reason this is a module rather than
+three lines inlined twice. **"No chips lit" and "the whole family can read
+this" have to read as the same thing**, and a picker whose default is
+invisible is one where somebody eventually writes something private into a
+public story. So the current audience is spelled out in words in every
+state — *Everyone*, or *Only Just us* — and turns accent-colored the
+moment it stops being everyone.
+
+**Instants get the picker too.** The original ask was "stories or
+instants", and an instant you can't scope is a hole you'd only discover
+after posting one. Worth noting how it survives the instant's two-step
+save: the create carries `audience`, and the follow-up PUT that attaches
+the uploaded cover omits it — which is correct precisely because
+`save_story` treats an absent `audience` as "leave unchanged". Verified on
+disk rather than assumed.
+
+**The markers.** A scoped story says *Kept to Just us* under its title
+(in `_story_article.html`, so the story page and the book view both get
+it) and carries a quiet *kept to a group* pill on the timeline. The pill
+is deliberately plainer than the milestone pill beside it: it states a
+fact about the story, it isn't celebrating one.
+
+`group_names` (slug → display name) comes from a **context processor**
+rather than a per-route argument. The marker rides along with the shared
+story partial, which four routes render; threading a dict through each is
+four chances to forget, and forgetting means a scoped story that looks
+public to its own writer. Empty outside accounts mode, so the whole thing
+stays invisible on a single-password install.
+
+`_available_groups()` offers *every* group, not only the writer's own:
+scoping a story to a group you aren't in is legitimate (writing something
+for the grandparents), and `can_see`'s author rule keeps your own access
+either way.
+
+### Tests
+
+`tests/test_groups.py` grows to 48 (10 new): the editor offers every
+group and pre-lights a scoped story's chips (read out of the markup with a
+regex, not inferred from "some chip somewhere is pressed"), leaves them
+unlit for a public story, the instant composer offers them too, no picker
+appears without accounts mode or without any groups, the story page names
+the groups, a public story says nothing, the timeline marks a scoped
+story — and an outsider's timeline carries no pill at all, since the pill
+would otherwise leak the existence of a story they can't see.
+
+Verified in Chromium at 390px in both languages, driving the real UI:
+lighting a chip and watching the state line go *Everyone* → *Only Just
+us*, writing and saving a story through the editor, its marker on the
+story page and pill on the timeline, re-opening the editor with the chip
+still lit, and saving a scoped instant with a photo — then checking
+`audience: [just-us]` really landed in its `index.md`. Zero horizontal
+overflow, zero console errors, French correct throughout (*Tout le
+monde* / *Seulement Just us* / *Réservée à Just us*).
+
+`pytest` (1055: 1007 existing + 48 F40) and `ruff check .` green.
+
+---
+
+### F40 inspection round — two real bugs, one of them older than F40
+
+A deliberate adversarial pass over the finished feature: every surface
+probed live as an admin deliberately outside a group, every write endpoint
+attacked, both export zips opened and compared. The read/write perimeter
+held everywhere — every listing clean, every scoped URL and mutating
+endpoint 404, the outsider's zip missing the scoped folders, `.versions/`
+and photos included. Three things did come out of it.
+
+**Two dead helpers were removed.** `storage.stories_featuring` and
+`storage.readable_page_stories` both lost their last caller when Phase 1
+routed everything through the gate. Neither is merely unused: both read
+every story straight off disk and both look exactly like the helper a
+future person page or page-turn feature would reach for, and the Phase 1
+guard test only grepped for `storage.list_stories`. Deleted, the guard
+widened to count `storage.get_story` too and to walk every route file
+rather than three, and a test added that asserts neither name comes back.
+
+**Backups could not be restored — since F19, not since F40.**
+`import_backup` rejected any zip entry whose top path segment wasn't a
+valid story id, and an accounts-mode export contains
+`pending_accounts.json` (F19) and now `groups.json` (F40). So any install
+that had ever seen an account request produced a backup that aborted on
+import with `Unexpected path in backup`. A one-tap backup you cannot
+restore is precisely the failure this app exists to prevent, and F8 is a
+headline feature, so it's fixed here rather than filed: unknown root-level
+entries are now skipped instead of aborting. Unsafe paths (absolute, `..`)
+still abort the whole import, with a test pinning that the zip-slip
+guarantee didn't weaken as a side effect.
+
+Those files are skipped rather than imported on purpose. They're live
+operational state — who is waiting for an account, who is in which group —
+and silently overwriting them from an old zip would be worse than leaving
+them alone.
+
+**Which made a third bug reachable, so it's fixed too.** Restore a backup
+into a fresh book and the stories come back while `groups.json` doesn't, so
+a story names a group that doesn't exist here. `can_see` already failed
+safe (an unknown group means nobody but the author). The editor did not:
+it rendered no lit chip for the orphaned slug, so an ordinary save sent an
+empty audience and a story that was private quietly became public — the
+one failure this whole feature exists to prevent, arriving through the
+disaster-recovery path of all places.
+
+Now `_available_groups(story)` gives an orphaned slug a chip of its own,
+labelled with the raw slug, and `_validate_audience` accepts a slug already
+on the story being updated. The rule became "you can't introduce an unknown
+group, and you can't accidentally drop one either" — inventing a new
+unknown slug is still a 400.
+
+Rehearsed end to end: export a book with a scoped story, wipe, restore into
+a fresh install. The stories come back still scoped, unreadable by anyone
+until the group is recreated, and recreating it under the same name
+realigns the slug (`Just us` → `just-us`) and restores access with the
+audience intact.
+
+### Two boundaries worth knowing, deliberately left alone
+
+- **`groups.json` is in every export**, so any family member's backup
+  reveals every group's name and membership. Group *management* is
+  admin-only in the UI, so this is an inconsistency — but membership isn't
+  story content, everyone in it is already named on the family tree, and
+  dropping the file would make a restored backup lose its groups entirely.
+- **`people/*/account.json` is in every export too**, so any family member
+  can download every account's password hash. Pre-existing since F19 and
+  unrelated to groups; the hashes are scrypt and this is a household app,
+  but it is worth knowing before handing someone a Family account.
+
+`pytest` (1060) and `ruff check .` green.

@@ -41,6 +41,24 @@
 </div>
 {% endmacro %}
 
+{# Who a story is kept to (FEATURES.md F40). Nothing pressed means everyone,
+   which is why the state line under the chips is not optional: "no chips
+   lit" and "this is public" have to read as the same thing at a glance, or
+   someone writes something private into a story the whole family can see. #}
+{% macro audience_picker(all_groups, selected_slugs) %}
+<div class="editor__audience" id="editor-audience">
+  <p class="editor__family-label">{{ _("Who can see this") }}</p>
+  <div class="editor__audience-chips">
+    {% for g in all_groups %}
+    <button type="button" class="btn editor__toggle-chip editor__audience-chip"
+            data-group-slug="{{ g.slug }}" data-group-name="{{ g.name }}"
+            aria-pressed="{{ 'true' if g.slug in selected_slugs else 'false' }}">{{ g.name }}</button>
+    {% endfor %}
+  </div>
+  <p class="editor__audience-state" id="editor-audience-state"></p>
+</div>
+{% endmacro %}
+
 {% macro action_button_form(action_url, label) %}
 <form method="post" action="{{ action_url }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

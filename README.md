@@ -169,6 +169,52 @@ admin's judgement rather than something the code can refuse outright;
 invitations avoid the question entirely, since the seat is set aside for a
 specific person up front.
 
+#### Groups — telling some stories to fewer people
+
+By default every account reads every story, and that stays the default. A
+**group** is a named handful of people a story can be kept to, for the
+things that are for a wife and a son and nobody else. Admins manage them
+from **Groups** in the nav: give the group a name, tick who's in it. A
+story with no group is for everyone; a story with one is visible only to
+that group's members (any of them, if it lists several).
+
+Two rules worth knowing before you rely on it:
+
+- **Membership governs reading; role governs managing.** An admin who
+  isn't in a group can't read its stories — not on the timeline, not by
+  URL, not in the book, not by fetching a photo directly, and not through
+  the editor or the API. An admin can of course add themselves to the
+  group and then read it, but that's a visible change to the group rather
+  than a silent power.
+- **The author always sees their own story**, even if they scoped it to a
+  group they aren't in. That's a safety rail against a mis-tap, not a
+  permission.
+
+In the editor (and the instant composer), a **Who can see this** row of
+chips picks the groups. Nothing lit means everyone — and because an
+invisible default is the kind that gets someone in trouble, the current
+audience is always spelled out underneath in words: *Everyone*, or *Only
+Just us*. A scoped story then says **Kept to Just us** under its title,
+and carries a small *kept to a group* marker on the timeline, so you can
+tell at a glance which stories are for the whole family and which aren't.
+
+Restoring an older version of a story brings back its old *words* and
+leaves its audience alone — widening who can read something stays a
+deliberate act, never a side effect of undoing an edit.
+
+**Backups are scoped to what you can see.** If some stories are kept to
+groups you're not in, the zip you download leaves them out, and the import
+page says so. A complete backup has to come from someone who can see every
+story. Restoring a backup is admin-only.
+
+Groups need `STORYBOOK_ACCOUNTS=1`. With one shared password there's a
+single identity and nothing to scope a story away from, so the whole
+feature is invisible and no existing install changes.
+
+The MCP server (below) is **not** scoped — it's a local stdio process
+running as whoever starts it, with the `stories/` folder already readable
+to that user, so its tools see every story regardless of group.
+
 #### Managing accounts
 
 Disabling an account, resetting its password, or changing its role (from

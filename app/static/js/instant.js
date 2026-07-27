@@ -11,6 +11,10 @@
 
   var authorsRoot = document.getElementById("editor-authors");
   var authorChipsController = window.StorybookAuthorChips.init(authorsRoot);
+  // Who this instant is kept to (F40) — absent when no groups exist.
+  var audiencePicker = window.createAudiencePicker
+    ? window.createAudiencePicker(document.getElementById("editor-audience"))
+    : null;
 
   var previewUrl = null;
   // A photo taken with the in-app camera (F34). The two sources are
@@ -63,6 +67,9 @@
     var line = lineInput.value.trim();
     var storyDate = dateInput.value;
     var author = authorChipsController.getSelected() || "";
+    // Only sent on the create below; the follow-up PUT that attaches the
+    // cover omits it, and an absent `audience` means "leave unchanged".
+    var audience = audiencePicker ? audiencePicker.getSelected() : [];
 
     saveButton.disabled = true;
     if (spinner) spinner.hidden = false;
@@ -76,6 +83,7 @@
         markdown: line,
         kind: "instant",
         author: author,
+        audience: audience,
       }),
     }))
       .then(window.FetchJson.parse)

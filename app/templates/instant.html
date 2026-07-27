@@ -22,6 +22,9 @@
   {% if authors and not config.ACCOUNTS_ENABLED %}
   {{ macros.author_chip_row(authors) }}
   {% endif %}
+  {% if all_groups %}
+  {{ macros.audience_picker(all_groups, []) }}
+  {% endif %}
   <div class="instant__save-row">
     <button type="submit" id="instant-save" class="btn btn--primary instant__save">
       <img class="btn-icon" src="{{ url_for('static', filename='img/icon-save.png') }}" alt="" width="20" height="20">{{ _("Save") }}
@@ -34,6 +37,7 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/fetch-json.js') }}"></script>
 <script src="{{ url_for('static', filename='js/author-chips.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audience.js') }}"></script>
 <script src="{{ url_for('static', filename='js/camera-logic.js') }}"></script>
 <script src="{{ url_for('static', filename='js/camera.js') }}"></script>
 <script src="{{ url_for('static', filename='js/instant.js') }}"></script>

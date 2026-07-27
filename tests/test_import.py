@@ -62,13 +62,53 @@ def test_import_backup_rejects_path_traversal(stories_dir):
         storage.import_backup(stories_dir, buf)
 
 
-def test_import_backup_rejects_unexpected_root_files(stories_dir):
+def test_import_backup_skips_unexpected_root_files(stories_dir):
+    """A zip of nothing but root files still errors — but for having no
+    stories in it, not for the files themselves."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("readme.txt", "hi")
     buf.seek(0)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no stories"):
         storage.import_backup(stories_dir, buf)
+    assert not (stories_dir / "readme.txt").exists()
+
+
+def test_a_real_accounts_mode_backup_can_be_restored(stories_dir):
+    """The round trip that was broken before F40's inspection: since F19 an
+    export carries `pending_accounts.json`, and since F40 `groups.json` too,
+    and aborting on the first one made every accounts-mode backup
+    un-importable. A one-tap backup you cannot restore is the exact failure
+    this app exists to avoid."""
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("2026-05-01-a-day-out/index.md",
+                    "---\ntitle: A day out\ndate: 2026-05-01\n---\nbody\n")
+        zf.writestr("people/papa/index.md", "---\nname: Papa\n---\n")
+        zf.writestr("pending_accounts.json", "[]\n")
+        zf.writestr("groups.json", "[]\n")
+    buf.seek(0)
+
+    assert storage.import_backup(stories_dir, buf) == 2  # the story and people/
+    assert (stories_dir / "2026-05-01-a-day-out" / "index.md").is_file()
+    assert (stories_dir / "people" / "papa" / "index.md").is_file()
+    # Live operational state is never overwritten from an old zip.
+    assert not (stories_dir / "pending_accounts.json").exists()
+    assert not (stories_dir / "groups.json").exists()
+
+
+def test_import_still_aborts_on_an_unsafe_path(stories_dir):
+    """Skipping unknown root entries must not have weakened zip-slip: an
+    unsafe path aborts the whole import even alongside a valid story."""
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("2026-05-01-fine/index.md",
+                    "---\ntitle: Fine\ndate: 2026-05-01\n---\nbody\n")
+        zf.writestr("../evil.txt", "pwned")
+    buf.seek(0)
+    with pytest.raises(ValueError, match="Unsafe path"):
+        storage.import_backup(stories_dir, buf)
+    assert not (stories_dir / "2026-05-01-fine").exists()
 
 
 def test_import_backup_rejects_empty_zip(stories_dir):

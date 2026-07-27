@@ -80,6 +80,7 @@ class Story:
     tags: list = None
     sources: list = None
     milestone: Optional[str] = None
+    audience: list = None  # group slugs; empty means everyone (F40)
 
     def __post_init__(self):
         if self.people is None:
@@ -88,6 +89,8 @@ class Story:
             self.tags = []
         if self.sources is None:
             self.sources = []
+        if self.audience is None:
+            self.audience = []
 
 
 def is_valid_story_id(story_id: str) -> bool:
@@ -166,10 +169,11 @@ def _parse_post(story_id: str, post: frontmatter.Post, include_body: bool) -> St
         archived=metadata.get("archived") is True,
         kind="instant" if metadata.get("kind") == "instant" else "story",
         body=post.content if include_body else None,
-        people=_parse_string_list(metadata.get("people")),
-        tags=_parse_string_list(metadata.get("tags"), max_items=MAX_TAGS, max_length=MAX_TAG_LENGTH),
+        people=parse_string_list(metadata.get("people")),
+        tags=parse_string_list(metadata.get("tags"), max_items=MAX_TAGS, max_length=MAX_TAG_LENGTH),
         sources=_parse_sources(metadata.get("sources")),
         milestone=_parse_milestone(metadata.get("milestone")),
+        audience=parse_string_list(metadata.get("audience")),
     )
 
 
@@ -189,10 +193,12 @@ def _parse_milestone(value) -> Optional[str]:
     return value or None
 
 
-def _parse_string_list(value, max_items=None, max_length=None) -> list:
-    """Tolerant parsing of a frontmatter list-of-strings field (`people`,
-    `tags`): anything that isn't a list of non-empty strings is dropped
-    rather than raised (files outlive edits), duplicates are removed."""
+def parse_string_list(value, max_items=None, max_length=None) -> list:
+    """Tolerant parsing of a list-of-strings field (`people`, `tags`,
+    `audience` in frontmatter; a group's `members` in groups.json):
+    anything that isn't a list of non-empty strings is dropped rather than
+    raised (files outlive edits), duplicates are removed. Public because
+    `groups.py` parses the same shape out of its own file."""
     if not isinstance(value, list):
         return []
     result = []
@@ -283,12 +289,6 @@ def list_stories(stories_dir) -> list[Story]:
     return stories
 
 
-def stories_featuring(stories_dir, person_slug: str) -> list[Story]:
-    """Stories whose `people` field includes `person_slug`, date-ascending —
-    used by the person page's "Appears in" section."""
-    return [s for s in list_stories(stories_dir) if person_slug in s.people]
-
-
 def stories_with_milestones(stories: list[Story]) -> list[Story]:
     """Readable stories with a `milestone` set, date-ascending (FEATURES.md
     F28) — the register of firsts, in the order they actually happened."""
@@ -363,13 +363,6 @@ def readable_stories(stories: list[Story], today: Optional[date_cls] = None) -> 
     return result
 
 
-def readable_page_stories(stories_dir) -> list[Story]:
-    """`readable_stories` narrowed to `kind == "story"` — the candidate set
-    for anything that turns pages (F15 random, F2 reading order): instants
-    (F13) are a different, feed-like kind and never page-turn targets."""
-    return [s for s in readable_stories(list_stories(stories_dir)) if s.kind == "story"]
-
-
 def _is_leap_year(year: int) -> bool:
     return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
 
@@ -417,7 +410,7 @@ def _write_index(stories_dir, story_id: str, title: str, story_date: date_cls,
                   unlock: Optional[date_cls] = None, archived: bool = False,
                   kind: str = "story", people: Optional[list] = None,
                   tags: Optional[list] = None, sources: Optional[list] = None,
-                  milestone: Optional[str] = None) -> None:
+                  milestone: Optional[str] = None, audience: Optional[list] = None) -> None:
     post = frontmatter.Post(body)
     post["title"] = title
     post["date"] = story_date.isoformat()
@@ -443,6 +436,8 @@ def _write_index(stories_dir, story_id: str, title: str, story_date: date_cls,
         post["sources"] = sources
     if milestone:
         post["milestone"] = milestone
+    if audience:
+        post["audience"] = audience
     index_path = Path(stories_dir) / story_id / "index.md"
     tmp_path = index_path.with_suffix(".md.tmp")
     tmp_path.write_text(frontmatter.dumps(post) + "\n", encoding="utf-8")
@@ -454,7 +449,7 @@ def create_story(stories_dir, title: str, story_date: date_cls, body: str = "",
                   unlock: Optional[date_cls] = None, archived: bool = False,
                   kind: str = "story", people: Optional[list] = None,
                   tags: Optional[list] = None, sources: Optional[list] = None,
-                  milestone: Optional[str] = None) -> str:
+                  milestone: Optional[str] = None, audience: Optional[list] = None) -> str:
     """Create a new story folder, returning its story_id (the folder name).
 
     On slug collision, append -2, -3, ... to the slug. `kind` is set once
@@ -474,7 +469,8 @@ def create_story(stories_dir, title: str, story_date: date_cls, body: str = "",
     now = datetime.now()
     _write_index(stories_dir, story_id, title, story_date, now, now, None, body, author=author,
                  draft=draft, unlock=unlock, archived=archived, kind=kind,
-                 people=people, tags=tags, sources=sources, milestone=milestone)
+                 people=people, tags=tags, sources=sources, milestone=milestone,
+                 audience=audience)
     return story_id
 
 
@@ -483,12 +479,14 @@ def save_story(stories_dir, story_id: str, title: str, story_date: date_cls,
                draft: bool = False, unlock: Optional[date_cls] = None,
                archived: bool = False, people: Optional[list] = None,
                tags: Optional[list] = None, sources: Optional[list] = None,
-               milestone: Optional[str] = None) -> None:
+               milestone: Optional[str] = None, audience: Optional[list] = None) -> None:
     """Update an existing story's content in place. The story_id never changes.
 
-    `cover`/`author`/`people`/`tags`/`sources`/`milestone` of None means
-    "leave unchanged"; an empty value clears the field (frontmatter key is
-    omitted for falsy values). `draft`/`unlock`/`archived` are always set
+    `cover`/`author`/`people`/`tags`/`sources`/`milestone`/`audience` of
+    None means "leave unchanged"; an empty value clears the field
+    (frontmatter key is omitted for falsy values). `audience` in
+    particular must be carried over rather than defaulted, or any caller
+    that forgets it silently un-scopes a story (FEATURES.md F40). `draft`/`unlock`/`archived` are always set
     wholesale from the given value (their editor controls are always
     present on the form, so there is nothing to "leave unchanged"). `kind`
     is not a parameter here at all — it is set once at creation and always
@@ -516,10 +514,12 @@ def save_story(stories_dir, story_id: str, title: str, story_date: date_cls,
         sources = existing.sources
     if milestone is None:
         milestone = existing.milestone
+    if audience is None:
+        audience = existing.audience
     _write_index(stories_dir, story_id, title, story_date, created, datetime.now(), cover, body,
                  author=author, draft=draft, unlock=unlock, archived=archived,
                  kind=existing.kind, people=people, tags=tags, sources=sources,
-                 milestone=milestone)
+                 milestone=milestone, audience=audience)
 
 
 def _versions_dir(stories_dir, story_id: str) -> Path:
@@ -578,6 +578,18 @@ def restore_version(stories_dir, story_id: str, version_id: str) -> None:
 
     Goes through `save_story` so the current (about-to-be-replaced) content
     is itself snapshotted first — restoring never discards anything.
+
+    Every field is rebuilt explicitly from the snapshot — except
+    `audience` (FEATURES.md F40), which is deliberately left alone and
+    therefore carried over from the story as it stands now.
+
+    That asymmetry is the point: restoring is about getting old *words*
+    back, while a story's audience is a standing decision about who may
+    read it today. Restoring faithfully would mean pulling up a version
+    from before a story was scoped quietly republishes it to the whole
+    family — a leak nobody performed and nobody would see. Widening a
+    story's audience stays something you do on purpose, in the editor.
+    `tests/test_groups.py` pins this.
     """
     if not is_valid_version_id(version_id):
         raise InvalidVersionId(version_id)
@@ -592,6 +604,8 @@ def restore_version(stories_dir, story_id: str, version_id: str) -> None:
         draft=old.draft, unlock=old.unlock, archived=old.archived,
         people=old.people or [], tags=old.tags or [], sources=old.sources or [],
         milestone=old.milestone or "",
+        # audience deliberately omitted -> save_story carries the current
+        # one over. See the docstring above.
     )
 
 
@@ -723,11 +737,26 @@ def delete_memo(stories_dir, story_id: str, filename: str) -> bool:
 def import_backup(stories_dir, zip_file) -> int:
     """Restore a backup zip produced by the /export download.
 
-    Only ever extracts entries shaped like `<valid-story-id>/...` (rejecting
-    anything else as an unsafe or unrecognized path). If ANY of those story
-    ids already exist on disk, raises ImportCollision and writes nothing —
-    an import either fully succeeds or has no effect at all. Returns the
-    number of story folders imported.
+    Only ever extracts entries shaped like `<valid-story-id>/...`. If ANY of
+    those story ids already exist on disk, raises ImportCollision and writes
+    nothing — an import either fully succeeds or has no effect at all.
+    Returns the number of story folders imported.
+
+    Unsafe paths (absolute, or containing `..`) still abort the whole
+    import. Other root-level entries are *skipped* rather than rejected,
+    which is what lets a real backup be restored at all: since F19 an
+    export can contain `pending_accounts.json`, and since F40 `groups.json`
+    too, and aborting on the first one made every accounts-mode backup
+    un-importable — a one-tap backup you cannot restore being the exact
+    failure this app exists to avoid.
+
+    Skipped, not imported, deliberately: those files are live operational
+    state (who is waiting for an account, who is in which group), and
+    silently overwriting them from an old zip would be worse than leaving
+    them alone. A consequence worth knowing: a restored story can reference
+    a group this install doesn't have. `groups.can_see` treats an unknown
+    group as "nobody but the author", so that fails private rather than
+    public.
     """
     stories_dir = Path(stories_dir)
     with zipfile.ZipFile(zip_file) as zf:
@@ -741,7 +770,7 @@ def import_backup(stories_dir, zip_file) -> int:
                 raise ValueError(f"Unsafe path in backup: {name!r}")
             top = Path(name).parts[0] if Path(name).parts else ""
             if not is_valid_story_id(top):
-                raise ValueError(f"Unexpected path in backup: {name!r}")
+                continue
             story_ids.add(top)
             members.append(info)
 

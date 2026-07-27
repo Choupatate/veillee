@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Groups") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+{% block content %}
+<div class="admin">
+  <p class="admin__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
+  <h1 class="admin__title">{{ _("Groups") }}</h1>
+  <p class="admin__hint">
+    {{ _("A group is a handful of people a story can be kept to. Stories with no group are for everyone — that stays the default.") }}
+  </p>
+
+  {% if not rows %}
+  <p class="admin__empty">{{ _("No groups yet.") }}</p>
+  {% else %}
+  <ul class="admin__list">
+    {% for row in rows %}
+    <li class="admin__row">
+      <span class="admin__row-name">{{ row.group.name }}</span>
+      <span class="admin__row-username">
+        {% if row.members %}{{ row.members|map(attribute='name')|join(', ') }}
+        {% else %}{{ _("nobody yet") }}{% endif %}
+      </span>
+      <span class="admin__row-hint">
+        {{ _n("{n} story", "{n} stories", row.story_count) }}
+      </span>
+      <a class="btn admin__row-action" href="{{ url_for('pages.admin_group', slug=row.group.slug) }}">{{ _("Edit") }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <h2 class="admin__subtitle">{{ _("New group") }}</h2>
+  <form class="admin__form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="login__label" for="group-name">{{ _("Name") }}</label>
+    <input class="login__input" type="text" id="group-name" name="name"
+           placeholder="{{ _('e.g. Just us') }}" required>
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Create group") }}</button>
+  </form>
+</div>
+{% endblock %}

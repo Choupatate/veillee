@@ -152,14 +152,6 @@ def test_save_story_empty_list_clears_people_tags_sources(stories_dir):
     assert story.sources == []
 
 
-def test_stories_featuring_returns_only_matching_stories(stories_dir):
-    id1 = storage.create_story(stories_dir, "With grandma", date(2026, 1, 1), "", people=["grandma"])
-    storage.create_story(stories_dir, "Without grandma", date(2026, 1, 2), "")
-
-    featured = storage.stories_featuring(stories_dir, "grandma")
-    assert [s.id for s in featured] == [id1]
-
-
 # --- milestone / register of firsts (FEATURES.md F28) ------------------------
 
 

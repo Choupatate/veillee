@@ -18,6 +18,7 @@ from .routes_pages import (
     _people_dir,
     _person_ref,
     _serve_media,
+    _visible_stories,
     bp,
 )
 
@@ -105,8 +106,12 @@ def person_page(slug):
                 "partner": partner_ref, "kind": u["kind"], "since": u["since"], "until": u["until"],
             })
 
-    stories_dir = current_app.config["STORIES_DIR"]
-    appears_in = storage.readable_stories(storage.stories_featuring(stories_dir, slug))
+    # Not storage.stories_featuring: "Appears in" must list only what this
+    # viewer may read, or a scoped story's title shows up on a person page
+    # (FEATURES.md F40).
+    appears_in = storage.readable_stories(
+        [s for s in _visible_stories() if slug in s.people]
+    )
 
     return render_template(
         "person.html", person=p, body_html=body_html,

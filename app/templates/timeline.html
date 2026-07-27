@@ -96,6 +96,11 @@
         {% if story.milestone %}
         <span class="timeline__milestone-pill">{{ story.milestone }}</span>
         {% endif %}
+        {# A scoped story must be distinguishable from a public one in the
+           list too, not only once you've opened it (F40 Phase 2). #}
+        {% if story.audience and group_names %}
+        <span class="timeline__audience-pill">{{ _("kept to a group") }}</span>
+        {% endif %}
         {% if story.kind == 'instant' %}
         <span class="timeline__instant-line">{{ story.title }}</span>
         {% if story.cover %}

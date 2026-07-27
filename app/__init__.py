@@ -193,6 +193,17 @@ def create_app(test_config=None):
         v, i18n.current_language()
     )
 
+    def _group_names(app):
+        """`{slug: name}` for the audience marker, empty outside accounts
+        mode so the whole thing stays invisible on a single-password
+        install. Reads one small JSON file; the account-mode pages already
+        scan `people/` per request, so this is the same cost class."""
+        if not app.config["ACCOUNTS_ENABLED"]:
+            return {}
+        from . import groups
+
+        return {g.slug: g.name for g in groups.list_groups(app.config["STORIES_DIR"])}
+
     @app.context_processor
     def inject_title():
         # STORYBOOK_TITLE always wins when set (a family's own chosen name,
@@ -202,6 +213,13 @@ def create_app(test_config=None):
             "app_title": app.config["TITLE"] or i18n._("Storybook"),
             "current_language": i18n.current_language(),
             "js_strings": i18n.js_strings(i18n.current_language()),
+            # slug -> display name for audience groups (F40 Phase 2). A
+            # context processor rather than a per-route argument because
+            # the "kept to X" marker rides along with the shared story
+            # partial, which four different routes render — threading it
+            # through each one is four chances to forget, and forgetting
+            # means a scoped story that looks public to its own writer.
+            "group_names": _group_names(app),
         }
 
     @app.after_request
