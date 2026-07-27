@@ -5031,9 +5031,50 @@ any more — group names and membership are visible to every family member by
 design. The export still carries account password hashes (F19), which is
 unrelated and still worth knowing.
 
+### Where a group comes from, and where it never comes from
+
+Opening group-making to everyone is only safe if the browser has no say in
+who reads what, so the trust model got audited rather than assumed.
+
+The viewer's group set has exactly one source: `_viewer_scope()` takes
+`session["person_slug"]` and asks `groups.groups_for_person` to read
+`groups.json` off disk. That's it. No request field — query string, form
+body, JSON key, or header — reaches it, and there is no client-side
+filtering anywhere: `audience.js` only *sends* an audience when writing,
+and scoped stories are omitted from the HTML server-side rather than
+hidden with CSS, so View Source shows a non-member nothing.
+
+Two properties fall out of reading membership per request rather than
+caching it in the session at login, and both are the ones you want:
+adding someone grants access on their next page load, and removing someone
+revokes it on their next request, with the session they already hold.
+
+The session cookie is signed with `STORYBOOK_SECRET_KEY`; editing a byte
+of it logs you out rather than promoting you. Verified live against a
+running server, logged in as a family account in no group at all: the
+scoped story's page, editor, history, and photo URLs all 404; forged
+`?groups=`, `?audience=`, `?person_slug=`, `?role=` and `X-Viewer-Groups:`
+change nothing; `PUT /api/stories/<id>` is a 404 even with a valid CSRF
+token; posting yourself onto the group's member list is a 403 and the
+story stays a 404 afterwards.
+
+### Two boundaries this doesn't change
+
+- **Anyone who can read a story can edit it, including its audience.** A
+  member of *Just us* can widen a story someone else kept to it. That's the
+  app's writing model — a family journal with no per-story ownership — not
+  something groups introduced, and the group page's warning is the same
+  idea applied to membership. Worth knowing: a group protects a story from
+  people outside it, not from the people inside it.
+- **The author rail matches on display name, not person slug.** `can_see`
+  compares `story.author` to the viewer's Person name, so two People
+  sharing a display name would share author-visibility. Reaching that
+  state needs an admin to approve a second Person with a name already in
+  the book, which is exactly what F39's duplicate hints exist to flag.
+
 ### Tests
 
-24 new tests in `tests/test_groups.py` (76 in the file, 1084 in the suite):
+37 new tests in `tests/test_groups.py` (89 in the file, 1097 in the suite):
 the membership gate from both sides, an admin editing a group they're not
 in, an empty group failing closed, the read-only page, creation putting you
 in the group, the story-count leak, the widening warning appearing only
@@ -5043,8 +5084,15 @@ the rename collision, the cap and its form, duplicate and traversal-shaped
 member slugs, and `created_by` surviving a round trip and degrading to
 `None` when malformed.
 
+Plus a section for the audit above — *nothing the client says about groups
+is believed*: forged query parameters and JSON fields on every reading
+surface, a tampered session cookie, membership taking effect (and being
+revoked) mid-session without a re-login, the outsider's HTML never carrying
+the story at all, and adding yourself to a group as the one client-side
+move that would actually grant reading.
+
 Verified in Chromium at 390px in English and French: the list, the editable
 page, the read-only page, creating a group end to end, and both refusal
 flashes in both languages.
 
-`pytest` (1084) and `ruff check .` green.
+`pytest` (1097) and `ruff check .` green.

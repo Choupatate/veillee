@@ -311,6 +311,123 @@ ALLOWED_UNSCOPED = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Nothing the client says about groups is believed
+#
+# The perimeter above proves an outsider is refused. This section proves
+# *why* they can't talk their way in: the viewer's group set is derived on
+# the server, per request, from the session's person and `groups.json` on
+# disk. No request field feeds it, and the session itself is signed, so
+# there is nothing on the browser side to edit.
+
+
+@pytest.mark.parametrize("params", [
+    "?groups=just-us",
+    "?audience=just-us",
+    "?viewer_groups=just-us",
+    "?person_slug=maman",
+    "?role=admin",
+])
+def test_query_parameters_claiming_a_group_change_nothing(outsider, scoped_app, params):
+    scoped = scoped_app.config["SCOPED_ID"]
+    assert outsider.get(f"/story/{scoped}{params}").status_code == 404
+    assert "The secret" not in outsider.get(f"/{params}").data.decode()
+
+
+def test_form_fields_claiming_a_group_change_nothing(outsider, scoped_app):
+    """POST bodies get the same treatment as query strings — a mutating
+    endpoint must not become a side door for asserting membership."""
+    scoped = scoped_app.config["SCOPED_ID"]
+    resp = outsider.put(
+        f"/api/stories/{scoped}",
+        json={"title": "Mine now", "date": "2026-02-01", "markdown": "x",
+              "audience": [], "viewer_groups": ["just-us"], "role": "admin"},
+    )
+    assert resp.status_code == 404
+    assert storage.get_story(
+        scoped_app.config["STORIES_DIR"], scoped
+    ).audience == ["just-us"]
+
+
+def test_a_tampered_session_cookie_is_rejected_outright(outsider, scoped_app):
+    """The session is the only place the viewer's identity comes from, so
+    it has to be unforgeable. Editing a byte of it must log you out, not
+    hand you somebody else's groups."""
+    cookie = next(c for c in outsider._cookies.values() if c.key == "session")
+    outsider.set_cookie("session", cookie.value[:-4] + "AAAA")
+
+    resp = outsider.get("/")
+    assert resp.status_code == 302
+    assert "/login" in resp.headers["Location"]
+
+
+def test_membership_is_read_from_disk_on_every_request(scoped_app):
+    """Not baked into the cookie at login. Someone added to a group sees
+    its stories on their next page load, with the session they already
+    had — which is the same property that makes removal immediate."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+    slug = people.create_person(people_dir, "Mamie Rose")
+    accounts.create_account(people_dir, slug, "mamie", "hunter22", "family")
+    client = scoped_app.test_client()
+    _login(client, "mamie", "hunter22")
+    scoped = scoped_app.config["SCOPED_ID"]
+
+    assert client.get(f"/story/{scoped}").status_code == 404
+    groups.set_members(stories_dir, "just-us", ["maman", slug])
+    assert client.get(f"/story/{scoped}").status_code == 200
+
+
+def test_removal_takes_effect_without_logging_out(scoped_app):
+    """The other direction, and the one that actually matters: a member
+    who is taken out loses access on their very next request, holding the
+    session they were already using.
+
+    Mamie rather than Maman, who wrote the story and would keep seeing it
+    through the author rail no matter which groups she's in."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+    slug = people.create_person(people_dir, "Mamie Rose")
+    accounts.create_account(people_dir, slug, "mamie", "hunter22", "family")
+    groups.set_members(stories_dir, "just-us", ["maman", slug])
+    client = scoped_app.test_client()
+    _login(client, "mamie", "hunter22")
+    scoped = scoped_app.config["SCOPED_ID"]
+
+    assert client.get(f"/story/{scoped}").status_code == 200
+    groups.set_members(stories_dir, "just-us", ["maman"])
+    assert client.get(f"/story/{scoped}").status_code == 404
+    # The photos too, not just the page — the media URL is guessable.
+    assert client.get(f"/story/{scoped}/media/photo-001.jpg").status_code == 404
+
+
+def test_the_outsiders_html_never_contains_the_scoped_story(outsider, scoped_app):
+    """Omitted on the server, not hidden in the browser. If the markup
+    carried the story at all, "curious" would only need View Source."""
+    for path in ("/", "/book", "/drafts", "/archived", "/firsts", "/growth"):
+        html = outsider.get(path).data.decode()
+        assert "The secret" not in html
+        assert "scoped body" not in html
+        assert scoped_app.config["SCOPED_ID"] not in html
+
+
+def test_an_outsider_cannot_add_themselves_to_a_group(scoped_app):
+    """The one client-side move that would grant reading: edit the group
+    instead of the story."""
+    stories_dir = scoped_app.config["STORIES_DIR"]
+    people_dir = storage.people_dir(stories_dir)
+    slug = people.create_person(people_dir, "Mamie Rose")
+    accounts.create_account(people_dir, slug, "mamie", "hunter22", "family")
+    client = scoped_app.test_client()
+    _login(client, "mamie", "hunter22")
+
+    assert client.post(
+        "/groups/just-us", data={"name": "Just us", "members": ["maman", slug]}
+    ).status_code == 403
+    assert groups.get_group(stories_dir, "just-us").members == ["maman"]
+    assert client.get(f"/story/{scoped_app.config['SCOPED_ID']}").status_code == 404
+
+
 def test_no_route_file_reaches_stories_unscoped():
     """`_visible_stories()` / `_get_story_or_404()` / `_readable_story_or_error()`
     are the only sanctioned ways into a story from a route. This counts the
