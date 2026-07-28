@@ -2694,6 +2694,13 @@ img.person-family__thumb {
   color: var(--color-text-dim);
 }
 
+/* F42: .btn-icon needs a flex parent (F22), and only the audience label
+   carries one — the other .editor__family-label uses stay plain text. */
+.editor__audience-label {
+  display: flex;
+  align-items: center;
+}
+
 .editor__author-color {
   display: flex;
   flex-direction: column;

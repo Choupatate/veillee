@@ -6,11 +6,10 @@ generated image lands in the same world as the ones already committed
 icons). Generate externally, process locally, commit the result under
 `app/static/img/` — the app never fetches an image at runtime.
 
-**Status:** everything below except `icon-group.png` (§1b) has been
-generated, processed and wired in — the prompts are kept for regenerating
-an asset or matching a new one to the set. See F42 in FEATURES.md for how
-the shipped files were processed, and F17's second table for what went
-where.
+**Status:** every asset below has been generated, processed and wired in.
+The prompts are kept for regenerating one or matching a new asset to the
+set. See F42 in FEATURES.md for how the shipped files were processed, and
+F17's and F22's tables for what went where.
 
 **Every prompt below is complete.** Copy one whole fenced block into
 Gemini as-is; the style, the paper, the size constraint and the negatives
@@ -191,9 +190,17 @@ Do not include: any text, lettering or numbers; drop shadows; photorealism;
 transparent background.
 ```
 
-Process it like the rest of the F22 set: key the white background to
-transparent, crop to content, repad square with an 8% margin, downscale to
-160×160.
+Process it like the rest of the F22 set — with one caveat this asset
+taught: if the fill inside the ring comes back near the paper colour, a
+colour-distance key punches a hole through the middle of the icon. Flood
+fill in from the four corners instead, close the mask to swallow the
+paper's flecks, then crop to content, repad square (2% margin here — 8%
+left the ring too small) and downscale to 160×160.
+
+**Where it goes** (wired): next to the audience picker's "Who can see this"
+label, via `.editor__audience-label`. Not the timeline's *kept to a group*
+pill — at that size it degrades to a ring and a smudge, and the words
+already say it.
 
 ---
 

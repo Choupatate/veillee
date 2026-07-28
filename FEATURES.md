@@ -3004,6 +3004,7 @@ bounding box, repadded to a square with an 8% margin, and downscaled to
 | `icon-record.png` | "Record" (voice memo) |
 | `icon-print.png` | "Print / save as PDF" (book view) |
 | `icon-import.png` | "Import" (backup restore) |
+| `icon-group.png` | "Who can see this" (audience picker, F42) |
 
 New shared `.btn-icon` class (main.css): 20×20px, `flex: none`, small
 right margin — relies on the parent already being `display: flex/inline-
@@ -5288,3 +5289,39 @@ cards reading as cream photographs against the dark theme. The guest-facing
 form pages (`request-account`, `accept-invite`, the delegate page) drop
 their illustration under 700px of viewport height, the way `/new-instant`
 does, so the form stays above the fold — confirmed at 390×640.
+
+### F42 follow-up: the last asset, and where an icon is too small to help
+
+`icon-group.png` closes the catalogue — a rope ring around three figures
+with a fourth outside, in F22's flat style rather than F17's engraving,
+because fine linework is a smudge at 20px.
+
+Keying it needed one change from F22's recipe. That set was auto-keyed by
+colour distance from the border pixels; here the fill *inside* the rope
+ring is nearly the same cream as the paper around it, so a distance key
+punches a hole through the middle of the icon. The background is found by
+flood-filling in from the four corners instead — only paper actually
+connected to the edge goes transparent. The paper's printed flecks survive
+that as tiny opaque islands (they're enclosed, not connected), so a closing
+on the background mask swallows anything smaller than ~9px before the
+alpha is cut. Cropped to content, squared with a 2% margin — 8%, F22's
+figure, left the ring too small once the composition's own width was
+included — and downscaled to 160×160.
+
+It goes next to the audience picker's **"Who can see this"** label, in the
+editor and on `/new-instant`. `.btn-icon` needs a flex parent (F22), and
+`.editor__family-label` is shared with the Sources label, so the flex lives
+on a new `.editor__audience-label` alongside it rather than on the shared
+class.
+
+**Not** on the timeline's *kept to a group* pill, which is where this icon
+was first imagined. Rendered at the pill's scale the icon degrades to a
+brown ring with a grey smudge beside it — tested at 14px and 16px before
+deciding. The pill is 0.6875rem text in a border; at that size an icon
+stops being an accent and becomes noise, and the words already say it.
+Same reasoning F22 used to reject F17's linework for buttons, applied one
+size down.
+
+Verified in Chromium at 390px and at 4× device scale, light and dark: the
+transparent key is clean with no halo in either theme, and the icon sits on
+the label's baseline without shifting the chips below it.
