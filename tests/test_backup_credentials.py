@@ -1,0 +1,206 @@
+"""Tests for FEATURES.md F43: what a backup zip may and may not carry.
+
+Two rules, from both directions. **Out**: only an admin's export contains
+account files — everyone else's zip is memories and people, no password
+hashes. **In**: an import never restores a credential file at all, and the
+cast is additive rather than a collision that aborts the whole restore.
+"""
+
+import zipfile
+from datetime import date
+from io import BytesIO
+
+import pytest
+
+from app import accounts, groups, invites, people, storage, write_links
+from tests.conftest import _login
+
+
+@pytest.fixture
+def accounts_app(app_factory):
+    return app_factory(ACCOUNTS_ENABLED=True)
+
+
+@pytest.fixture
+def cast(accounts_app, stories_dir):
+    """An admin (papa) and a plain family member (mamie), each with an
+    account; a write link of papa's; an invite waiting for a third person
+    who has no account yet; and a pending request. One of every credential
+    file the app writes."""
+    people_dir = stories_dir / "people"
+    for name in ("Papa", "Mamie", "Tata"):
+        people.create_person(people_dir, name)
+    accounts.create_account(people_dir, "papa", "papa", "adminpass1", role="admin")
+    accounts.create_account(people_dir, "mamie", "mamie", "mamiepass1", role="family")
+    write_links.create_link(people_dir, "papa", label="for the recital")
+    invites.create_invite(people_dir, "tata", "family", created_by="papa")
+    accounts.create_pending_request(stories_dir, "cousin", "cousinpass1", "Cousin", "")
+    return people_dir
+
+
+def _zip_for(accounts_app, username, password):
+    client = accounts_app.test_client()
+    _login(client, username, password)
+    resp = client.get("/export")
+    assert resp.status_code == 200
+    return zipfile.ZipFile(BytesIO(resp.data))
+
+
+# --- the constant the two sides share ---------------------------------------
+
+
+def test_credential_filenames_match_the_modules_that_write_them():
+    """`storage.CREDENTIAL_FILENAMES` is the list both the export filter and
+    the import filter read. Rename a file in the module that owns it without
+    updating that set and password hashes start travelling again, silently,
+    which is exactly the kind of drift a test has to catch."""
+    assert accounts.ACCOUNT_FILENAME in storage.CREDENTIAL_FILENAMES
+    assert accounts.PENDING_FILENAME in storage.CREDENTIAL_FILENAMES
+    assert invites.INVITES_FILENAME in storage.CREDENTIAL_FILENAMES
+    assert write_links.WRITE_LINKS_FILENAME in storage.CREDENTIAL_FILENAMES
+
+
+# --- export ------------------------------------------------------------------
+
+
+def test_family_member_export_has_no_credential_files(accounts_app, cast, stories_dir):
+    storage.create_story(stories_dir, "Public", date(2026, 1, 2), "for everyone")
+    zf = _zip_for(accounts_app, "mamie", "mamiepass1")
+    names = zf.namelist()
+
+    assert not [n for n in names if n.rsplit("/", 1)[-1] in storage.CREDENTIAL_FILENAMES]
+    # ...and nothing that merely looks like one either
+    blob = b"".join(zf.read(n) for n in names)
+    assert b"password_hash" not in blob
+    assert b"token_hash" not in blob
+    # the memories themselves are untouched by this rule
+    assert any(n.endswith("/index.md") and not n.startswith("people/") for n in names)
+    assert "people/papa/index.md" in names
+
+
+def test_admin_export_still_carries_everything(accounts_app, cast, stories_dir):
+    storage.create_story(stories_dir, "Public", date(2026, 1, 2), "for everyone")
+    names = _zip_for(accounts_app, "papa", "adminpass1").namelist()
+
+    assert "people/papa/account.json" in names
+    assert "people/mamie/account.json" in names
+    assert "people/papa/write_links.json" in names
+    assert "people/tata/invites.json" in names
+    assert accounts.PENDING_FILENAME in names
+
+
+def test_shared_password_mode_export_is_unchanged(auth_client, stories_dir):
+    """Without accounts there is one identity and no account files to
+    withhold — an existing install must see no difference."""
+    story_id = storage.create_story(stories_dir, "Solo", date(2026, 1, 3), "body")
+    zf = zipfile.ZipFile(BytesIO(auth_client.get("/export").data))
+    assert f"{story_id}/index.md" in zf.namelist()
+
+
+def test_family_member_export_still_omits_scoped_stories(accounts_app, cast, stories_dir):
+    """F40's rule and F43's rule are independent, and both still hold."""
+    group = groups.create_group(stories_dir, "Just us", created_by="papa")
+    secret_id = storage.create_story(stories_dir, "Secret", date(2026, 1, 1), "private")
+    secret = storage.get_story(stories_dir, secret_id)
+    storage.save_story(stories_dir, secret_id, secret.title, secret.date, secret.body,
+                       audience=[group.slug])
+    storage.create_story(stories_dir, "Public", date(2026, 1, 2), "for everyone")
+
+    names = _zip_for(accounts_app, "mamie", "mamiepass1").namelist()
+    assert not [n for n in names if n.startswith(secret_id)]
+
+
+# --- import ------------------------------------------------------------------
+
+
+def _backup_of(source_dir):
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for path in sorted(source_dir.rglob("*")):
+            if path.is_dir():
+                continue
+            zf.write(path, path.relative_to(source_dir))
+    buf.seek(0)
+    return buf
+
+
+def test_import_restores_people_into_a_book_that_already_has_some(tmp_path, stories_dir):
+    """The bug this fixes: `people` matches `is_valid_story_id`, so the
+    collision check saw it on both sides and refused the whole restore."""
+    source = tmp_path / "source"
+    source.mkdir()
+    people.create_person(source / "people", "Papa")
+    people.create_person(source / "people", "Mamie")
+    storage.create_story(source, "Restored", date(2026, 1, 1), "body")
+
+    people.create_person(stories_dir / "people", "Mamie")
+
+    count = storage.import_backup(stories_dir, _backup_of(source))
+
+    assert count == 1
+    assert sorted(p.slug for p in people.list_people(stories_dir / "people")) == ["mamie", "papa"]
+
+
+def test_import_keeps_the_person_already_here(tmp_path, stories_dir):
+    """The living folder is the newer truth — a person in both the zip and
+    the book is left exactly as they are, not merged or overwritten."""
+    source = tmp_path / "source"
+    source.mkdir()
+    people.create_person(source / "people", "Mamie", relation="stale copy")
+    storage.create_story(source, "Restored", date(2026, 1, 1), "body")
+
+    people.create_person(stories_dir / "people", "Mamie", relation="the current one")
+    storage.import_backup(stories_dir, _backup_of(source))
+
+    assert people.get_person(stories_dir / "people", "mamie").relation == "the current one"
+
+
+def test_import_never_restores_credentials(tmp_path, stories_dir):
+    """A zip is a portable file. Restoring one from another book must not
+    install its accounts — least of all its admins — into this one."""
+    source = tmp_path / "source"
+    source.mkdir()
+    people.create_person(source / "people", "Papa")
+    accounts.create_account(source / "people", "papa", "papa", "adminpass1", role="admin")
+    write_links.create_link(source / "people", "papa", label="recital")
+    accounts.create_pending_request(source, "cousin", "cousinpass1", "Cousin", "")
+    storage.create_story(source, "Restored", date(2026, 1, 1), "body")
+
+    storage.import_backup(stories_dir, _backup_of(source))
+
+    assert people.get_person(stories_dir / "people", "papa") is not None
+    assert accounts.get_account(stories_dir / "people", "papa") is None
+    assert not (stories_dir / "people" / "papa" / write_links.WRITE_LINKS_FILENAME).exists()
+    assert not (stories_dir / accounts.PENDING_FILENAME).exists()
+
+
+def test_import_still_aborts_wholly_on_a_story_collision(tmp_path, stories_dir):
+    """People became additive; stories did not. A colliding story still
+    writes nothing at all — including none of the zip's people."""
+    source = tmp_path / "source"
+    source.mkdir()
+    people.create_person(source / "people", "Papa")
+    story_id = storage.create_story(source, "Same day", date(2026, 1, 1), "theirs")
+    storage.create_story(stories_dir, "Same day", date(2026, 1, 1), "ours")
+
+    with pytest.raises(storage.ImportCollision):
+        storage.import_backup(stories_dir, _backup_of(source))
+
+    assert people.get_person(stories_dir / "people", "papa") is None
+    assert storage.get_story(stories_dir, story_id).body.strip() == "ours"
+
+
+def test_import_ignores_odd_shapes_under_people(tmp_path, stories_dir):
+    """Anything under people/ this app never writes is skipped rather than
+    extracted — a loose file at the root of people/, or a bad slug."""
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("2026-01-01-ok/index.md", "---\ntitle: Ok\ndate: 2026-01-01\n---\nbody\n")
+        zf.writestr("people/loose.md", "not a person")
+        zf.writestr("people/Not A Slug/index.md", "nope")
+    buf.seek(0)
+
+    storage.import_backup(stories_dir, buf)
+
+    assert not (stories_dir / "people" / "loose.md").exists()
+    assert not (stories_dir / "people" / "Not A Slug").exists()

@@ -64,6 +64,9 @@ the exact `F<N>.` heading text to jump to it.
 - **F42** — Help as a glossary: the in-app guide restructured into one
   term per line (and finally covering groups), plus `IMAGE-PROMPTS.md`,
   the prompt catalogue for the illustrations still missing
+- **F43** — What a backup may carry: an export stops handing every family
+  member the household's password hashes, and a restore stops colliding
+  on the cast (or importing someone else's logins)
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5325,3 +5328,123 @@ size down.
 Verified in Chromium at 390px and at 4× device scale, light and dark: the
 transparent key is clean with no halo in either theme, and the icon sits on
 the label's baseline without shifting the chips below it.
+
+## F43. What a backup may carry
+
+A question worth asking about any app that offers "download everything":
+*what is everything?* F40 had already answered half of it — a zip is scoped
+to the stories you can read, so `/export` isn't the way around a group. The
+other half had never been asked, and the answer was wrong.
+
+### The hole
+
+`/export` walks `stories/` and zips what it finds. Since F19 that folder
+holds more than memories:
+
+```
+people/papa/account.json      username, scrypt password hash, role, status
+people/papa/write_links.json  token hashes for delegated writing
+people/tata/invites.json      token hashes for unredeemed invitations
+pending_accounts.json         the same hashes, for requests not yet approved
+```
+
+Every logged-in family member could download all of it. Verified in a real
+book before fixing, not inferred: mamie, a plain `family` account in no
+group, got papa's `account.json` in her zip.
+
+The hashes are scrypt (`32768:8:1`, salted), so this is not a password
+handed over. What it is, is an **offline** guessing target, and that is the
+part that matters:
+
+- F36's login lockout is a rate limit on *this server*. It cannot see
+  someone working through a wordlist on a laptop.
+- Family passwords are family passwords. A first name and a year is a
+  realistic guess space.
+- The file names the `role` next to the hash, so it says which account is
+  worth the effort.
+- And the payoff is exactly what F40/F41 were built to prevent: an admin
+  can add themselves to any group, so a cracked admin password reads every
+  scoped story in the book. F41 made that escalation *visible* — a recorded
+  change to a group — and this made it invisible again.
+
+Nobody was even paying for the risk: `import_backup` only ever extracted
+story-shaped entries, so those files were carried in every zip and restored
+by nothing.
+
+### The rule
+
+**A backup carries memories and people. Logins stay where they were made.**
+
+`storage.CREDENTIAL_FILENAMES` names the four files, and both directions
+read it:
+
+- **Out**: `/export` drops them unless the viewer is an admin — or accounts
+  mode is off, where one shared password is one identity and there are no
+  accounts to leak, the same reasoning `_viewer_scope` already uses.
+- **In**: `import_backup` never restores them, for anyone. A zip is a
+  portable file; restoring one taken from another book would otherwise
+  install its accounts — its admins included — into yours. Losing logins on
+  a restore is an inconvenience an admin fixes with an invitation; gaining
+  someone else's is not.
+
+The constant lives in `storage.py`, which owns the on-disk layout, while
+each file is still written by the module that owns its feature.
+`tests/test_backup_credentials.py` cross-checks the two so a rename in
+`accounts.py` can't quietly start shipping hashes again.
+
+Admins keep the complete zip. They manage accounts and can reset any
+password from the UI already, so withholding the file would protect
+nothing and would cost the one person taking a real backup its
+completeness.
+
+### The bug found while fixing it
+
+`is_valid_story_id("people")` is `True` — the regex is `^[a-z0-9-]+$`, and
+`people` is a perfectly good story id. So `import_backup` treated the whole
+cast as one enormous story folder, and its collision check did the rest:
+
+```
+409 Import aborted, nothing was changed: 1 already exist here (people).
+```
+
+**Any backup from a book with people could not be restored into a book that
+already had people.** Which is to say: into any book that had ever been
+used. Restoring into a fresh install worked, so the one-tap backup looked
+fine right up until the day you needed it in an existing book — the exact
+failure `import_backup`'s own docstring says the design exists to avoid,
+sitting inside the function that says it.
+
+People are now handled on their own terms rather than as a story: each
+`people/<slug>/` in the zip is restored if this book doesn't have that
+person, and skipped if it does. Skipped rather than merged because the
+living folder is the newer truth, and a person's `index.md` carries edges
+(parents, partners, unions) that a half-old copy would contradict. Stories
+keep the strict all-or-nothing rule — a colliding story still aborts
+everything, including the zip's people.
+
+One consequence, deliberate: the count `import_backup` returns is still
+stories only, so restoring a zip of 3 stories and 8 people reports 3. The
+number in the UI answers "how many memories came back", which is the
+question being asked.
+
+### Tests
+
+`tests/test_backup_credentials.py`, ten tests over both directions: a
+family member's zip has no credential file and no `password_hash` or
+`token_hash` byte anywhere in it, an admin's still has all four kinds,
+shared-password mode is untouched, F40's story scoping still holds
+alongside the new rule, people restore into a book that already has a cast,
+an existing person is left exactly as they are, credentials never come back
+even from a zip that has them, a story collision still writes nothing at
+all (people included), and odd shapes under `people/` are skipped rather
+than extracted. Plus the constant cross-check against `accounts.py`,
+`invites.py` and `write_links.py`.
+
+`test_import.py`'s accounts-mode round trip asserted `== 2` for "the story
+and people/" — it was encoding the bug. Now 1, with a comment saying why.
+
+The import page gained a line, in both languages, saying restoring brings
+back stories and people but never logins. It's admin-only, which is exactly
+who needs to know before a disaster recovery.
+
+`pytest` (1114) and `ruff check .` green.

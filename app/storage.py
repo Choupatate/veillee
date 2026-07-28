@@ -34,8 +34,27 @@ MAX_IMAGE_EDGE = 2000
 THUMB_MAX_EDGE = 320
 JPEG_QUALITY = 85
 VERSIONS_DIRNAME = ".versions"
+PEOPLE_DIRNAME = "people"
 MAX_VERSIONS = 20
 MEMO_ALLOWED_EXTENSIONS = ("webm", "m4a", "mp3", "ogg")
+
+# Files under stories/ that hold credentials rather than memories: password
+# hashes, and the token hashes behind invite and write links. Named here
+# because this module owns the on-disk layout, but each file is written by
+# the module that owns the feature — `accounts.ACCOUNT_FILENAME`,
+# `accounts.PENDING_FILENAME`, `invites.INVITES_FILENAME`,
+# `write_links.WRITE_LINKS_FILENAME`, cross-checked by
+# `tests/test_backup_credentials.py` so the two can't drift apart.
+#
+# They never travel in a backup zip in either direction (F43): a non-admin's
+# export leaves them out, and an import never restores them. A zip carries
+# memories and people; logins stay where they were made.
+CREDENTIAL_FILENAMES = frozenset({
+    "account.json",
+    "pending_accounts.json",
+    "invites.json",
+    "write_links.json",
+})
 
 
 class InvalidStoryId(ValueError):
@@ -139,7 +158,7 @@ def _story_dir(stories_dir: Path, story_id: str) -> Path:
 def people_dir(stories_dir) -> Path:
     """The "cast of the book" (FEATURES.md F14) lives in a fixed
     subdirectory of the stories root, same as every other story folder."""
-    return Path(stories_dir) / "people"
+    return Path(stories_dir) / PEOPLE_DIRNAME
 
 
 def _parse_post(story_id: str, post: frontmatter.Post, include_body: bool) -> Story:
@@ -268,7 +287,7 @@ def list_stories(stories_dir) -> list[Story]:
     for entry in stories_dir.iterdir():
         if not entry.is_dir():
             continue
-        if entry.name == "people":
+        if entry.name == PEOPLE_DIRNAME:
             # FEATURES.md F14: people live in their own subtree, sorted
             # separately via app/people.py — silently not a story.
             continue
@@ -737,10 +756,12 @@ def delete_memo(stories_dir, story_id: str, filename: str) -> bool:
 def import_backup(stories_dir, zip_file) -> int:
     """Restore a backup zip produced by the /export download.
 
-    Only ever extracts entries shaped like `<valid-story-id>/...`. If ANY of
-    those story ids already exist on disk, raises ImportCollision and writes
-    nothing — an import either fully succeeds or has no effect at all.
-    Returns the number of story folders imported.
+    Extracts entries shaped like `<valid-story-id>/...`, plus the people in
+    `people/<slug>/...` (see below). If ANY of the zip's story ids already
+    exist on disk, raises ImportCollision and writes nothing — an import
+    either fully succeeds or has no effect at all. Returns the number of
+    story folders imported; restored people are not counted, since a
+    restore is about the memories and the cast comes along with them.
 
     Unsafe paths (absolute, or containing `..`) still abort the whole
     import. Other root-level entries are *skipped* rather than rejected,
@@ -757,18 +778,49 @@ def import_backup(stories_dir, zip_file) -> int:
     a group this install doesn't have. `groups.can_see` treats an unknown
     group as "nobody but the author", so that fails private rather than
     public.
+
+    **People are additive, never a collision (F43).** `people` matches
+    `is_valid_story_id`, so it used to be treated as one enormous story
+    folder — which meant any backup from a book with a cast could not be
+    restored into a book that already had one: the collision check saw
+    `people` on both sides and aborted everything. Every person in the zip
+    whose folder is already here is now simply skipped, and the rest are
+    restored. Skipped rather than merged because the living folder is the
+    newer truth, and a person's `index.md` carries edges (parents,
+    partners) that a half-old copy would contradict.
+
+    **Credentials never come back.** `CREDENTIAL_FILENAMES` are dropped from
+    a person's folder on the way in. A zip is a portable file: restoring one
+    from another book would otherwise silently install its accounts —
+    including its admins — into this one. Losing logins on a restore is an
+    inconvenience an admin can fix with an invite; gaining someone else's is
+    not.
     """
     stories_dir = Path(stories_dir)
+    people_root = people_dir(stories_dir)
     with zipfile.ZipFile(zip_file) as zf:
         members = []
         story_ids = set()
+        person_members = []
         for info in zf.infolist():
             name = info.filename
             if name.endswith("/"):
                 continue
             if name.startswith("/") or ".." in Path(name).parts:
                 raise ValueError(f"Unsafe path in backup: {name!r}")
-            top = Path(name).parts[0] if Path(name).parts else ""
+            parts = Path(name).parts
+            top = parts[0] if parts else ""
+            if top == PEOPLE_DIRNAME:
+                # people/<slug>/<file>; anything else under people/ is a
+                # shape this app never writes, so it isn't restored.
+                if len(parts) < 3 or not is_valid_story_id(parts[1]):
+                    continue
+                if Path(name).name in CREDENTIAL_FILENAMES:
+                    continue
+                if (people_root / parts[1]).exists():
+                    continue
+                person_members.append(info)
+                continue
             if not is_valid_story_id(top):
                 continue
             story_ids.add(top)
@@ -781,7 +833,7 @@ def import_backup(stories_dir, zip_file) -> int:
         if colliding:
             raise ImportCollision(colliding)
 
-        for info in members:
+        for info in members + person_members:
             zf.extract(info, stories_dir)
 
     return len(story_ids)

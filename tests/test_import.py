@@ -89,7 +89,10 @@ def test_a_real_accounts_mode_backup_can_be_restored(stories_dir):
         zf.writestr("groups.json", "[]\n")
     buf.seek(0)
 
-    assert storage.import_backup(stories_dir, buf) == 2  # the story and people/
+    # One story. `people/` used to be counted as a second "story folder",
+    # which is the same mistake that made a backup un-restorable into a book
+    # that already had a cast (F43) — people now ride along uncounted.
+    assert storage.import_backup(stories_dir, buf) == 1
     assert (stories_dir / "2026-05-01-a-day-out" / "index.md").is_file()
     assert (stories_dir / "people" / "papa" / "index.md").is_file()
     # Live operational state is never overwritten from an old zip.

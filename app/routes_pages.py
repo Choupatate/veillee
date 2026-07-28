@@ -32,7 +32,7 @@ from flask import (
     url_for,
 )
 
-from . import epub, groups, i18n, life_events, people, prompts, storage
+from . import accounts, epub, groups, i18n, life_events, people, prompts, storage
 from .auth import admin_required_in_accounts_mode, login_required
 from .rendering import render_markdown
 
@@ -211,10 +211,6 @@ def _authors_and_colors():
     account — real identity, not config; otherwise the original
     STORYBOOK_AUTHORS list, untouched."""
     if current_app.config["ACCOUNTS_ENABLED"]:
-        # Imported locally to avoid a module-load-order dependency on
-        # accounts.py from this core file — only accounts mode needs it.
-        from . import accounts
-
         people_dir = storage.people_dir(current_app.config["STORIES_DIR"])
         people_by_slug = {p.slug: p for p in people.list_people(people_dir)}
         authors = []
@@ -441,17 +437,40 @@ def _exportable_story_ids():
     )}
 
 
+def _viewer_may_export_credentials():
+    """Whether this viewer's zip may contain account files.
+
+    Admins only, and everyone outside accounts mode — there, one shared
+    password is one identity, exactly as `_viewer_scope` treats it.
+
+    The hashes are scrypt, so this is not a password handed over. It is an
+    *offline* guessing target, which is the part that matters: the login
+    throttle (F36) cannot see an attacker working on a zip at home, and the
+    file names the role beside the hash, so it says which account is worth
+    the effort. An admin's password recovered that way reaches every group,
+    since an admin can add themselves to one — the escalation F40 and F41
+    deliberately made visible would become invisible again.
+    """
+    if not current_app.config["ACCOUNTS_ENABLED"]:
+        return True
+    return session.get("role") == "admin"
+
+
 @bp.route("/export")
 @login_required
 def export():
     """Stream a zip of the stories directory (FEATURES.md F8), minus any
-    story the viewer isn't in the audience for (F40)."""
+    story the viewer isn't in the audience for (F40) and, unless they are an
+    admin, minus every account file (F43)."""
     stories_dir = current_app.config["STORIES_DIR"]
     allowed_ids = _exportable_story_ids()
+    with_credentials = _viewer_may_export_credentials()
     tmp = tempfile.TemporaryFile()
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:
         for path in sorted(stories_dir.rglob("*")):
             if path.is_dir() or path.name.endswith(".tmp"):
+                continue
+            if not with_credentials and path.name in storage.CREDENTIAL_FILENAMES:
                 continue
             relative = path.relative_to(stories_dir)
             # The first path segment is the story id for anything under a

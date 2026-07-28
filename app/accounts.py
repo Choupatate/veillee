@@ -30,6 +30,7 @@ from . import people, storage
 
 logger = logging.getLogger(__name__)
 
+ACCOUNT_FILENAME = "account.json"
 PENDING_FILENAME = "pending_accounts.json"
 
 ROLES = ("admin", "family")
@@ -70,7 +71,7 @@ def is_valid_username(username: str) -> bool:
 
 
 def _account_path(people_dir, slug: str) -> Path:
-    return Path(people_dir) / slug / "account.json"
+    return Path(people_dir) / slug / ACCOUNT_FILENAME
 
 
 def _account_from_dict(person_slug: str, data: dict) -> Account:
