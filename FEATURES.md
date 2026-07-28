@@ -5183,10 +5183,13 @@ words would be explained better by a picture, and this app already has a
 visual language for that (F17's paper cards, F22's flat icons) — what it
 doesn't have is the pictures.
 
-`IMAGE-PROMPTS.md` is the catalogue: the house-style block to paste in
-front of every prompt, the negatives, the processing steps, and nine
-assets, each with **what a reader must understand from the picture alone**
-stated before the prompt itself. The group one is the point of the
+`IMAGE-PROMPTS.md` is the catalogue: how to drive Gemini through these
+(one asset per thread, an existing JPEG uploaded as the style anchor), the
+processing steps, and ten assets, each with **what a reader must understand
+from the picture alone** stated before the prompt itself. Every prompt is
+self-contained — style, paper, aspect, size constraint and negatives are
+repeated inside each one rather than referenced, because a prompt you have
+to assemble from two places is a prompt that gets pasted wrong. The group one is the point of the
 exercise — a closed lasso ring with four figures warm inside it and two
 standing in cool light outside, so that "kept to a group" is understood
 before a word of the section is read — and it ships with three fallback
