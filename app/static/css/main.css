@@ -3925,6 +3925,32 @@ img.family-chip__thumb {
   margin-bottom: 0;
 }
 
+/* F42: the help page is a glossary, not an essay — one term, one line. */
+.help__defs {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  margin: 0 0 0.75rem;
+}
+
+.help__defs dt {
+  font-weight: 600;
+  margin-top: 0.7rem;
+}
+
+.help__defs dt:first-child {
+  margin-top: 0;
+}
+
+.help__defs dd {
+  color: var(--color-text-dim);
+  margin: 0.1rem 0 0;
+}
+
+.help__defs + p {
+  margin-top: 1rem;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Print (F10) — applies on every page, matters most for /book             */
 /* ---------------------------------------------------------------------- */

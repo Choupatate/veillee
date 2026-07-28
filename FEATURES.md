@@ -61,6 +61,9 @@ the exact `F<N>.` heading text to jump to it.
 - **F41** — Groups anyone can make: creating a group stops being an admin
   errand, a group is changed by the people in it, and two groups can't
   quietly cover exactly the same people
+- **F42** — Help as a glossary: the in-app guide restructured into one
+  term per line (and finally covering groups), plus `IMAGE-PROMPTS.md`,
+  the prompt catalogue for the illustrations still missing
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5122,3 +5125,99 @@ page, the read-only page, creating a group end to end, and both refusal
 flashes in both languages.
 
 `pytest` (1102) and `ruff check .` green.
+
+## F42. Help as a glossary, and the prompts for the pictures it still wants
+
+The help page (F33) had drifted into an essay. Eight sections of prose, and
+the prose was explaining the wrong altitude of thing — a paragraph on how
+the camera button works ("you'll see the picture before it's kept, so you
+can retake it as many times as you like") next to nothing at all about
+groups, which is the one feature in this app where a reader can be wrong
+about who will see what. Nobody needs to be told a camera button takes a
+photo. Somebody does need to be told that a story kept to a group is a
+story their sister can't read.
+
+### One term, one line
+
+The page is now a **glossary**, not a tour: `<dl>` blocks where each `<dt>`
+is a word the reader actually meets on screen — Story, Instant, Draft,
+Sealed letter, Milestone, Archived, Group, Write link, History, Backup —
+and each `<dd>` is a single line saying what it is. New `.help__defs`
+styling (term in the body colour, definition in `--color-text-dim`) so the
+page scans as a list of answers rather than reading as a chapter.
+
+What changed in substance:
+
+- **A "Who can read a story" section**, guarded by `config.ACCOUNTS_ENABLED`
+  exactly like the accounts section, covering the audience rule (F40) and
+  the two things F41 makes true and non-obvious: making a group puts you in
+  it, and widening a group opens other people's stories too, not only your
+  own. Guarded rather than always-on because with one shared password there
+  is nobody to scope a story away from, and describing a feature that isn't
+  there is worse than saying nothing.
+- **Archived, History and the writing prompts get a line each** — three
+  things the app does that the help page had never mentioned.
+- **Cut**: the camera walkthrough, the "you'll never need to read this"
+  throat-clearing, the "ask whoever set up Storybook" refrain repeated in
+  four sections (kept once, where it's actionable — the https caveat).
+
+Net: shorter than before while covering three more features. The 8 English
+sections became 6–8 (two are conditional), and the two longest paragraphs
+in the file are gone.
+
+Translation is the reason to keep help copy short, incidentally: every
+string here is a key in `translations_fr.py`, and a five-line paragraph is
+a five-line paragraph to keep in sync in two languages forever. Glossary
+lines age better. Terms already translated elsewhere (Story, Draft,
+Archived, Firsts, Growing up, History) resolve through their existing
+entries rather than being restated.
+
+`Invitation` joined `test_i18n.py`'s `same_in_both` allowlist — it really
+is the same word in both languages, and the "you left the English in"
+guard needed telling.
+
+### IMAGE-PROMPTS.md
+
+The other half of the same problem: some of what the help page explains in
+words would be explained better by a picture, and this app already has a
+visual language for that (F17's paper cards, F22's flat icons) — what it
+doesn't have is the pictures.
+
+`IMAGE-PROMPTS.md` is the catalogue: the house-style block to paste in
+front of every prompt, the negatives, the processing steps, and nine
+assets, each with **what a reader must understand from the picture alone**
+stated before the prompt itself. The group one is the point of the
+exercise — a closed lasso ring with four figures warm inside it and two
+standing in cool light outside, so that "kept to a group" is understood
+before a word of the section is read — and it ships with three fallback
+compositions, because a generated image either reads at thumbnail size or
+it doesn't and you want alternatives ready.
+
+Two rules in that document are load-bearing rather than stylistic:
+
+- **No lettering, ever.** The interface is bilingual (F38); a word baked
+  into a JPEG can't be translated and will sit there in English on a French
+  page forever.
+- **Faces stay generic.** These illustrations sit beside photographs of a
+  real family. Small gestural figures, backs and three-quarter views — not
+  portraits of anyone.
+
+Nothing is wired into a template yet, deliberately: an `<img>` pointing at
+a file that doesn't exist is a broken image on a real family's page. Each
+entry carries the exact `<img>` line and CSS to paste once its JPEG lands
+in `app/static/img/`.
+
+### Tests
+
+`tests/test_help.py` gained a glossary test (the terms the interface uses
+are the terms the page defines, asserted as `<dt>` elements) and a groups
+test from both sides — the section is absent with one shared password and
+present, with `<dt>Group</dt>`, in accounts mode. The core-sections test
+follows the renamed "Photos and voice memos" heading.
+
+Verified in Chromium at 390px in English and French and at 1280px in the
+dark theme: no horizontal overflow, the definition lists read as lists at
+phone width, and the French page uses the vocabulary the rest of the app
+already uses (*cercle*, *première fois*, *lien d'écriture*).
+
+`pytest` (1104) and `ruff check .` green.

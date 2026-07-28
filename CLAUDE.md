@@ -21,6 +21,9 @@ Read these before making non-trivial changes, in this order:
   and current source of truth for how a given feature actually behaves.**
 - `REVIEW.md` — a past production-readiness audit and the fixes it drove.
   Historical record, not necessarily reflecting the current code.
+- `IMAGE-PROMPTS.md` — the house style and per-asset prompts for the
+  illustrations still missing (F42). Read it before generating, adding or
+  placing any illustration, and add finished assets to F17's table.
 
 When you finish a feature or fix worth documenting, add a section to
 `FEATURES.md` following the existing style rather than leaving it

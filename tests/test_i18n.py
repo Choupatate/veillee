@@ -49,7 +49,7 @@ def test_no_french_entry_is_identical_to_its_english_key():
     same_in_both = {
         "PACS", "Photo", "Photos", "Instant", "+ Instant",
         "Parents", "Union", "Unions", "union", "Sources",
-        "Pause", "Zoom", "Date", "https://...",
+        "Pause", "Zoom", "Date", "https://...", "Invitation",
     }
     lazy = [
         k for k, v in TRANSLATIONS_FR.items()
