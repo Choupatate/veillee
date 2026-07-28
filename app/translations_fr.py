@@ -187,6 +187,13 @@ TRANSLATIONS_FR = {
     "Only {names}": "Seulement {names}",
     "Kept to {names}": "Réservée à {names}",
     "kept to a group": "réservée à un cercle",
+    "Stories and people come back; logins never do. Accounts, invitations "
+    "and write links stay where they were made, so restoring a zip can't "
+    "quietly let someone else's family in.":
+        "Les histoires et les personnes reviennent ; jamais les identifiants. "
+        "Les comptes, les invitations et les liens d'écriture restent là où "
+        "ils ont été créés : restaurer une sauvegarde ne peut donc pas faire "
+        "entrer discrètement la famille de quelqu'un d'autre.",
     "Note: some stories are kept to groups you're not in, so a backup you "
     "download leaves them out. A complete backup has to come from someone "
     "who can see every story.":

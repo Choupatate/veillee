@@ -8,6 +8,9 @@
   <p class="import__intro">
     {{ _('Restore stories from a zip downloaded via "Download everything (.zip)". This only works if none of the zip\'s stories already exist here — if anything would collide, nothing is changed and you\'ll see an error below.') }}
   </p>
+  <p class="import__intro">
+    {{ _("Stories and people come back; logins never do. Accounts, invitations and write links stay where they were made, so restoring a zip can't quietly let someone else's family in.") }}
+  </p>
   {% if export_is_scoped %}
   <p class="import__intro import__intro--warn">
     {{ _("Note: some stories are kept to groups you're not in, so a backup you download leaves them out. A complete backup has to come from someone who can see every story.") }}

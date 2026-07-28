@@ -222,6 +222,13 @@ groups you're not in, the zip you download leaves them out, and the import
 page says so. A complete backup has to come from someone who can see every
 story. Restoring a backup is admin-only.
 
+**And a backup carries no logins unless an admin took it.** Account files
+— password hashes, invitations, write links — sit in the same folder as
+the memories, so a plain family member's zip would otherwise hand them
+every account's hash to work on offline, where the login lockout can't
+see them. Only an admin's export includes them, and no import ever
+restores them (below).
+
 Groups need `STORYBOOK_ACCOUNTS=1`. With one shared password there's a
 single identity and nothing to scope a story away from, so the whole
 feature is invisible and no existing install changes.
@@ -776,7 +783,15 @@ To restore one, "Import a backup" (`/import`, also linked from the timeline)
 uploads that same zip back in. It's deliberately strict: the import only
 succeeds if **none** of the zip's stories already exist in this app's
 stories folder — any collision aborts the whole import with nothing written,
-rather than risk silently overwriting newer edits. This makes it a good fit
+rather than risk silently overwriting newer edits.
+
+People are the exception to that strictness, because they are not memories:
+anyone in the zip whose folder is already here is skipped (the living one is
+the newer truth) and the rest are restored alongside the stories. Their
+**logins are never restored** — a zip is a portable file, and restoring one
+taken from another book would otherwise install its accounts, admins
+included, into yours. After a disaster recovery an admin re-issues
+invitations; that is the intended cost. This makes it a good fit
 for disaster recovery (restoring into a fresh, empty install) or merging in
 stories from a different device that don't already exist here; it is not a
 sync tool. Very large backups may exceed the app's 128 MB upload limit — for
