@@ -43,6 +43,32 @@ html, body {
   transform: rotate(1deg);
 }
 
+/* F42: a page's own illustration, centered under its title. One size for
+   the landscape cards, a narrower one for the portrait ones, rather than a
+   per-page rule for each. */
+.illo--page {
+  max-width: 14rem;
+  /* width/height must both be set or the width/height attributes (kept so
+     nothing shifts while loading) squash the picture — same as
+     .login__illo. */
+  width: 100%;
+  height: auto;
+  margin: 0 auto 1.25rem;
+}
+
+.illo--page-tall {
+  max-width: 10.5rem;
+}
+
+/* Same reasoning as .instant__illo: on the guest-facing form pages the
+   form has to stay above the fold on a short phone, so the card goes
+   rather than the fields. */
+@media (max-height: 700px) {
+  .page-login .illo--page {
+    display: none;
+  }
+}
+
 .lasso-spinner {
   display: inline-block;
   width: 40px;

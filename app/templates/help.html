@@ -6,6 +6,8 @@
   <p class="help__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <h1 class="help__title">{{ _("Help") }}</h1>
   <hr class="story__flourish help__flourish" aria-hidden="true">
+  <img class="illo illo--page illo--page-tall illo--tilt-right" src="{{ url_for('static', filename='img/help-lantern.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="628" height="700">
   <p class="help__intro">
     {{ _("What each word here means, in one line each. Nothing is required reading, and nothing can be lost by accident: every save keeps the one before it.") }}
   </p>
@@ -32,6 +34,10 @@
   {% if config.ACCOUNTS_ENABLED %}
   <section class="help__section">
     <h2>{{ _("Who can read a story") }}</h2>
+    {# The picture carries the rule: inside the rope, warm and lit; outside
+       it, the same family, simply not in this one. #}
+    <img class="illo illo--page" src="{{ url_for('static', filename='img/group-circle.jpg') }}"
+         alt="" loading="lazy" decoding="async" width="760" height="612">
     <p>{{ _("Every story is for the whole family, unless you keep it to a group.") }}</p>
     <dl class="help__defs">
       <dt>{{ _("Group") }}</dt>

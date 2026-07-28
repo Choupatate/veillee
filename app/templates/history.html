@@ -5,6 +5,8 @@
 <div class="history">
   <p class="history__back"><a href="{{ url_for('pages.edit_story', story_id=story.id) }}">&lsaquo; {{ _("Back to editor") }}</a></p>
   <h1 class="history__title">{{ _("History for “{title}”", title=story.title) }}</h1>
+  <img class="illo illo--page" src="{{ url_for('static', filename='img/history-pages.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="720" height="598">
   {% if not versions %}
   <p class="history__empty">{{ _("No earlier versions yet — every future save will be recorded here.") }}</p>
   {% else %}

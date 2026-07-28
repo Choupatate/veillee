@@ -6,6 +6,12 @@ generated image lands in the same world as the ones already committed
 icons). Generate externally, process locally, commit the result under
 `app/static/img/` — the app never fetches an image at runtime.
 
+**Status:** everything below except `icon-group.png` (§1b) has been
+generated, processed and wired in — the prompts are kept for regenerating
+an asset or matching a new one to the set. See F42 in FEATURES.md for how
+the shipped files were processed, and F17's second table for what went
+where.
+
 **Every prompt below is complete.** Copy one whole fenced block into
 Gemini as-is; the style, the paper, the size constraint and the negatives
 are already inside each one. Nothing needs assembling, and nothing needs a
@@ -53,9 +59,10 @@ three-quarter views — not as portraits of anyone in particular.
    mounts it as a cream paper card in every theme, including dark, where
    it reads as a photo tucked into an album. A transparent PNG would break
    that.
-3. Downscale to roughly 2× the display size (the targets below), save as
-   JPEG quality ~85, and keep each page under ~150 KB of added
-   illustration weight.
+3. Downscale to roughly 2× the display size (~700-760px on the long
+   edge), save as JPEG quality 82, and keep each page under ~150 KB of
+   added illustration weight. `/help` carries two cards, which is the
+   page that sets that budget.
 4. **The squint test**: view it at 250 px wide. If the idea disappears, the
    composition is too busy — ask for fewer figures and larger shapes, not
    more detail.
@@ -67,7 +74,7 @@ three-quarter views — not as portraits of anyone in particular.
 
 ## 1. Groups — the one that has to teach scoping
 
-**File:** `group-circle.jpg` · **target** ~760×620 · **displayed** ~15rem
+**File:** `group-circle.jpg` · **committed at** 760×612
 
 **What the reader must understand without reading a word:** a story kept to
 a group sits inside a closed circle; some people are in it and the others —
@@ -140,25 +147,21 @@ half-turned. The edge of the lit circle is the boundary and must read as
 one.
 ```
 
-**Where it goes.** In `groups.html`, under the `<h1>`, above the hint
-paragraph; and in `help.html`, at the top of the "Who can read a story"
-section. Both:
+**Where it goes** (wired): `groups.html` under the `<h1>`, and `help.html`
+at the top of the "Who can read a story" section. The markup every page
+illustration uses:
 
 ```html
-<img class="illo admin__illo" src="{{ url_for('static', filename='img/group-circle.jpg') }}"
-     alt="" loading="lazy" decoding="async" width="760" height="620">
+<img class="illo illo--page" src="{{ url_for('static', filename='img/group-circle.jpg') }}"
+     alt="" loading="lazy" decoding="async" width="760" height="612">
 ```
 
-```css
-.admin__illo,
-.help__illo {
-  max-width: 15rem;
-  margin: 0 auto 1.25rem;
-}
-```
-
-(`.illo` does the paper-card treatment; the page class only sets size and
-centering. Same pattern as `login__illo` / `tree__illo`.)
+`.illo` does the paper-card treatment, `.illo--page` the sizing
+(`.illo--page-tall` for the portrait ones). **Keep the `width`/`height`
+attributes, and never size an illustration with `max-width` alone** — the
+attributes pin the height while the width shrinks and the picture renders
+squashed, which is why `.illo--page` also sets `width: 100%; height:
+auto`.
 
 ---
 
@@ -196,7 +199,7 @@ transparent, crop to content, repad square with an 8% margin, downscale to
 
 ## 2. Write links — one page, not a key to the house
 
-**File:** `write-link-pass.jpg` · **target** ~700×620 · **displayed** ~13rem
+**File:** `write-link-pass.jpg` · **committed at** 700×600
 
 **What the reader must understand:** the person you hand this to can add
 *one* page and nothing else. They don't get the book.
@@ -231,15 +234,14 @@ neon or saturated colour; a white, grey or transparent background; any
 frame, border or vignette.
 ```
 
-**Where it goes:** `account_write_links.html` (under the `<h1>`) and
-`delegate_write.html` (the page the guest actually lands on), max-width
-13rem.
+**Where it goes** (wired): `account_write_links.html` under the `<h1>`,
+and `delegate_write.html`, the page the guest actually lands on.
 
 ---
 
 ## 3. Invitations — how someone new gets in
 
-**File:** `invite-card.jpg` · **target** ~700×560 · **displayed** ~13rem
+**File:** `invite-card.jpg` · **committed at** 700×564
 
 **What the reader must understand:** getting into this book happens by
 someone handing you a way in. It isn't a public door, and it isn't a form
@@ -271,16 +273,16 @@ photorealism or 3D rendering; heavy black ink, neon or saturated colour; a
 white, grey or transparent background; any frame, border or vignette.
 ```
 
-**Where it goes:** `admin_invite.html`, `accept_invite.html`,
-`request_account.html`, max-width 12rem. On `request_account.html` keep it
-above the form and hide it under 700 px of viewport *height*, the way
+**Where it goes** (wired): `admin_invite.html`, `accept_invite.html`,
+`request_account.html`. The three guest-facing form pages drop their card
+under 700 px of viewport *height* (`.page-login .illo--page`), the way
 `/new-instant` hides its camera (F17), so the form stays above the fold.
 
 ---
 
 ## 4. Firsts — a register of first times
 
-**File:** `firsts-boots.jpg` · **target** ~760×540 · **displayed** ~14rem
+**File:** `firsts-boots.jpg` · **committed at** 760×519
 
 **What the reader must understand:** this page collects the *first* time
 something happened, in the order it happened — a trail, not a list.
@@ -311,14 +313,14 @@ ink, neon or saturated colour; a white, grey or transparent background; any
 frame, border or vignette.
 ```
 
-**Where it goes:** `firsts.html`, under the `<h1>`, max-width 14rem —
-including on the empty state, where it does the most work.
+**Where it goes** (wired): `firsts.html`, under the flourish — including
+on the empty state, where it does the most work.
 
 ---
 
 ## 5. Almanac — the family's year
 
-**File:** `almanac-book.jpg` · **target** ~700×680 · **displayed** ~13rem
+**File:** `almanac-book.jpg` · **committed at** 700×700
 
 **What the reader must understand:** birthdays, weddings and deaths, kept
 month by month like a farmer's almanac — a record book, not a calendar app.
@@ -350,13 +352,13 @@ neon or saturated colour; a white, grey or transparent background; any
 frame, border or vignette.
 ```
 
-**Where it goes:** `almanac.html`, under the `<h1>`, max-width 13rem.
+**Where it goes** (wired): `almanac.html`, under the flourish.
 
 ---
 
 ## 6. Growing up — one photo per birthday
 
-**File:** `growth-doorpost.jpg` · **target** ~560×760 · **displayed** ~11rem
+**File:** `growth-doorpost.jpg` · **committed at** 567×760
 
 **What the reader must understand:** the same child, measured again and
 again, rising up the page year by year.
@@ -387,14 +389,14 @@ neon or saturated colour; a white, grey or transparent background; any
 frame, border or vignette.
 ```
 
-**Where it goes:** `growth.html`, under the `<h1>`, max-width 11rem —
-portrait, kept small so the year grid stays the point.
+**Where it goes** (wired): `growth.html`, under the flourish, with
+`.illo--page-tall` so the year grid stays the point.
 
 ---
 
 ## 7. History — the previous version is still there
 
-**File:** `history-pages.jpg` · **target** ~720×600 · **displayed** ~12rem
+**File:** `history-pages.jpg` · **committed at** 720×598
 
 **What the reader must understand:** saving doesn't destroy what was there
 before; an older page can be pulled back out.
@@ -426,13 +428,13 @@ photorealism or 3D rendering; heavy black ink, neon or saturated colour; a
 white, grey or transparent background; any frame, border or vignette.
 ```
 
-**Where it goes:** `history.html`, under the `<h1>`, max-width 12rem.
+**Where it goes** (wired): `history.html`, under the `<h1>`.
 
 ---
 
 ## 8. Help — a lantern, not a manual
 
-**File:** `help-lantern.jpg` · **target** ~640×700 · **displayed** ~12rem
+**File:** `help-lantern.jpg` · **committed at** 628×700
 
 **What the reader must understand:** this page is a small friendly light,
 not a manual you're required to read.
@@ -463,15 +465,15 @@ people; modern objects such as phones, screens or laptops; photorealism or
 transparent background; any frame, border or vignette.
 ```
 
-**Where it goes:** `help.html`, between the flourish `<hr>` and the intro
-paragraph, max-width 12rem, with `.illo--tilt-right` so it leans the other
-way from the group card further down the page.
+**Where it goes** (wired): `help.html`, between the flourish `<hr>` and the
+intro paragraph, with `.illo--page-tall illo--tilt-right` so it stays small
+and leans the other way from the group card further down the page.
 
 ---
 
 ## 9. Accounts — everyone has their own key
 
-**File:** `accounts-keys.jpg` · **target** ~760×540 · **displayed** ~13rem
+**File:** `accounts-keys.jpg` · **committed at** 760×540
 
 **What the reader must understand:** in accounts mode there is no single
 shared password any more — each person has their own way in, and an admin
@@ -502,8 +504,10 @@ rendering; heavy black ink, neon or saturated colour; a white, grey or
 transparent background; any frame, border or vignette.
 ```
 
-**Where it goes:** `admin_accounts.html` and `account_home.html`, under the
-`<h1>`, max-width 13rem.
+**Where it goes** (wired): `account_home.html`, under the `<h1>`. Not
+`admin_accounts.html` after all — that page is a working list of accounts
+and pending requests, and an illustration on it is noise on a surface
+someone is trying to act on.
 
 ---
 

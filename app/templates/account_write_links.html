@@ -5,6 +5,8 @@
 <div class="admin">
   <p class="admin__back"><a href="{{ url_for('pages.account_home') }}">&lsaquo; {{ _("Account") }}</a></p>
   <h1 class="admin__title">{{ _("Write links") }}</h1>
+  <img class="illo illo--page" src="{{ url_for('static', filename='img/write-link-pass.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="700" height="600">
   <p class="admin__hint">
     {{ _("Share a link with someone so they can write one story for you — no account, no password of their own. They can't see anything else in the book.") }}
   </p>

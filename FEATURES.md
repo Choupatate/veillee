@@ -899,6 +899,21 @@ The processed assets are already committed under `app/static/img/`:
 | `rope-divider.png` | 1000×144, transparent | flourishes/dividers |
 | `lasso-ring.png` | 320×320, transparent, centered | loading spinner |
 
+Added later by F42, from the prompts in `IMAGE-PROMPTS.md`, same paper-card
+treatment (`.illo`) and the shared `.illo--page` sizing:
+
+| file | size | where it goes |
+|---|---|---|
+| `group-circle.jpg` | 760×612 | /groups + help's "Who can read a story" |
+| `write-link-pass.jpg` | 700×600 | /account/write-links + the delegate page |
+| `invite-card.jpg` | 700×564 | invite, accept-invite, request-account |
+| `firsts-boots.jpg` | 760×519 | /firsts |
+| `almanac-book.jpg` | 700×700 | /almanac |
+| `growth-doorpost.jpg` | 567×760 | /growth |
+| `history-pages.jpg` | 720×598 | a story's /history |
+| `help-lantern.jpg` | 628×700 | /help header |
+| `accounts-keys.jpg` | 760×540 | /account |
+
 Also committed: `login-campfire.jpg` (856×735) — the login-page
 illustration, reused for the empty-timeline state — and the leather-journal
 app icon regenerated over the old placeholder icons at
@@ -5224,3 +5239,52 @@ phone width, and the French page uses the vocabulary the rest of the app
 already uses (*cercle*, *première fois*, *lien d'écriture*).
 
 `pytest` (1104) and `ruff check .` green.
+
+### F42 follow-up: the illustrations landed
+
+Nine of the ten assets in `IMAGE-PROMPTS.md` came back from Gemini and are
+committed (see the second table in F17 for sizes and placements). Only
+`icon-group.png` — the flat 24px companion for the timeline's *kept to a
+group* pill — is still outstanding.
+
+The group image was generated in all three of the compositions the
+catalogue offers (lasso ring, corral fence, wagon circle). The **lasso
+ring** is the one committed: it's the only one of the three where the
+boundary is a rope on open ground rather than a built structure, so it
+reads as *a circle drawn around some of us* rather than as a fence keeping
+people out — which is the difference between the feature and a
+misunderstanding of it. The other two are good drawings and were not
+committed; unused static files are weight with no reader.
+
+Processing followed the catalogue: trim to content with a 3% paper margin,
+downscale to ~2× display size, JPEG q82 (q85 put `/history` over 100 KB on
+its own). Paper colour was left alone — the new files measure between
+(248,236,208) and (250,242,220) at the border, inside the spread the
+existing F17 assets already occupy (`tree-sapling.jpg` is (248,237,213)),
+so normalising would have meant repainting art to fix a difference nobody
+can see against `.illo`'s cream.
+
+One asset needed a fix: `history-pages.jpg` came back with legible *Lorem
+ipsum* on its top sheet, which the catalogue's no-lettering rule exists to
+prevent (a word baked into a JPEG can't be translated). Rather than
+regenerate an otherwise-good drawing, that one line was softened with a
+feathered 1.6px gaussian so it reads as handwriting like every other line
+on the page. Illegible at display size, and now illegible at 2× too.
+
+### The CSS bug this caught
+
+`.illo--page` first shipped as `max-width` + `margin` only, which looks
+right in a stylesheet and is wrong in a browser: the `width`/`height`
+attributes on the `<img>` (kept deliberately, so nothing shifts while the
+image loads) then pin the height while the width shrinks, and every
+picture renders squashed into a tall narrow box. Caught in Chromium, not
+by a test — nothing in the suite can see a wrong aspect ratio. The rule now
+carries `width: 100%; height: auto` like `.login__illo` always did, with a
+comment saying why both are needed.
+
+Verified in Chromium at 390px, light and dark, on all nine pages: correct
+aspect ratio, no horizontal overflow, no broken image, no 4xx, and the
+cards reading as cream photographs against the dark theme. The guest-facing
+form pages (`request-account`, `accept-invite`, the delegate page) drop
+their illustration under 700px of viewport height, the way `/new-instant`
+does, so the form stays above the fold — confirmed at 390×640.
