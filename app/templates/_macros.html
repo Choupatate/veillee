@@ -47,7 +47,10 @@
    someone writes something private into a story the whole family can see. #}
 {% macro audience_picker(all_groups, selected_slugs) %}
 <div class="editor__audience" id="editor-audience">
-  <p class="editor__family-label">{{ _("Who can see this") }}</p>
+  <p class="editor__family-label editor__audience-label">
+    <img class="btn-icon" src="{{ url_for('static', filename='img/icon-group.png') }}"
+         alt="" width="20" height="20">{{ _("Who can see this") }}
+  </p>
   <div class="editor__audience-chips">
     {% for g in all_groups %}
     <button type="button" class="btn editor__toggle-chip editor__audience-chip"

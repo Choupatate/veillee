@@ -6,6 +6,8 @@
   <p class="growth__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <h1 class="growth__title">{{ _("Growing up") }}</h1>
   <hr class="story__flourish growth__flourish" aria-hidden="true">
+  <img class="illo illo--page illo--page-tall" src="{{ url_for('static', filename='img/growth-doorpost.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="567" height="760">
   {% if not birthdate %}
   <p class="growth__empty">
     {{ _("Set {var} in your configuration to turn this on — the photo closest to each birthday, one per year.", var="STORYBOOK_BIRTHDATE") }}

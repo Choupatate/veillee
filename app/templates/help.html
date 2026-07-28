@@ -6,83 +6,112 @@
   <p class="help__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <h1 class="help__title">{{ _("Help") }}</h1>
   <hr class="story__flourish help__flourish" aria-hidden="true">
+  <img class="illo illo--page illo--page-tall illo--tilt-right" src="{{ url_for('static', filename='img/help-lantern.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="628" height="700">
   <p class="help__intro">
-    A quick guide to what's here and how to use it. Nothing below is
-    required reading — most of it you'll never need, and everything is
-    forgiving: nothing here can be lost by accident.
+    {{ _("What each word here means, in one line each. Nothing is required reading, and nothing can be lost by accident: every save keeps the one before it.") }}
   </p>
 
   <section class="help__section">
     <h2>{{ _("Writing a memory") }}</h2>
-    <p>
-    {{ _('A <strong>Story</strong> is a full dated entry — a title, the day it happened, and as much writing and as many photos as you like. An <strong>Instant</strong> is quicker: a photo and one line, for the small moments that don\'t need a whole story written about them.') | safe }}
-  </p>
-    <p>
-    {{ _('Not ready to publish something? Save it as a <strong>draft</strong> — only you (and other family members writing in the same book) can see it until you come back and finish it.') | safe }}
-  </p>
-    <p>
-    {{ _('Want to write something for later, rather than now? A <strong>sealed letter</strong> stays hidden from the timeline — even from you — until the "open on" date you set for it arrives.') | safe }}
-  </p>
-    <p>
-    {{ _('If a story marks a real first — first steps, first word, first day of school — give it a short <strong>milestone</strong> label in the editor. It\'ll show up on the <strong>Firsts</strong> page, a chronological list of every first that\'s happened.') | safe }}
-  </p>
+    <dl class="help__defs">
+      <dt>{{ _("Story") }}</dt>
+      <dd>{{ _("A dated entry — a title, the day it happened, and as much writing and as many photos as you like.") }}</dd>
+      <dt>{{ _("Instant") }}</dt>
+      <dd>{{ _("A photo and one line, for a moment that doesn't need a whole story.") }}</dd>
+      <dt>{{ _("Draft") }}</dt>
+      <dd>{{ _("Unfinished. Only the people who write in this book can see it.") }}</dd>
+      <dt>{{ _("Sealed letter") }}</dt>
+      <dd>{{ _("Hidden from the timeline — from you too — until the date you set.") }}</dd>
+      <dt>{{ _("Milestone") }}</dt>
+      <dd>{{ _("A short label marking a real first (first steps, first word). It joins the Firsts page.") }}</dd>
+      <dt>{{ _("Archived") }}</dt>
+      <dd>{{ _("Put aside without deleting: off the timeline, still there on the Archived page.") }}</dd>
+    </dl>
+    <p>{{ _("Facing a blank page? A new story opens with an idea to start from — ask for another until one fits.") }}</p>
   </section>
+
+  {% if config.ACCOUNTS_ENABLED %}
+  <section class="help__section">
+    <h2>{{ _("Who can read a story") }}</h2>
+    {# The picture carries the rule: inside the rope, warm and lit; outside
+       it, the same family, simply not in this one. #}
+    <img class="illo illo--page" src="{{ url_for('static', filename='img/group-circle.jpg') }}"
+         alt="" loading="lazy" decoding="async" width="760" height="612">
+    <p>{{ _("Every story is for the whole family, unless you keep it to a group.") }}</p>
+    <dl class="help__defs">
+      <dt>{{ _("Group") }}</dt>
+      <dd>{{ _("A named handful of people. Pick one in the editor and only those people — and you, always — can read that story.") }}</dd>
+      <dt>{{ _("Making one") }}</dt>
+      <dd>{{ _("Anyone can, from Groups in the nav. It puts you in the group, and the people in a group are the ones who can change it.") }}</dd>
+      <dt>{{ _("Widening one") }}</dt>
+      <dd>{{ _("Adding someone opens every story kept to that group, including other people's — the page tells you how many.") }}</dd>
+    </dl>
+  </section>
+  {% endif %}
 
   <section class="help__section">
     <h2>{{ _("The cast — people and the family tree") }}</h2>
-    <p>
-    {{ _('Add family and friends as <strong>people</strong>, so you can tag who was in a story and see the ones they appear in. Link parents and partners between people to build the <strong>family tree</strong>, which works out relationships ("your great-aunt") on its own — you never type a kinship word yourself.') | safe }}
-  </p>
-    <p>
-    {{ _('A person\'s page can also record their <strong>birthday, a death, and wedding/PACS dates</strong>. Recorded dates quietly surface on the timeline the day they land (a birthday banner, an anniversary), and the <strong>Almanac</strong> lists every one of them, month by month, like a family record book.') | safe }}
-  </p>
-  </section>
-
-  <section class="help__section">
-    <h2>{{ _("Growing up") }}</h2>
-    <p>
-    {{ _('If you\'ve set the child\'s birth date (an app setting, ask whoever set up Storybook), the <strong>Growing up</strong> page picks the story photo nearest each birthday, so you can watch them grow year by year in one glance.') | safe }}
-  </p>
+    <dl class="help__defs">
+      <dt>{{ _("Person") }}</dt>
+      <dd>{{ _("Family and friends you can tag in a story, each with a page listing the stories they appear in.") }}</dd>
+      <dt>{{ _("Family tree") }}</dt>
+      <dd>{{ _("Link parents and partners and it works the relationships out on its own — you never type a kinship word like great-aunt yourself.") }}</dd>
+      <dt>{{ _("Life dates") }}</dt>
+      <dd>{{ _("A birthday, a wedding or PACS, a death. They surface on the timeline on the day, and fill the Almanac month by month.") }}</dd>
+    </dl>
   </section>
 
   <section class="help__section">
     <h2>{{ _("Reading it back") }}</h2>
-    <p>
-    {{ _('The <strong>timeline</strong> is the everyday view — everything in order, newest at the top. <strong>Open a page at random</strong> for a surprise from the past, or check what happened <strong>on this day</strong> in an earlier year (shown right on the timeline when there\'s a match).') | safe }}
-  </p>
-    <p>
-    {{ _('<strong>Read as a book</strong> turns every story into real book pages, one flowing read from the beginning — good for printing or saving as a PDF. <strong>Download as EPUB</strong> does the same for an e-reader (Kindle, Apple Books, calibre) instead.') | safe }}
-  </p>
+    <dl class="help__defs">
+      <dt>{{ _("Timeline") }}</dt>
+      <dd>{{ _("Everything in order, newest first, with what happened on this day in an earlier year when there's a match.") }}</dd>
+      <dt>{{ _("At random") }}</dt>
+      <dd>{{ _("One page from the past, unannounced.") }}</dd>
+      <dt>{{ _("Firsts") }}</dt>
+      <dd>{{ _("Every milestone, in the order it happened.") }}</dd>
+      <dt>{{ _("Growing up") }}</dt>
+      <dd>{{ _("The story photo nearest each birthday, year beside year (needs the child's birth date set).") }}</dd>
+      <dt>{{ _("Book and EPUB") }}</dt>
+      <dd>{{ _("The whole book as flowing pages — to print, to save as a PDF, or to read on an e-reader.") }}</dd>
+    </dl>
   </section>
 
   <section class="help__section">
-    <h2>{{ _("Photos") }}</h2>
+    <h2>{{ _("Photos and voice memos") }}</h2>
     <p>
-    {{ _('Wherever you can add a photo — an Instant, a story, someone\'s portrait — you can either choose one you already have or press <strong>Take a photo</strong> and use the camera without leaving the page. You\'ll see the picture before it\'s kept, so you can retake it as many times as you like. Taking a photo needs a secure connection (HTTPS or localhost); if the button isn\'t there, choosing a photo from your phone still lets you use its camera app.') | safe }}
-  </p>
-  </section>
-
-  <section class="help__section">
-    <h2>{{ _("Voice memos") }}</h2>
+      {{ _("Anywhere a photo can go, add one from your files or take it there and then. Any story can also carry a short recording — a child's own voice, or someone telling the story out loud.") }}
+    </p>
     <p>
-    {{ _('Any story can have a short voice recording attached — a child\'s own voice, or someone telling the story out loud, alongside the written version. Recording needs a secure connection (HTTPS or localhost); ask whoever set up Storybook if it doesn\'t seem to work.') | safe }}
-  </p>
+      {{ _("The camera and the recorder need a secure connection (https). If those buttons aren't there, that's why — ask whoever set this up.") }}
+    </p>
   </section>
 
   {% if config.ACCOUNTS_ENABLED %}
   <section class="help__section">
     <h2>{{ _("Family accounts") }}</h2>
-    <p>
-    {{ _('This book uses individual accounts rather than one shared password. Manage your own password and generate one-off <strong>write links</strong> — letting someone add a single story without an account of their own — from <strong>Account</strong> in the nav.') | safe }}
-  </p>
+    <dl class="help__defs">
+      <dt>{{ _("Your account") }}</dt>
+      <dd>{{ _("Your own name and password rather than a shared one. Change it from Account in the nav.") }}</dd>
+      <dt>{{ _("Write link") }}</dt>
+      <dd>{{ _("A one-off link letting someone add a single story without an account of their own.") }}</dd>
+      <dt>{{ _("Invitation") }}</dt>
+      <dd>{{ _("How someone new gets in: an invite code from an admin, or a request an admin approves.") }}</dd>
+    </dl>
   </section>
   {% endif %}
 
   <section class="help__section">
     <h2>{{ _("Keeping it safe") }}</h2>
-    <p>
-    {{ _('Everything here is plain files on disk — no cloud, no lock-in. <strong>Download everything (.zip)</strong> from the timeline\'s footer whenever you want a full copy; <strong>Import a backup</strong> restores one. If in doubt, ask whoever hosts this Storybook how often the underlying files are backed up.') | safe }}
-  </p>
+    <dl class="help__defs">
+      <dt>{{ _("History") }}</dt>
+      <dd>{{ _("Every save keeps the previous version; a story's History page puts an older one back.") }}</dd>
+      <dt>{{ _("Backup") }}</dt>
+      <dd>{{ _("Download everything (.zip) from the timeline's footer; Import a backup restores it.") }}</dd>
+      <dt>{{ _("The files themselves") }}</dt>
+      <dd>{{ _("Plain text and photos in folders — readable with or without this app, on any computer.") }}</dd>
+    </dl>
   </section>
 </div>
 {% endblock %}

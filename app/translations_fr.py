@@ -489,139 +489,146 @@ TRANSLATIONS_FR = {
     "{n} year old": "{n} an",
     "{n} years old": "{n} ans",
 
-    # --- help page ----------------------------------------------------------
-    "A quick guide to what's here and how to use it. Nothing below is "
-    "required reading — most of it you'll never need, and everything is "
-    "forgiving: nothing here can be lost by accident.":
-        "Un petit guide de ce qui existe ici et de son usage. Rien de tout "
-        "cela n'est obligatoire — vous n'aurez presque jamais besoin de la "
-        "plupart, et tout est indulgent : rien ici ne peut être perdu par "
-        "accident.",
-    # Prose blocks carry inline <strong>/<code> and are rendered with
-    # |safe — the markup has to survive into the translation.
-    "A <strong>Story</strong> is a full dated entry — a title, the day it "
-    "happened, and as much writing and as many photos as you like. An "
-    "<strong>Instant</strong> is quicker: a photo and one line, for the small "
-    "moments that don't need a whole story written about them.":
-        "Une <strong>histoire</strong> est une entrée datée complète — un "
-        "titre, le jour où c'est arrivé, et autant de texte et de photos que "
-        "vous voulez. Un <strong>instant</strong> va plus vite : une photo et "
-        "une ligne, pour les petits moments qui n'ont pas besoin de toute une "
-        "histoire.",
-    "Not ready to publish something? Save it as a <strong>draft</strong> — "
-    "only you (and other family members writing in the same book) can see it "
-    "until you come back and finish it.":
-        "Pas encore prêt à publier ? Enregistrez en <strong>brouillon</strong> "
-        "— vous seul (et les autres membres de la famille qui écrivent dans ce "
-        "livre) le verrez jusqu'à ce que vous reveniez le terminer.",
-    'Want to write something for later, rather than now? A <strong>sealed '
-    'letter</strong> stays hidden from the timeline — even from you — until '
-    'the "open on" date you set for it arrives.':
-        "Envie d'écrire pour plus tard plutôt que pour maintenant ? Une "
-        "<strong>lettre scellée</strong> reste cachée du fil du temps — même "
-        "pour vous — jusqu'à la date d'ouverture que vous lui donnez.",
-    "If a story marks a real first — first steps, first word, first day of "
-    "school — give it a short <strong>milestone</strong> label in the editor. "
-    "It'll show up on the <strong>Firsts</strong> page, a chronological list "
-    "of every first that's happened.":
-        "Si une histoire marque une vraie première fois — premiers pas, "
-        "premier mot, première rentrée — donnez-lui un court intitulé de "
-        "<strong>première fois</strong> dans l'éditeur. Elle apparaîtra sur la "
-        "page <strong>Premières fois</strong>, la liste chronologique de "
-        "toutes les premières fois.",
-    "Add family and friends as <strong>people</strong>, so you can tag who "
-    "was in a story and see the ones they appear in. Link parents and "
-    "partners between people to build the <strong>family tree</strong>, which "
-    'works out relationships ("your great-aunt") on its own — you never type '
-    "a kinship word yourself.":
-        "Ajoutez famille et amis comme <strong>personnes</strong>, pour "
-        "marquer qui était dans une histoire et voir celles où ils "
-        "apparaissent. Reliez parents et conjoints pour construire "
-        "l'<strong>arbre généalogique</strong>, qui déduit tout seul les liens "
-        "(« ta grand-tante ») — vous n'écrivez jamais un mot de parenté "
-        "vous-même.",
-    "A person's page can also record their <strong>birthday, a death, and "
-    "wedding/PACS dates</strong>. Recorded dates quietly surface on the "
-    "timeline the day they land (a birthday banner, an anniversary), and the "
-    "<strong>Almanac</strong> lists every one of them, month by month, like a "
-    "family record book.":
-        "La page d'une personne peut aussi noter son <strong>anniversaire, un "
-        "décès et des dates de mariage ou de PACS</strong>. Les dates "
-        "enregistrées apparaissent discrètement sur le fil du temps le jour "
-        "venu, et l'<strong>Almanach</strong> les liste toutes, mois par mois, "
-        "comme un vrai livre de famille.",
-    "If you've set the child's birth date (an app setting, ask whoever set up "
-    "Storybook), the <strong>Growing up</strong> page picks the story photo "
-    "nearest each birthday, so you can watch them grow year by year in one "
-    "glance.":
-        "Si la date de naissance de l'enfant est renseignée (un réglage de "
-        "l'application, demandez à la personne qui l'a installée), la page "
-        "<strong>Grandir</strong> choisit la photo la plus proche de chaque "
-        "anniversaire, pour les voir grandir année après année d'un seul coup "
-        "d'œil.",
-    "The <strong>timeline</strong> is the everyday view — everything in "
-    "order, newest at the top. <strong>Open a page at random</strong> for a "
-    "surprise from the past, or check what happened <strong>on this "
-    "day</strong> in an earlier year (shown right on the timeline when "
-    "there's a match).":
-        "Le <strong>fil du temps</strong> est la vue de tous les jours — tout "
-        "dans l'ordre, le plus récent en haut. <strong>Ouvrez une page au "
-        "hasard</strong> pour une surprise du passé, ou voyez ce qui s'est "
-        "passé <strong>ce jour-là</strong> une année plus tôt (affiché sur le "
-        "fil quand il y a une correspondance).",
-    "<strong>Read as a book</strong> turns every story into real book pages, "
-    "one flowing read from the beginning — good for printing or saving as a "
-    "PDF. <strong>Download as EPUB</strong> does the same for an e-reader "
-    "(Kindle, Apple Books, calibre) instead.":
-        "<strong>Lire comme un livre</strong> transforme chaque histoire en "
-        "vraies pages de livre, une lecture continue depuis le début — "
-        "pratique pour imprimer ou enregistrer en PDF. <strong>Télécharger en "
-        "EPUB</strong> fait la même chose pour une liseuse (Kindle, Apple "
-        "Books, calibre).",
-    "Wherever you can add a photo — an Instant, a story, someone's portrait — "
-    "you can either choose one you already have or press <strong>Take a "
-    "photo</strong> and use the camera without leaving the page. You'll see "
-    "the picture before it's kept, so you can retake it as many times as you "
-    "like. Taking a photo needs a secure connection (HTTPS or localhost); if "
-    "the button isn't there, choosing a photo from your phone still lets you "
-    "use its camera app.":
-        "Partout où vous pouvez ajouter une photo — un instant, une histoire, "
-        "le portrait de quelqu'un — vous pouvez soit en choisir une que vous "
-        "avez déjà, soit appuyer sur <strong>Prendre une photo</strong> et "
-        "utiliser l'appareil sans quitter la page. Vous voyez l'image avant "
-        "qu'elle soit gardée, et vous pouvez la reprendre autant de fois que "
-        "vous voulez. Prendre une photo nécessite une connexion sécurisée "
-        "(HTTPS ou localhost) ; si le bouton n'est pas là, choisir une photo "
-        "depuis votre téléphone vous laisse quand même utiliser son appareil.",
-    "Any story can have a short voice recording attached — a child's own "
-    "voice, or someone telling the story out loud, alongside the written "
-    "version. Recording needs a secure connection (HTTPS or localhost); ask "
-    "whoever set up Storybook if it doesn't seem to work.":
-        "Chaque histoire peut recevoir un court enregistrement vocal — la voix "
-        "de l'enfant, ou quelqu'un qui raconte l'histoire à voix haute, à côté "
-        "de la version écrite. L'enregistrement nécessite une connexion "
-        "sécurisée (HTTPS ou localhost) ; demandez à la personne qui a "
-        "installé l'application si cela ne semble pas fonctionner.",
-    "This book uses individual accounts rather than one shared password. "
-    "Manage your own password and generate one-off <strong>write "
-    "links</strong> — letting someone add a single story without an account "
-    "of their own — from <strong>Account</strong> in the nav.":
-        "Ce livre utilise des comptes individuels plutôt qu'un mot de passe "
-        "partagé. Gérez votre propre mot de passe et créez des <strong>liens "
-        "d'écriture</strong> à usage unique — pour qu'une personne ajoute une "
-        "seule histoire sans avoir de compte — depuis <strong>Compte</strong> "
-        "dans la navigation.",
-    "Everything here is plain files on disk — no cloud, no lock-in. "
-    "<strong>Download everything (.zip)</strong> from the timeline's footer "
-    "whenever you want a full copy; <strong>Import a backup</strong> restores "
-    "one. If in doubt, ask whoever hosts this Storybook how often the "
-    "underlying files are backed up.":
-        "Tout ici n'est que des fichiers sur un disque — pas de cloud, pas "
-        "d'enfermement. <strong>Tout télécharger (.zip)</strong> depuis le pied "
-        "du fil du temps quand vous voulez une copie complète ; "
-        "<strong>Importer une sauvegarde</strong> en restaure une. Dans le "
-        "doute, demandez à la personne qui héberge ce livre à quelle fréquence "
-        "les fichiers sont sauvegardés.",
+    # --- help page (F42) ----------------------------------------------------
+    # The page is a glossary: one term, one line. Terms already translated
+    # elsewhere (Story, Draft, Archived, Firsts, Growing up, History...) are
+    # not repeated here — they resolve through their existing entry.
+    "What each word here means, in one line each. Nothing is required "
+    "reading, and nothing can be lost by accident: every save keeps the one "
+    "before it.":
+        "Ce que veut dire chaque mot d'ici, une ligne chacun. Rien n'est "
+        "obligatoire à lire, et rien ne peut être perdu par accident : chaque "
+        "enregistrement garde le précédent.",
+
+    "Instant": "Instant",
+    "A dated entry — a title, the day it happened, and as much writing and as "
+    "many photos as you like.":
+        "Une entrée datée — un titre, le jour où c'est arrivé, et autant de "
+        "texte et de photos que vous voulez.",
+    "A photo and one line, for a moment that doesn't need a whole story.":
+        "Une photo et une ligne, pour un moment qui n'a pas besoin de toute "
+        "une histoire.",
+    "Unfinished. Only the people who write in this book can see it.":
+        "Pas terminée. Seules les personnes qui écrivent dans ce livre la "
+        "voient.",
+    "Sealed letter": "Lettre scellée",
+    "Hidden from the timeline — from you too — until the date you set.":
+        "Cachée du fil du temps — de vous aussi — jusqu'à la date que vous "
+        "avez choisie.",
+    "Milestone": "Première fois",
+    "A short label marking a real first (first steps, first word). It joins "
+    "the Firsts page.":
+        "Un court intitulé pour une vraie première fois (premiers pas, premier "
+        "mot). Elle rejoint la page Premières fois.",
+    "Put aside without deleting: off the timeline, still there on the "
+    "Archived page.":
+        "Mise de côté sans être supprimée : hors du fil du temps, toujours là "
+        "sur la page Archivées.",
+    "Facing a blank page? A new story opens with an idea to start from — ask "
+    "for another until one fits.":
+        "Devant la page blanche ? Une nouvelle histoire s'ouvre avec une idée "
+        "pour démarrer — demandez-en une autre jusqu'à ce qu'une vous aille.",
+
+    "Who can read a story": "Qui peut lire une histoire",
+    "Every story is for the whole family, unless you keep it to a group.":
+        "Chaque histoire est pour toute la famille, sauf si vous la réservez à "
+        "un cercle.",
+    "Group": "Cercle",
+    "A named handful of people. Pick one in the editor and only those people "
+    "— and you, always — can read that story.":
+        "Une poignée de personnes, sous un nom. Choisissez-en un dans "
+        "l'éditeur et seules ces personnes — et vous, toujours — pourront lire "
+        "cette histoire.",
+    "Making one": "En créer un",
+    "Anyone can, from Groups in the nav. It puts you in the group, and the "
+    "people in a group are the ones who can change it.":
+        "Tout le monde peut le faire, depuis Cercles dans la navigation. Cela "
+        "vous met dans le cercle, et ce sont les personnes qui en font partie "
+        "qui peuvent le modifier.",
+    "Widening one": "En élargir un",
+    "Adding someone opens every story kept to that group, including other "
+    "people's — the page tells you how many.":
+        "Ajouter quelqu'un ouvre toutes les histoires réservées à ce cercle, y "
+        "compris celles des autres — la page vous dit combien.",
+
+    "Person": "Personne",
+    "Family and friends you can tag in a story, each with a page listing the "
+    "stories they appear in.":
+        "La famille et les amis que vous pouvez marquer dans une histoire, "
+        "chacun avec une page qui liste celles où ils apparaissent.",
+    "Link parents and partners and it works the relationships out on its own "
+    "— you never type a kinship word like great-aunt yourself.":
+        "Reliez parents et conjoints et il déduit tout seul les liens — vous "
+        "n'écrivez jamais un mot de parenté comme « grand-tante » vous-même.",
+    "Life dates": "Dates de la vie",
+    "A birthday, a wedding or PACS, a death. They surface on the timeline on "
+    "the day, and fill the Almanac month by month.":
+        "Un anniversaire, un mariage ou un PACS, un décès. Ils remontent sur "
+        "le fil du temps le jour venu, et remplissent l'Almanach mois par "
+        "mois.",
+
+    "Everything in order, newest first, with what happened on this day in an "
+    "earlier year when there's a match.":
+        "Tout dans l'ordre, le plus récent en haut, avec ce qui s'est passé ce "
+        "jour-là une année plus tôt quand il y a une correspondance.",
+    "One page from the past, unannounced.":
+        "Une page du passé, sans prévenir.",
+    "Every milestone, in the order it happened.":
+        "Toutes les premières fois, dans l'ordre où elles sont arrivées.",
+    "The story photo nearest each birthday, year beside year (needs the "
+    "child's birth date set).":
+        "La photo la plus proche de chaque anniversaire, année après année "
+        "(demande que la date de naissance de l'enfant soit renseignée).",
+    "Book and EPUB": "Livre et EPUB",
+    "The whole book as flowing pages — to print, to save as a PDF, or to read "
+    "on an e-reader.":
+        "Tout le livre en pages continues — à imprimer, à enregistrer en PDF, "
+        "ou à lire sur une liseuse.",
+
+    "Photos and voice memos": "Photos et mémos vocaux",
+    "Anywhere a photo can go, add one from your files or take it there and "
+    "then. Any story can also carry a short recording — a child's own voice, "
+    "or someone telling the story out loud.":
+        "Partout où une photo peut aller, ajoutez-en une depuis vos fichiers "
+        "ou prenez-la sur le moment. Chaque histoire peut aussi porter un "
+        "court enregistrement — la voix de l'enfant, ou quelqu'un qui raconte "
+        "à voix haute.",
+    "The camera and the recorder need a secure connection (https). If those "
+    "buttons aren't there, that's why — ask whoever set this up.":
+        "L'appareil photo et l'enregistreur demandent une connexion sécurisée "
+        "(https). Si ces boutons ne sont pas là, c'est pour cette raison — "
+        "demandez à la personne qui a installé ce livre.",
+
+    "Your account": "Votre compte",
+    "Your own name and password rather than a shared one. Change it from "
+    "Account in the nav.":
+        "Votre propre nom et votre propre mot de passe, plutôt qu'un mot de "
+        "passe partagé. Changez-le depuis Compte dans la navigation.",
+    "Write link": "Lien d'écriture",
+    "A one-off link letting someone add a single story without an account of "
+    "their own.":
+        "Un lien à usage unique qui laisse quelqu'un ajouter une seule "
+        "histoire sans avoir de compte.",
+    "Invitation": "Invitation",
+    "How someone new gets in: an invite code from an admin, or a request an "
+    "admin approves.":
+        "Comment une nouvelle personne entre : un code d'invitation donné par "
+        "un administrateur, ou une demande qu'un administrateur accepte.",
+
+    "Every save keeps the previous version; a story's History page puts an "
+    "older one back.":
+        "Chaque enregistrement garde la version précédente ; la page "
+        "Historique d'une histoire en remet une ancienne.",
+    "Backup": "Sauvegarde",
+    "Download everything (.zip) from the timeline's footer; Import a backup "
+    "restores it.":
+        "Tout télécharger (.zip) depuis le pied du fil du temps ; Importer une "
+        "sauvegarde la restaure.",
+    "The files themselves": "Les fichiers eux-mêmes",
+    "Plain text and photos in folders — readable with or without this app, on "
+    "any computer.":
+        "Du texte simple et des photos dans des dossiers — lisibles avec ou "
+        "sans cette application, sur n'importe quel ordinateur.",
 
     # Validation messages raised as plain strings by accounts.py/people.py
     # and translated at the one place they're shown (the flash call).

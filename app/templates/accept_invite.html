@@ -7,6 +7,8 @@
   <p class="login__subtitle">
     {{ _("You've been invited as {name}. Choose a username and a password — nobody else will see them.", name=person_name) }}
   </p>
+  <img class="illo illo--page" src="{{ url_for('static', filename='img/invite-card.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="700" height="564">
   <form class="login__form" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="login__label" for="username">{{ _("Username") }}</label>

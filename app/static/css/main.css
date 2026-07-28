@@ -43,6 +43,32 @@ html, body {
   transform: rotate(1deg);
 }
 
+/* F42: a page's own illustration, centered under its title. One size for
+   the landscape cards, a narrower one for the portrait ones, rather than a
+   per-page rule for each. */
+.illo--page {
+  max-width: 14rem;
+  /* width/height must both be set or the width/height attributes (kept so
+     nothing shifts while loading) squash the picture — same as
+     .login__illo. */
+  width: 100%;
+  height: auto;
+  margin: 0 auto 1.25rem;
+}
+
+.illo--page-tall {
+  max-width: 10.5rem;
+}
+
+/* Same reasoning as .instant__illo: on the guest-facing form pages the
+   form has to stay above the fold on a short phone, so the card goes
+   rather than the fields. */
+@media (max-height: 700px) {
+  .page-login .illo--page {
+    display: none;
+  }
+}
+
 .lasso-spinner {
   display: inline-block;
   width: 40px;
@@ -2668,6 +2694,13 @@ img.person-family__thumb {
   color: var(--color-text-dim);
 }
 
+/* F42: .btn-icon needs a flex parent (F22), and only the audience label
+   carries one — the other .editor__family-label uses stay plain text. */
+.editor__audience-label {
+  display: flex;
+  align-items: center;
+}
+
 .editor__author-color {
   display: flex;
   flex-direction: column;
@@ -3923,6 +3956,32 @@ img.family-chip__thumb {
 
 .help__section p:last-child {
   margin-bottom: 0;
+}
+
+/* F42: the help page is a glossary, not an essay — one term, one line. */
+.help__defs {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  margin: 0 0 0.75rem;
+}
+
+.help__defs dt {
+  font-weight: 600;
+  margin-top: 0.7rem;
+}
+
+.help__defs dt:first-child {
+  margin-top: 0;
+}
+
+.help__defs dd {
+  color: var(--color-text-dim);
+  margin: 0.1rem 0 0;
+}
+
+.help__defs + p {
+  margin-top: 1rem;
 }
 
 /* ---------------------------------------------------------------------- */

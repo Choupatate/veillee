@@ -61,6 +61,9 @@ the exact `F<N>.` heading text to jump to it.
 - **F41** — Groups anyone can make: creating a group stops being an admin
   errand, a group is changed by the people in it, and two groups can't
   quietly cover exactly the same people
+- **F42** — Help as a glossary: the in-app guide restructured into one
+  term per line (and finally covering groups), plus `IMAGE-PROMPTS.md`,
+  the prompt catalogue for the illustrations still missing
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -895,6 +898,21 @@ The processed assets are already committed under `app/static/img/`:
 | `book-frame.jpg` | 715×897 | /book cover ornament |
 | `rope-divider.png` | 1000×144, transparent | flourishes/dividers |
 | `lasso-ring.png` | 320×320, transparent, centered | loading spinner |
+
+Added later by F42, from the prompts in `IMAGE-PROMPTS.md`, same paper-card
+treatment (`.illo`) and the shared `.illo--page` sizing:
+
+| file | size | where it goes |
+|---|---|---|
+| `group-circle.jpg` | 760×612 | /groups + help's "Who can read a story" |
+| `write-link-pass.jpg` | 700×600 | /account/write-links + the delegate page |
+| `invite-card.jpg` | 700×564 | invite, accept-invite, request-account |
+| `firsts-boots.jpg` | 760×519 | /firsts |
+| `almanac-book.jpg` | 700×700 | /almanac |
+| `growth-doorpost.jpg` | 567×760 | /growth |
+| `history-pages.jpg` | 720×598 | a story's /history |
+| `help-lantern.jpg` | 628×700 | /help header |
+| `accounts-keys.jpg` | 760×540 | /account |
 
 Also committed: `login-campfire.jpg` (856×735) — the login-page
 illustration, reused for the empty-timeline state — and the leather-journal
@@ -2986,6 +3004,7 @@ bounding box, repadded to a square with an 8% margin, and downscaled to
 | `icon-record.png` | "Record" (voice memo) |
 | `icon-print.png` | "Print / save as PDF" (book view) |
 | `icon-import.png` | "Import" (backup restore) |
+| `icon-group.png` | "Who can see this" (audience picker, F42) |
 
 New shared `.btn-icon` class (main.css): 20×20px, `flex: none`, small
 right margin — relies on the parent already being `display: flex/inline-
@@ -5122,3 +5141,187 @@ page, the read-only page, creating a group end to end, and both refusal
 flashes in both languages.
 
 `pytest` (1102) and `ruff check .` green.
+
+## F42. Help as a glossary, and the prompts for the pictures it still wants
+
+The help page (F33) had drifted into an essay. Eight sections of prose, and
+the prose was explaining the wrong altitude of thing — a paragraph on how
+the camera button works ("you'll see the picture before it's kept, so you
+can retake it as many times as you like") next to nothing at all about
+groups, which is the one feature in this app where a reader can be wrong
+about who will see what. Nobody needs to be told a camera button takes a
+photo. Somebody does need to be told that a story kept to a group is a
+story their sister can't read.
+
+### One term, one line
+
+The page is now a **glossary**, not a tour: `<dl>` blocks where each `<dt>`
+is a word the reader actually meets on screen — Story, Instant, Draft,
+Sealed letter, Milestone, Archived, Group, Write link, History, Backup —
+and each `<dd>` is a single line saying what it is. New `.help__defs`
+styling (term in the body colour, definition in `--color-text-dim`) so the
+page scans as a list of answers rather than reading as a chapter.
+
+What changed in substance:
+
+- **A "Who can read a story" section**, guarded by `config.ACCOUNTS_ENABLED`
+  exactly like the accounts section, covering the audience rule (F40) and
+  the two things F41 makes true and non-obvious: making a group puts you in
+  it, and widening a group opens other people's stories too, not only your
+  own. Guarded rather than always-on because with one shared password there
+  is nobody to scope a story away from, and describing a feature that isn't
+  there is worse than saying nothing.
+- **Archived, History and the writing prompts get a line each** — three
+  things the app does that the help page had never mentioned.
+- **Cut**: the camera walkthrough, the "you'll never need to read this"
+  throat-clearing, the "ask whoever set up Storybook" refrain repeated in
+  four sections (kept once, where it's actionable — the https caveat).
+
+Net: shorter than before while covering three more features. The 8 English
+sections became 6–8 (two are conditional), and the two longest paragraphs
+in the file are gone.
+
+Translation is the reason to keep help copy short, incidentally: every
+string here is a key in `translations_fr.py`, and a five-line paragraph is
+a five-line paragraph to keep in sync in two languages forever. Glossary
+lines age better. Terms already translated elsewhere (Story, Draft,
+Archived, Firsts, Growing up, History) resolve through their existing
+entries rather than being restated.
+
+`Invitation` joined `test_i18n.py`'s `same_in_both` allowlist — it really
+is the same word in both languages, and the "you left the English in"
+guard needed telling.
+
+### IMAGE-PROMPTS.md
+
+The other half of the same problem: some of what the help page explains in
+words would be explained better by a picture, and this app already has a
+visual language for that (F17's paper cards, F22's flat icons) — what it
+doesn't have is the pictures.
+
+`IMAGE-PROMPTS.md` is the catalogue: how to drive Gemini through these
+(one asset per thread, an existing JPEG uploaded as the style anchor), the
+processing steps, and ten assets, each with **what a reader must understand
+from the picture alone** stated before the prompt itself. Every prompt is
+self-contained — style, paper, aspect, size constraint and negatives are
+repeated inside each one rather than referenced, because a prompt you have
+to assemble from two places is a prompt that gets pasted wrong. The group one is the point of the
+exercise — a closed lasso ring with four figures warm inside it and two
+standing in cool light outside, so that "kept to a group" is understood
+before a word of the section is read — and it ships with three fallback
+compositions, because a generated image either reads at thumbnail size or
+it doesn't and you want alternatives ready.
+
+Two rules in that document are load-bearing rather than stylistic:
+
+- **No lettering, ever.** The interface is bilingual (F38); a word baked
+  into a JPEG can't be translated and will sit there in English on a French
+  page forever.
+- **Faces stay generic.** These illustrations sit beside photographs of a
+  real family. Small gestural figures, backs and three-quarter views — not
+  portraits of anyone.
+
+Nothing is wired into a template yet, deliberately: an `<img>` pointing at
+a file that doesn't exist is a broken image on a real family's page. Each
+entry carries the exact `<img>` line and CSS to paste once its JPEG lands
+in `app/static/img/`.
+
+### Tests
+
+`tests/test_help.py` gained a glossary test (the terms the interface uses
+are the terms the page defines, asserted as `<dt>` elements) and a groups
+test from both sides — the section is absent with one shared password and
+present, with `<dt>Group</dt>`, in accounts mode. The core-sections test
+follows the renamed "Photos and voice memos" heading.
+
+Verified in Chromium at 390px in English and French and at 1280px in the
+dark theme: no horizontal overflow, the definition lists read as lists at
+phone width, and the French page uses the vocabulary the rest of the app
+already uses (*cercle*, *première fois*, *lien d'écriture*).
+
+`pytest` (1104) and `ruff check .` green.
+
+### F42 follow-up: the illustrations landed
+
+Nine of the ten assets in `IMAGE-PROMPTS.md` came back from Gemini and are
+committed (see the second table in F17 for sizes and placements). Only
+`icon-group.png` — the flat 24px companion for the timeline's *kept to a
+group* pill — is still outstanding.
+
+The group image was generated in all three of the compositions the
+catalogue offers (lasso ring, corral fence, wagon circle). The **lasso
+ring** is the one committed: it's the only one of the three where the
+boundary is a rope on open ground rather than a built structure, so it
+reads as *a circle drawn around some of us* rather than as a fence keeping
+people out — which is the difference between the feature and a
+misunderstanding of it. The other two are good drawings and were not
+committed; unused static files are weight with no reader.
+
+Processing followed the catalogue: trim to content with a 3% paper margin,
+downscale to ~2× display size, JPEG q82 (q85 put `/history` over 100 KB on
+its own). Paper colour was left alone — the new files measure between
+(248,236,208) and (250,242,220) at the border, inside the spread the
+existing F17 assets already occupy (`tree-sapling.jpg` is (248,237,213)),
+so normalising would have meant repainting art to fix a difference nobody
+can see against `.illo`'s cream.
+
+One asset needed a fix: `history-pages.jpg` came back with legible *Lorem
+ipsum* on its top sheet, which the catalogue's no-lettering rule exists to
+prevent (a word baked into a JPEG can't be translated). Rather than
+regenerate an otherwise-good drawing, that one line was softened with a
+feathered 1.6px gaussian so it reads as handwriting like every other line
+on the page. Illegible at display size, and now illegible at 2× too.
+
+### The CSS bug this caught
+
+`.illo--page` first shipped as `max-width` + `margin` only, which looks
+right in a stylesheet and is wrong in a browser: the `width`/`height`
+attributes on the `<img>` (kept deliberately, so nothing shifts while the
+image loads) then pin the height while the width shrinks, and every
+picture renders squashed into a tall narrow box. Caught in Chromium, not
+by a test — nothing in the suite can see a wrong aspect ratio. The rule now
+carries `width: 100%; height: auto` like `.login__illo` always did, with a
+comment saying why both are needed.
+
+Verified in Chromium at 390px, light and dark, on all nine pages: correct
+aspect ratio, no horizontal overflow, no broken image, no 4xx, and the
+cards reading as cream photographs against the dark theme. The guest-facing
+form pages (`request-account`, `accept-invite`, the delegate page) drop
+their illustration under 700px of viewport height, the way `/new-instant`
+does, so the form stays above the fold — confirmed at 390×640.
+
+### F42 follow-up: the last asset, and where an icon is too small to help
+
+`icon-group.png` closes the catalogue — a rope ring around three figures
+with a fourth outside, in F22's flat style rather than F17's engraving,
+because fine linework is a smudge at 20px.
+
+Keying it needed one change from F22's recipe. That set was auto-keyed by
+colour distance from the border pixels; here the fill *inside* the rope
+ring is nearly the same cream as the paper around it, so a distance key
+punches a hole through the middle of the icon. The background is found by
+flood-filling in from the four corners instead — only paper actually
+connected to the edge goes transparent. The paper's printed flecks survive
+that as tiny opaque islands (they're enclosed, not connected), so a closing
+on the background mask swallows anything smaller than ~9px before the
+alpha is cut. Cropped to content, squared with a 2% margin — 8%, F22's
+figure, left the ring too small once the composition's own width was
+included — and downscaled to 160×160.
+
+It goes next to the audience picker's **"Who can see this"** label, in the
+editor and on `/new-instant`. `.btn-icon` needs a flex parent (F22), and
+`.editor__family-label` is shared with the Sources label, so the flex lives
+on a new `.editor__audience-label` alongside it rather than on the shared
+class.
+
+**Not** on the timeline's *kept to a group* pill, which is where this icon
+was first imagined. Rendered at the pill's scale the icon degrades to a
+brown ring with a grey smudge beside it — tested at 14px and 16px before
+deciding. The pill is 0.6875rem text in a border; at that size an icon
+stops being an accent and becomes noise, and the words already say it.
+Same reasoning F22 used to reject F17's linework for buttons, applied one
+size down.
+
+Verified in Chromium at 390px and at 4× device scale, light and dark: the
+transparent key is clean with no halo in either theme, and the icon sits on
+the label's baseline without shifting the chips below it.

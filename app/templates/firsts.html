@@ -6,6 +6,8 @@
   <p class="firsts__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <h1 class="firsts__title">{{ _("Firsts") }}</h1>
   <hr class="story__flourish firsts__flourish" aria-hidden="true">
+  <img class="illo illo--page" src="{{ url_for('static', filename='img/firsts-boots.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="760" height="519">
   {% if not firsts %}
   <p class="firsts__empty">
     {{ _('Give any story a milestone label in the editor — "First steps", "First word" — and it\'ll appear here, in the order it happened.') }}
