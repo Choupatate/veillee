@@ -4,7 +4,7 @@
 {% block content %}
 <section class="book-cover">
   <div class="book-cover__frame-wrap">
-    <img class="book-cover__frame" src="{{ url_for('static', filename='img/book-frame.jpg') }}"
+    <img class="book-cover__frame" src="{{ theme_img('book-frame.jpg') }}"
          alt="" loading="lazy" decoding="async" width="715" height="897">
     <div class="book-cover__content">
       <h1 class="book-cover__title">{{ app_title }}</h1>
@@ -50,12 +50,12 @@
 </article>
 {% endif %}
 {% if not loop.last %}
-<img class="book__ornament" src="{{ url_for('static', filename='img/rope-divider.png') }}"
+<img class="book__ornament" src="{{ theme_img('rope-divider.png') }}"
      alt="" loading="lazy" decoding="async" width="1000" height="144">
 {% endif %}
 {% endfor %}
 <button type="button" class="book__print-btn" id="book-print-btn">
-  <img class="btn-icon" src="{{ url_for('static', filename='img/icon-print.png') }}" alt="" width="20" height="20">{{ _("Print / save as PDF") }}
+  <img class="btn-icon" src="{{ theme_img('icon-print.png') }}" alt="" width="20" height="20">{{ _("Print / save as PDF") }}
 </button>
 {% endblock %}
 {% block scripts %}

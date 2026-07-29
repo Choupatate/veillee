@@ -9,19 +9,19 @@
     <div class="people__header-actions">
       {% if show_tree_link %}
       <a class="btn" href="{{ url_for('pages.tree_page') }}">
-        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-tree.png') }}" alt="" width="20" height="20">{{ _("Family tree") }}
+        <img class="btn-icon" src="{{ theme_img('icon-tree.png') }}" alt="" width="20" height="20">{{ _("Family tree") }}
       </a>
       {% endif %}
       {% if show_almanac_link %}
       <a class="btn" href="{{ url_for('pages.almanac') }}">{{ _("Almanac") }}</a>
       {% endif %}
       <a class="btn btn--new" href="{{ url_for('pages.new_person') }}">
-        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-new-person.png') }}" alt="" width="20" height="20">{{ _("+ New person") }}
+        <img class="btn-icon" src="{{ theme_img('icon-new-person.png') }}" alt="" width="20" height="20">{{ _("+ New person") }}
       </a>
     </div>
   </div>
   {% if not people %}
-  <img class="illo people__illo" src="{{ url_for('static', filename='img/person-oval.jpg') }}"
+  <img class="illo people__illo" src="{{ theme_img('person-oval.jpg') }}"
        alt="" loading="lazy" decoding="async" width="600" height="732">
   <p class="people__empty">
     {{ _("The people who show up again and again — grandparents, godparents, the family dog — get a page of their own here.") }}
@@ -36,7 +36,7 @@
              style="--photo-sepia: {{ person.photo_sepia }}%;">
         {% else %}
         <span class="people__portrait people__portrait--placeholder">
-          <img class="people__portrait-oval" src="{{ url_for('static', filename='img/person-oval.jpg') }}"
+          <img class="people__portrait-oval" src="{{ theme_img('person-oval.jpg') }}"
                alt="" loading="lazy" decoding="async" width="600" height="732">
           <span class="people__portrait-initial" aria-hidden="true">{{ person.name[0]|upper }}</span>
         </span>

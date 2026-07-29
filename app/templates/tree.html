@@ -13,9 +13,9 @@
   {% if has_family_links %}
   <nav class="tree__views" id="tree-views" hidden aria-label="{{ _('Family tree views') }}"></nav>
   <div id="FamilyChart" class="tree__chart f3" data-tree-url="{{ url_for('api.api_tree') }}"
-       data-fallback-avatar="{{ url_for('static', filename='img/person-oval.jpg') }}"
-       data-map-tile="{{ url_for('static', filename='img/tree-map-tile.jpg') }}"
-       data-map-tile-dark="{{ url_for('static', filename='img/tree-map-tile-dark.jpg') }}"></div>
+       data-fallback-avatar="{{ theme_img('person-oval.jpg') }}"
+       data-map-tile="{{ theme_img('tree-map-tile.jpg') }}"
+       data-map-tile-dark="{{ theme_img('tree-map-tile-dark.jpg') }}"></div>
 
   <section class="tree__print-outline">
     {% for group in generations %}
@@ -45,7 +45,7 @@
     </ul>
   </section>
   {% else %}
-  <img class="illo tree__illo" src="{{ url_for('static', filename='img/tree-sapling.jpg') }}"
+  <img class="illo tree__illo" src="{{ theme_img('tree-sapling.jpg') }}"
        alt="" loading="lazy" decoding="async" width="760" height="739">
   <p class="tree__empty">{{ _("Link two people in the person editor and the tree will grow here.") }}</p>
   {% endif %}

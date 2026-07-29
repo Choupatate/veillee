@@ -21,7 +21,7 @@
            value="{{ story.date.isoformat() if story else today.isoformat() }}" required>
     <div class="editor__unlock-group">
       <label class="editor__unlock-label" for="story-unlock">
-        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-seal.png') }}" alt="" width="20" height="20">{{ _("Seal until") }}
+        <img class="btn-icon" src="{{ theme_img('icon-seal.png') }}" alt="" width="20" height="20">{{ _("Seal until") }}
       </label>
       <input class="editor__unlock" id="story-unlock" name="unlock" type="date"
              value="{{ story.unlock.isoformat() if story and story.unlock else '' }}">
@@ -49,11 +49,11 @@
     <div class="editor__toggles">
       <button type="button" id="draft-toggle" class="btn editor__toggle-chip"
               aria-pressed="{{ 'true' if story and story.draft else 'false' }}">
-        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-draft.png') }}" alt="" width="20" height="20">{{ _("Draft") }}
+        <img class="btn-icon" src="{{ theme_img('icon-draft.png') }}" alt="" width="20" height="20">{{ _("Draft") }}
       </button>
       <button type="button" id="archive-toggle" class="btn editor__toggle-chip"
               aria-pressed="{{ 'true' if story and story.archived else 'false' }}">
-        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-archive.png') }}" alt="" width="20" height="20">{{ _("Archive") }}
+        <img class="btn-icon" src="{{ theme_img('icon-archive.png') }}" alt="" width="20" height="20">{{ _("Archive") }}
       </button>
     </div>
   </div>
@@ -69,7 +69,7 @@
     <p class="editor__family-label">{{ _("Sources") }}</p>
     <div class="editor__sources-list" id="editor-sources-list"></div>
     <button type="button" class="btn" id="editor-sources-add">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-source.png') }}" alt="" width="20" height="20">{{ _("+ Add source") }}
+      <img class="btn-icon" src="{{ theme_img('icon-source.png') }}" alt="" width="20" height="20">{{ _("+ Add source") }}
     </button>
   </div>
   <script type="application/json" id="editor-sources-data">{{ (story.sources if story else []) | tojson }}</script>
@@ -81,7 +81,7 @@
   <section class="editor__camera" id="editor-camera" hidden>
     <h2 class="editor__camera-heading">{{ _("Photo") }}</h2>
     <button type="button" id="camera-btn" class="btn editor__camera-btn">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">{{ _("Take a photo") }}
+      <img class="btn-icon" src="{{ theme_img('icon-instant.png') }}" alt="" width="20" height="20">{{ _("Take a photo") }}
     </button>
     <p class="editor__camera-message" id="camera-message" hidden></p>
   </section>
@@ -89,7 +89,7 @@
     <h2 class="editor__voice-heading">{{ _("Voice") }}</h2>
     <div class="editor__voice-recorder">
       <button type="button" id="voice-record-btn" class="btn editor__voice-record">
-        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-record.png') }}" alt="" width="20" height="20">{{ _("Record") }}
+        <img class="btn-icon" src="{{ theme_img('icon-record.png') }}" alt="" width="20" height="20">{{ _("Record") }}
       </button>
       <button type="button" id="voice-pause-btn" class="btn editor__voice-pause" hidden>{{ _("Pause") }}</button>
       <button type="button" id="voice-stop-btn" class="btn editor__voice-stop" hidden>{{ _("Stop") }}</button>

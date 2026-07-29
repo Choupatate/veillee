@@ -32,8 +32,11 @@ html, body {
 .illo {
   display: block;
   padding: 0.75rem;
-  background: #f9f2e1;
-  border: 1px solid #e2d9c8;
+  /* F46: the card's mount is the paper the pack's pictures are drawn on —
+     cream for the ranch, void for a pack drawn on black. A pack that
+     changes its art has to be able to change what the art sits in. */
+  background: var(--illo-mount);
+  border: 1px solid var(--illo-mount-edge);
   border-radius: 4px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
   transform: rotate(-1.2deg);
@@ -133,6 +136,21 @@ input, textarea, select {
 
   --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* --- F46: what a theme pack may re-draw, beyond the palette ---------- */
+  /* The paper an illustration is mounted on. Deliberately the same in
+     every colour scheme: in dark mode a cream card reads as a photograph
+     tucked into an album, which is the effect we want. */
+  --illo-mount: #f9f2e1;
+  --illo-mount-edge: #e2d9c8;
+  /* The two pictures CSS draws rather than templates. */
+  --flourish-image: url("../themes/ranch/img/rope-divider.png");
+  --brand-mark: url("../themes/ranch/img/brand-star.png");
+  /* The F44 ambience, as colours rather than a fire: the light it casts,
+     and the shadow that returns when it dips. */
+  --ambience-glow: 255, 176, 92;
+  --ambience-glow-edge: 255, 140, 48;
+  --ambience-shade: 26, 15, 4;
 
   /* The sepia "aged photo" recipe every portrait uses. --photo-sepia is
      set per-element (inline, from the photo's own stored tone); this is
@@ -270,16 +288,16 @@ body {
 
 .firelight__glow {
   background: radial-gradient(120% 85% at 50% 0%,
-    rgba(255, 176, 92, calc(0.17 * var(--firelight-strength))),
-    rgba(255, 140, 48, calc(0.075 * var(--firelight-strength))) 45%,
-    rgba(255, 120, 40, 0) 74%);
+    rgba(var(--ambience-glow), calc(0.17 * var(--firelight-strength))),
+    rgba(var(--ambience-glow-edge), calc(0.075 * var(--firelight-strength))) 45%,
+    rgba(var(--ambience-glow-edge), 0) 74%);
   opacity: 0.7;
 }
 
 .firelight__flicker {
   background: radial-gradient(85% 60% at 22% 100%,
-    rgba(255, 150, 60, calc(0.12 * var(--firelight-strength))),
-    rgba(255, 130, 40, 0) 68%);
+    rgba(var(--ambience-glow-edge), calc(0.12 * var(--firelight-strength))),
+    rgba(var(--ambience-glow-edge), 0) 68%);
   opacity: 0.6;
 }
 
@@ -289,8 +307,8 @@ body {
    the fire dipping on any background at all. */
 .firelight__shadow {
   background: radial-gradient(115% 95% at 50% 20%,
-    rgba(26, 15, 4, 0) 42%,
-    rgba(26, 15, 4, calc(0.14 * var(--firelight-strength))) 100%);
+    rgba(var(--ambience-shade), 0) 42%,
+    rgba(var(--ambience-shade), calc(0.14 * var(--firelight-strength))) 100%);
   opacity: 0.55;
 }
 
@@ -1696,7 +1714,13 @@ img.people__portrait {
   height: 23px;
   border: none;
   margin: 0 auto;
-  background: url("../img/rope-divider.png") no-repeat center / contain;
+  /* Longhands, not the shorthand: a pack may supply several gradient
+     layers here instead of one image, and the shorthand would apply the
+     positioning to the last layer only. */
+  background-image: var(--flourish-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
 }
 
 .story__sources {
@@ -3673,7 +3697,10 @@ img.family-chip__thumb {
   right: -10px;
   width: 28px;
   height: 28px;
-  background: url("../img/brand-star.png") center / contain no-repeat;
+  background-image: var(--brand-mark);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
 }
 
 .page-tree .f3 .f3-card-avatar {

@@ -6,7 +6,7 @@
   <p class="firsts__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <h1 class="firsts__title">{{ _("Firsts") }}</h1>
   <hr class="story__flourish firsts__flourish" aria-hidden="true">
-  <img class="illo illo--page" src="{{ url_for('static', filename='img/firsts-boots.jpg') }}"
+  <img class="illo illo--page" src="{{ theme_img('firsts-boots.jpg') }}"
        alt="" loading="lazy" decoding="async" width="760" height="519">
   {% if not firsts %}
   <p class="firsts__empty">

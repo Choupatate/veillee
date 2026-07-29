@@ -4,11 +4,12 @@ import secrets
 from datetime import date, timedelta
 from pathlib import Path
 
-from flask import Flask, g, jsonify, render_template, request
+from flask import Flask, g, jsonify, render_template, request, url_for
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from . import themes
 from .throttle import DEFAULT_LIMIT, DEFAULT_WINDOW_SECONDS, FailureThrottle
 
 MAX_CONTENT_LENGTH = 128 * 1024 * 1024
@@ -65,6 +66,22 @@ def _parse_authors(value):
     return authors
 
 
+def _parse_theme(value):
+    """Parse STORYBOOK_THEME (the name of a folder under
+    `app/static/themes/`). Raises RuntimeError on an unknown pack rather
+    than quietly serving the default one — a book whose art silently
+    reverted would be a puzzle to debug, and the fix is one word."""
+    if not value:
+        return themes.DEFAULT_THEME
+    value = value.strip()
+    if not themes.is_valid_theme(value):
+        known = ", ".join(themes.available_themes()) or "(none found)"
+        raise RuntimeError(
+            f"Unknown STORYBOOK_THEME {value!r}. Available themes: {known}"
+        )
+    return value
+
+
 def _parse_birthdate(value):
     """Parse STORYBOOK_BIRTHDATE ("YYYY-MM-DD"). Raises RuntimeError on a
     malformed value so misconfiguration fails at startup (like STORYBOOK_AUTHORS)."""
@@ -94,6 +111,7 @@ def create_app(test_config=None):
     open_requests = os.environ.get("STORYBOOK_OPEN_REQUESTS") == "1"
     trusted_proxies = int(os.environ.get("STORYBOOK_TRUSTED_PROXIES") or 0)
     default_language = os.environ.get("STORYBOOK_LANGUAGE") or None
+    theme = _parse_theme(os.environ.get("STORYBOOK_THEME"))
 
     if password and not secret_key and not test_config:
         raise RuntimeError(
@@ -118,6 +136,7 @@ def create_app(test_config=None):
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=cookie_secure,
         DEFAULT_LANGUAGE=default_language,
+        THEME=theme,
         LOGIN_ATTEMPT_LIMIT=DEFAULT_LIMIT,
         LOGIN_ATTEMPT_WINDOW=DEFAULT_WINDOW_SECONDS,
     )
@@ -169,6 +188,15 @@ def create_app(test_config=None):
             app.config.get("DEFAULT_LANGUAGE"),
         )
 
+    # F46: templates ask for a picture by name, never by folder, so a theme
+    # pack can replace any of them — and inherit the default pack's for
+    # everything it hasn't drawn yet.
+    def theme_img(filename):
+        return url_for(
+            "static", filename=themes.image_url_path(app.config["THEME"], filename)
+        )
+
+    app.jinja_env.globals["theme_img"] = theme_img
     app.jinja_env.globals["is_sealed"] = storage.is_sealed
     app.jinja_env.globals["thumb_filename"] = storage.thumb_filename
     app.jinja_env.globals["_"] = i18n._
@@ -211,6 +239,8 @@ def create_app(test_config=None):
         # the app's own default name follows the reader's language too.
         return {
             "app_title": app.config["TITLE"] or i18n._("Storybook"),
+            # None for the default pack, whose colours are main.css's own.
+            "theme_stylesheet": themes.stylesheet_url_path(app.config["THEME"]),
             "current_language": i18n.current_language(),
             "js_strings": i18n.js_strings(i18n.current_language()),
             # slug -> display name for audience groups (F40 Phase 2). A

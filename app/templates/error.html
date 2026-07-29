@@ -3,7 +3,7 @@
 {% block body_class %}page-error{% endblock %}
 {% block content %}
 <div class="empty-state">
-  <img class="illo empty-state__illo" src="{{ url_for('static', filename='img/tumbleweed.jpg') }}"
+  <img class="illo empty-state__illo" src="{{ theme_img('tumbleweed.jpg') }}"
        alt="" loading="lazy" decoding="async" width="900" height="488">
   <h1 class="empty-state__heading">{{ heading }}</h1>
   <p>{{ message }}</p>

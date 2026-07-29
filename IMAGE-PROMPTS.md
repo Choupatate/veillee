@@ -4,7 +4,7 @@ Prompts for the illustrations this app is still missing, written so a
 generated image lands in the same world as the ones already committed
 (FEATURES.md F17 for the paper-card illustrations, F22 for the flat button
 icons). Generate externally, process locally, commit the result under
-`app/static/img/` — the app never fetches an image at runtime.
+`app/static/themes/ranch/img/` — the app never fetches an image at runtime.
 
 **Status:** every asset below has been generated, processed and wired in.
 The prompts are kept for regenerating one or matching a new asset to the
@@ -27,7 +27,7 @@ the words on the page should still come away with the right idea.
    further from the rope") rather than re-pasting a modified prompt — the
    thread holds the style steady.
 2. **Anchor the style with a real file.** Upload
-   `app/static/img/empty-chest.jpg` or `tree-sapling.jpg` with the first
+   `app/static/themes/ranch/img/empty-chest.jpg` or `tree-sapling.jpg` with the first
    message and add: *"Match the linework, colour palette and paper of this
    image exactly."* This is the single biggest quality lever — the words
    below describe the house style, but an actual sample pins it.
@@ -151,7 +151,7 @@ at the top of the "Who can read a story" section. The markup every page
 illustration uses:
 
 ```html
-<img class="illo illo--page" src="{{ url_for('static', filename='img/group-circle.jpg') }}"
+<img class="illo illo--page" src="{{ theme_img('group-circle.jpg') }}"
      alt="" loading="lazy" decoding="async" width="760" height="612">
 ```
 
@@ -530,5 +530,5 @@ someone is trying to act on.
 
 Nothing here is wired into the templates yet: an `<img>` pointing at a file
 that doesn't exist is a broken image on a real family's page. Drop a
-generated JPEG into `app/static/img/`, paste the two snippets from its
+generated JPEG into `app/static/themes/ranch/img/`, paste the two snippets from its
 entry, check both themes at 390 px, and that asset is done.

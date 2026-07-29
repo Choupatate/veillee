@@ -8,12 +8,13 @@ Everything is stored as plain **markdown files and images on disk** — no datab
 If you delete the app entirely and keep the `stories/` folder, every story is still
 fully readable with nothing more than a file browser and a text editor.
 
-Three themes are available from the toggle in the top-left corner: dark (the
-default), light, and manuscript — a warm, aged-paper look with a subtly grained
-texture (a self-contained inline SVG filter, no image assets or network requests)
-where the timeline, story, and editor each render as a page resting on a desk.
-The editor follows whichever one you pick: the writing surface is the theme's
-own paper, in the same serif the finished story page uses.
+Three colour schemes are available from the toggle in the top-left corner: dark
+(the default), light, and manuscript — a warm, aged-paper look with a subtly
+grained texture (a self-contained inline SVG filter, no image assets or network
+requests) where the timeline, story, and editor each render as a page resting on
+a desk. The editor follows whichever one you pick: the writing surface is the
+theme's own paper, in the same serif the finished story page uses. The book's
+whole *art direction* is swappable too — see "Themes" below.
 
 Next to the theme toggle, a **flame button** turns *firelight* off and on — a
 wash of warm light over the page whose brightness drifts up and down as if a
@@ -109,6 +110,7 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_AUTHORS` | Optional. Comma-separated `Name:#hexcolor` pairs for several narrators (see below). Unset by default. |
 | `STORYBOOK_BIRTHDATE` | Optional. The child's birth date (`YYYY-MM-DD`). Shows the child's age at each memory (see below). Unset by default. |
 | `STORYBOOK_LANGUAGE` | Optional. The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. Defaults to `en`. |
+| `STORYBOOK_THEME` | Optional. The book's art direction — a folder name under `app/static/themes/` (`ranch`, the default, or `orbit`). See "Themes" below. |
 | `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` (English) / `La Veillée` (French), depending on the visitor's language. |
 | `STORYBOOK_CHILD` | Optional. The slug of the person page the family tree's kinship labels are computed relative to (see below). Unset by default. |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
@@ -718,6 +720,38 @@ port): whoever can launch the process already has filesystem access to
 same machine as your MCP client, not exposed remotely. Photo uploads take
 base64-encoded image bytes as a tool argument instead of a multipart file;
 voice memos and zip import/export aren't wired up as tools.
+
+### Themes
+
+A **theme pack** is the book's art direction: its palette, its
+illustrations, its icons. Two ship with the app, chosen with
+`STORYBOOK_THEME`:
+
+- **`ranch`** (the default) — the hand-drawn western storybook the app was
+  built around: amber lamplight, aged paper, rope and lantern.
+- **`orbit`** — the same book kept somewhere off Earth: deep blue-black,
+  instrument cyan, and a distant star in place of the fire.
+
+This is one setting for the whole book, not a per-reader choice — the art
+direction is the book's identity, the way its title is. The
+light/dark/manuscript toggle stays each reader's own, *within* whichever
+pack the book uses, so a pack sets all three schemes.
+
+A pack is just a folder under `app/static/themes/<name>/`: a `theme.css`
+re-declaring whichever colour variables it wants to change, and an `img/`
+folder of pictures. **A pack only has to draw what it wants to change** —
+anything missing falls back to the default pack's copy. That's what makes a
+new art direction practical: the palette is a complete, working theme on
+day one, and the ~35 illustrations and icons can arrive one at a time.
+
+That's exactly where `orbit` is today: its colours are finished, and it
+still borrows every picture from `ranch` while its own artwork gets drawn.
+`IMAGE-PROMPTS-ORBIT.md` is the catalogue of what each of those pictures
+has to show.
+
+To make your own, copy `app/static/themes/orbit/theme.css` as a starting
+point — it re-declares every variable a pack can, with comments on why each
+one is there.
 
 ### In-app help
 

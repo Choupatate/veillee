@@ -1,0 +1,130 @@
+/* Orbit — a theme pack for a book kept somewhere off Earth (F46).
+ *
+ * The default pack is a ranch at dusk: amber lamplight on aged paper. This
+ * one is a ship's cabin on the night side of a planet — deep blue-black,
+ * instrument cyan, and the slow wash of a distant star instead of a fire in
+ * the hearth.
+ *
+ * It is a *pack*, not a fork: this file only re-declares variables main.css
+ * already reads. Anything it leaves alone stays as main.css set it, and any
+ * picture it hasn't drawn falls back to the ranch's (see app/themes.py). So
+ * the palette below is a complete, working theme on its own, and the
+ * artwork in `img/` can arrive one picture at a time — see
+ * IMAGE-PROMPTS-ORBIT.md for what each one has to show.
+ *
+ * All three colour schemes are set, because the pack is the book's identity
+ * and the light/dark/manuscript toggle stays the reader's. "Manuscript"
+ * here is the daylight side: a pale regolith grey rather than aged paper.
+ */
+
+:root {
+  --color-bg: #080b16;
+  --color-bg-raised: #101627;
+  --color-text: #dce6f5;
+  --color-text-dim: #93a3c0;
+  --color-accent: #5cc8f5;
+  --color-accent-text: #05080f;
+  --color-highlight-bg: rgba(92, 200, 245, 0.2);
+  --color-border: #1e2942;
+  --color-error: #f0736b;
+
+  /* Photographs are printed, not aged: no sepia out here, just a touch of
+     cool and contrast so they sit in the same light as everything else. */
+  --photo-filter: saturate(0.92) contrast(1.06) brightness(0.97) hue-rotate(-6deg);
+
+  /* An illustration is mounted on a plate of instrument glass rather than a
+     paper card, in every scheme — the same reasoning as the ranch's cream:
+     one constant mount reads as an object placed on the page. */
+  --illo-mount: #0d1424;
+  --illo-mount-edge: #24304d;
+
+  /* Both of these are decoration CSS draws rather than art a template
+     names, so the pack supplies them without needing a single file: a
+     horizon line that fades to nothing at both ends, and a small star for
+     the tree's root card. A pack with real artwork can point these at
+     `img/…` instead, and this is the seam where it would. */
+  --flourish-image:
+    radial-gradient(circle at 50% 50%, rgba(220, 230, 245, 0.95) 0 1.5px, rgba(220, 230, 245, 0) 2px),
+    linear-gradient(to right,
+      rgba(92, 200, 245, 0) 0%, rgba(92, 200, 245, 0.55) 30%,
+      rgba(92, 200, 245, 0.55) 70%, rgba(92, 200, 245, 0) 100%);
+  --brand-mark:
+    radial-gradient(circle at 50% 50%, #9ecdff 0 22%, rgba(158, 205, 255, 0) 23%),
+    radial-gradient(closest-side ellipse at 50% 50%, rgba(92, 200, 245, 0) 52%,
+      rgba(92, 200, 245, 0.85) 54%, rgba(92, 200, 245, 0.85) 62%, rgba(92, 200, 245, 0) 64%);
+
+  /* The ambience is a star, not a hearth: cold white-blue light with a
+     faint cyan edge, and the shadow it leaves is the void rather than
+     soot. F44's machinery is unchanged — only the colours are. */
+  --ambience-glow: 150, 205, 255;
+  --ambience-glow-edge: 92, 200, 245;
+  --ambience-shade: 2, 4, 12;
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --color-bg: #eef2f9;
+    --color-bg-raised: #e0e7f3;
+    --color-text: #16203a;
+    --color-text-dim: #4c5b7a;
+    --color-accent: #1668a8;
+    --color-accent-text: #f2f8ff;
+    --color-highlight-bg: rgba(22, 104, 168, 0.18);
+    --color-border: #ccd6e8;
+    --color-error: #b1352c;
+    --firelight-strength: 1.6;
+
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --color-bg: #eef2f9;
+  --color-bg-raised: #e0e7f3;
+  --color-text: #16203a;
+  --color-text-dim: #4c5b7a;
+  --color-accent: #1668a8;
+  --color-accent-text: #f2f8ff;
+  --color-highlight-bg: rgba(22, 104, 168, 0.18);
+  --color-border: #ccd6e8;
+  --color-error: #b1352c;
+  --firelight-strength: 1.6;
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #080b16;
+  --color-bg-raised: #101627;
+  --color-text: #dce6f5;
+  --color-text-dim: #93a3c0;
+  --color-accent: #5cc8f5;
+  --color-accent-text: #05080f;
+  --color-highlight-bg: rgba(92, 200, 245, 0.2);
+  --color-border: #1e2942;
+  --color-error: #f0736b;
+  --firelight-strength: 1;
+
+  color-scheme: dark;
+}
+
+/* The ranch's third scheme is aged paper; orbit's is the daylight side of
+   a rock — pale regolith with a fine dust grain, the same self-contained
+   SVG turbulence main.css uses so nothing is fetched. */
+:root[data-theme="manuscript"] {
+  --color-bg: #d9d5cd;
+  --color-bg-raised: #cbc7bf;
+  --color-text: #24262b;
+  --color-text-dim: #4e525c;
+  --color-accent: #9c4a22;
+  --color-accent-text: #f6f1e8;
+  --color-highlight-bg: rgba(156, 74, 34, 0.2);
+  --color-border: #b3aea4;
+  --color-error: #8f3025;
+  --firelight-strength: 1.45;
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.22 0 0 0 0 0.21 0 0 0 0 0.19 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  color-scheme: light;
+}

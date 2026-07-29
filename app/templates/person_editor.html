@@ -59,7 +59,7 @@
       <label for="editor-photo-file" class="btn editor__photo-upload-btn" id="editor-photo-upload-label">{% if person and person.photo %}{{ _("Change photo") }}{% else %}{{ _("Add a photo") }}{% endif %}</label>
       {# Unhidden by editor.js only where getUserMedia exists (F34). #}
       <button type="button" class="btn editor__photo-camera-btn" id="editor-photo-camera" hidden>
-        <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">{{ _("Take a photo") }}
+        <img class="btn-icon" src="{{ theme_img('icon-instant.png') }}" alt="" width="20" height="20">{{ _("Take a photo") }}
       </button>
     </div>
     <p class="editor__save-message" id="editor-photo-message" hidden></p>
@@ -134,7 +134,7 @@
     <p class="editor__family-label">{{ _("Sources") }}</p>
     <div class="editor__sources-list" id="editor-sources-list"></div>
     <button type="button" class="btn" id="editor-sources-add">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-source.png') }}" alt="" width="20" height="20">{{ _("+ Add source") }}
+      <img class="btn-icon" src="{{ theme_img('icon-source.png') }}" alt="" width="20" height="20">{{ _("+ Add source") }}
     </button>
   </div>
   <script type="application/json" id="editor-sources-data">{{ (person.sources if person else []) | tojson }}</script>

@@ -22,8 +22,12 @@ Read these before making non-trivial changes, in this order:
 - `REVIEW.md` — a past production-readiness audit and the fixes it drove.
   Historical record, not necessarily reflecting the current code.
 - `IMAGE-PROMPTS.md` — the house style and per-asset prompts for the
-  illustrations still missing (F42). Read it before generating, adding or
-  placing any illustration, and add finished assets to F17's table.
+  default (*ranch*) pack's illustrations (F42). Read it before generating,
+  adding or placing any ranch illustration, and add finished assets to
+  F17's table.
+- `IMAGE-PROMPTS-ORBIT.md` — the same thing for the *orbit* pack (F46),
+  whose artwork is still to be drawn. A house style belongs to one art
+  direction: never mix the two files' style rules.
 
 When you finish a feature or fix worth documenting, add a section to
 `FEATURES.md` following the existing style rather than leaving it
@@ -82,6 +86,15 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
 - `app/dates.py`, `app/prompts.py`, `app/rendering.py`, `app/epub.py` — age-
   label computation, the writing-prompts list, markdown-to-HTML rendering,
   and EPUB export, respectively.
+- `app/themes.py` — theme packs (F46). A pack is a folder under
+  `app/static/themes/<name>/`: a `theme.css` of colour variables and an
+  `img/` folder. **No template ever names an image folder** — they call the
+  `theme_img('name.png')` Jinja global, which serves the configured pack's
+  copy or falls back to the default pack's. That fallback is load-bearing:
+  it is what lets a pack ship with a palette and no artwork at all. Two
+  conventions `tests/test_themes.py` enforces: the same filename means the
+  same picture in every pack (a pack is a skin, not a rename), and the
+  default pack (`ranch`) is the only one allowed no holes.
 
 Web layer — Flask, split by resource; each `routes_api_*`/`routes_*`
 sub-file registers its routes onto a blueprint object (`bp`) defined in

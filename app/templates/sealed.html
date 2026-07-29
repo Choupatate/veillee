@@ -3,7 +3,7 @@
 {% block body_class %}page-sealed{% endblock %}
 {% block content %}
 <div class="sealed"{% if author_color %} style="--author-color: {{ author_color }}"{% endif %}>
-  <img class="illo sealed__illo" src="{{ url_for('static', filename='img/sealed-letter.jpg') }}"
+  <img class="illo sealed__illo" src="{{ theme_img('sealed-letter.jpg') }}"
        alt="" loading="lazy" decoding="async" width="576" height="495">
   <p class="sealed__label">{% if story.author %}{{ _("A sealed letter from {author}", author=story.author) }}{% else %}{{ _("A sealed letter") }}{% endif %}</p>
   <p class="sealed__opens">{{ _("It opens on {date}.", date=story.unlock|longdate) }}</p>

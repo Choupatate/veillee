@@ -72,6 +72,9 @@ the exact `F<N>.` heading text to jump to it.
   a slow warm wash over every page with a flame switch to turn it off
 - **F45** — A toggle that looks off when it is off: Draft and Archive (and
   every other pressed chip) stopped being imitable by a plain hover
+- **F46** — Theme packs: the art direction became a folder, so a second one
+  (*orbit*, a book kept off Earth) could ship its palette on day one and
+  its pictures one at a time
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5699,3 +5702,116 @@ trips through the API to disk.
 Verified in a browser in all three themes at 390px and 1280px, including
 the case that produced the report: clicking a chip off and leaving the
 pointer on it.
+
+## F46. Theme packs — the art direction as a folder
+
+The app had three *colour schemes* (dark, light, manuscript) and exactly one
+*look*: the hand-drawn western storybook of F17 and F22. Adding a palette
+was already 15 lines. Adding a **different world** was impossible, because
+every one of the 37 pictures was named directly in a template.
+
+This splits the two apart. A **theme pack** is a folder:
+
+```
+app/static/themes/ranch/img/*          ← the 37 files that were in static/img/
+app/static/themes/orbit/theme.css      ← a palette, and no pictures at all
+```
+
+Templates stopped naming folders. `{{ theme_img('help-lantern.jpg') }}`
+returns the configured pack's copy when it has one and the default pack's
+otherwise, and `STORYBOOK_THEME` says which pack a book uses.
+
+### The fallback is the whole design
+
+A pack of 35 illustrations is a wall nobody starts climbing. A pack that
+works the day its palette is written, and takes its artwork one picture at
+a time, is a ramp. So a pack **only has to draw what it wants to change**,
+and `orbit` ships today with a complete palette and zero image files,
+borrowing every picture from `ranch` while its own are drawn.
+
+Everything else follows from wanting that property to stay true:
+
+- **A pack is a skin, not a rename.** The same filename means the same
+  picture in every pack. Rename one and it silently inherits the default's
+  forever while shipping a file nothing loads — so a test walks the packs
+  and fails on any file the default pack has no name for.
+- **The default pack is the only one allowed no holes.** Another test
+  scans every `theme_img(...)` call in every template and fails if `ranch`
+  is missing one.
+- **An unknown `STORYBOOK_THEME` fails at startup**, like
+  `STORYBOOK_AUTHORS` does. Silently serving the default pack would be a
+  puzzle to debug and the fix is one word.
+- **The filename is validated like a path, because it is one.** It builds a
+  URL *and* a filesystem probe, so anything that isn't a plain asset name
+  resolves to the default pack rather than being interpolated.
+
+### Two axes, kept apart
+
+The pack is the **book's** identity, set once by whoever runs it. The
+light/dark/manuscript toggle stays **each reader's** choice within it. So a
+pack declares all three schemes rather than replacing the toggle — three
+states, not nine, and a reader who prefers a light screen still gets one
+whatever world the book is set in.
+
+### What a pack can change, beyond colour
+
+Three ranch-isms were hardcoded in `main.css` and had to be lifted for a
+pack to be more than a palette:
+
+- `--illo-mount` / `--illo-mount-edge` — the `.illo` card's paper. It was
+  literally `#f9f2e1`, the cream the shipped JPEGs are drawn on. A pack
+  whose pictures are drawn on black needs the mount to follow, or every
+  card shows a seam.
+- `--flourish-image` / `--brand-mark` — the two pictures CSS draws rather
+  than a template names (the rope divider, the tree's root star). Both are
+  now variables, and both use background *longhands* rather than the
+  shorthand, so a pack can supply several gradient layers instead of one
+  image — which is exactly what `orbit` does, drawing its divider and star
+  in pure CSS and shipping no file for either.
+- `--ambience-glow` / `--ambience-glow-edge` / `--ambience-shade` — F44's
+  firelight, as colours. The machinery is untouched; only the hue moves. In
+  `orbit` the hearth becomes a distant star: cold white-blue light, and the
+  shadow it leaves when it dips is the void rather than soot.
+
+`--photo-filter` was already a variable, so `orbit` drops F35's sepia for a
+faint cool cast without any change to the code that applies it.
+
+### The orbit pack
+
+A ship's cabin on the night side of a planet: `#080b16` ground, instrument
+cyan `#5cc8f5`, rust orange for warmth. Its "manuscript" scheme is the
+daylight side — pale regolith grey with a fine dust grain, reusing the same
+self-contained SVG turbulence the ranch's aged paper uses.
+
+`IMAGE-PROMPTS-ORBIT.md` is its prompt catalogue: 17 illustrations and 13
+icons, each with what a reader has to understand from the picture alone,
+plus the pack's house style (retro-futurist encyclopaedia plates,
+cosmonauts with dark visors, rings as the signature shape). It carries the
+ranch pack's two hard rules unchanged — no lettering ever, because the
+interface is bilingual, and no faces, so any reader can be the cosmonaut.
+
+Written as a separate file rather than a section: a house style belongs to
+one art direction, and two sets of style rules in one document is how a
+pack drifts.
+
+### Tests
+
+`tests/test_themes.py`, 25: the fallback in both directions, a pack serving
+what it has, an unknown pack falling back rather than interpolating,
+filenames that aren't plain asset names (traversal, subpaths, uppercase,
+empty) never reaching a pack, pack names rejected the same way, the default
+pack being complete against every `theme_img` call in every template, no
+pack shipping a file the default has no name for, no template naming an
+image folder directly, `main.css` hardcoding no pack's art, an unknown
+`STORYBOOK_THEME` raising at startup, and a real page served under `orbit`
+carrying orbit's stylesheet and ranch's pictures.
+
+One F44 test changed shape: it asserted the shadow layer's literal
+`rgba(26, 15, 4, …)`, which is now `var(--ambience-shade)`. It asserts the
+variable instead — the layer still has to exist and still has to darken.
+
+Verified in a browser under `STORYBOOK_THEME=orbit` at 1280px in all three
+schemes: login, timeline and a story page, including the CSS-drawn divider
+and the inherited ranch illustrations mounted on orbit's dark plate.
+
+`pytest` (1170) and `ruff check .` green.

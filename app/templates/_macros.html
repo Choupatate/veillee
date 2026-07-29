@@ -48,7 +48,7 @@
 {% macro audience_picker(all_groups, selected_slugs) %}
 <div class="editor__audience" id="editor-audience">
   <p class="editor__family-label editor__audience-label">
-    <img class="btn-icon" src="{{ url_for('static', filename='img/icon-group.png') }}"
+    <img class="btn-icon" src="{{ theme_img('icon-group.png') }}"
          alt="" width="20" height="20">{{ _("Who can see this") }}
   </p>
   <div class="editor__audience-chips">
