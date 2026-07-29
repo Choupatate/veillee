@@ -253,6 +253,7 @@ JS_STRINGS = (
     "Could not import. Please check your connection and try again.",
     "Imported {n} story. Reloading…", "Imported {n} stories. Reloading…",
     "Add a partner above first.", "Only {names}",
+    "Turn the firelight off", "Turn the firelight on",
 )
 
 
