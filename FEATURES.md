@@ -69,7 +69,7 @@ the exact `F<N>.` heading text to jump to it.
   on the cast (or importing someone else's logins)
 - **F44** — Writing in the book's own hand, and firelight: the editor
   re-dressed in the theme variables instead of Toast UI's white box, plus
-  a slow warm wash over every page with a ☼ switch to turn it off
+  a slow warm wash over every page with a flame switch to turn it off
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5546,7 +5546,7 @@ declare it should fail a test rather than quietly wash a bright page at
 full strength, and `test_every_theme_declares_its_own_strength` is that
 test.
 
-The ☼ button next to the theme toggle turns it off for good. Like the
+The button next to the theme toggle turns it off for good. Like the
 theme, the choice is stored in `localStorage` and re-applied by
 `theme-boot.js` in `<head>`, so a page never paints the wash and then yanks
 it away. Only the string `"off"` is ever *read* back, because firelight is
@@ -5584,3 +5584,62 @@ editor with prose in it, both editor modes, the ⋯ overflow toolbar, the
 link dialog on a phone, and the firelight measured frame by frame.
 
 `pytest` (1135) and `ruff check .` green.
+
+### Follow-up: a flame you can see, and a fire you can notice
+
+Two things the first cut got wrong, both reported from a real browser
+rather than a screenshot.
+
+**Nobody could tell whether the firelight was on.** The switch was a bare
+☼ glyph that looked identical in both states — `aria-pressed` told a screen
+reader and nobody else. It now carries a flame, hand-drawn as inline SVG in
+the spirit of `favicon.svg` (two paths, no gradients, no filters), and the
+two states are told apart three ways at once: the flame is amber in a ring
+of the same colour when lit, and grey, ringed in plain border and scaled to
+82%, when out. Three signals rather than one because WCAG 1.4.1 rules out
+colour on its own, and because a difference you have to hunt for isn't a
+difference.
+
+The flame is inline rather than an `<img>` precisely so it can inherit the
+button's `color`, and its hollow heart is a filled path in
+`var(--color-bg-raised)` — the button's own background showing through —
+which is why it stays correct in all four themes without a second asset.
+The label went from the noun "Firelight" to the action, "Turn the firelight
+off" / "on", rewritten by `firelight.js` from the same string table
+everything else in the app reads, so it's right in French too.
+
+**The wash itself was too faint to notice.** Measured, the first cut moved
+the mean brightness of a dark page by 3.85 of 255 — real, but below the
+threshold where you'd spot it without being told. Three changes, in order
+of how much each mattered:
+
+- The keyframes now dip to 0.3 instead of 0.58. The *swing* is what reads
+  as fire, not the tint, so travelling further costs nothing in how orange
+  the page ever gets.
+- `--firelight-strength` stopped being an `opacity` on the container and
+  became a multiplier on the gradient alphas. This is not a refactor: an
+  `opacity` clamps at 1, and the pale themes need *more* paint than the
+  dark one, not less. Amber added to a near-white page barely changes its
+  brightness at all, so the same visible swing costs roughly 1.6× there.
+  A theme that now forgets to declare the variable makes the gradient
+  invalid, which paints nothing — a safe failure, and still a test failure.
+- A third layer, `.firelight__shadow`, darkens instead of lighting. This is
+  the one that rescued the manuscript theme: adding amber to aged cream
+  shifts its hue and not its luminance, but corners falling into shadow
+  read as the fire dipping on *any* background. It runs on its own 9.1s
+  cycle, so all three layers are now mutually out of step.
+
+Measured again over a full cycle, mean page brightness now moves 24% in
+dark (10.8 of 255 across the top of the page, where the glow is
+strongest), 4.1% in light and 3.5% in manuscript — the pale themes still
+the quietest, which is the honest ceiling for warm light on white paper,
+but all three now visibly breathe.
+
+`tests/test_firelight.py` grew to 20: the flame's two paths, the three-way
+state difference, the switch's rules coming after `.theme-toggle`'s in the
+file (both are one class deep, so order is all that decides them), the
+action labels being in the table JS reads, the strength being a multiplier
+with at least one theme above 1, the darkening layer, and three distinct
+cycle durations rather than two.
+
+`pytest` (1141) and `ruff check .` green.

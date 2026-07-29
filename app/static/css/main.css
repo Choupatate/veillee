@@ -124,8 +124,11 @@ input, textarea, select {
   --color-border: #2c2822;
   --color-error: #e0796a;
 
-  /* How much of F44's firelight wash this theme wants. A dark room takes
-     the full warmth; a lit one goes yellow long before that. */
+  /* How much of F44's firelight wash this theme wants, as a multiplier on
+     the gradient alphas. It is not an `opacity` — opacity clamps at 1, and
+     the pale themes need *more* than the dark one, not less: amber added
+     to a near-white page barely moves its brightness, so the same swing
+     costs a good deal more paint there. */
   --firelight-strength: 1;
 
   --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -150,7 +153,7 @@ input, textarea, select {
     --color-highlight-bg: rgba(169, 112, 28, 0.18);
     --color-border: #e2d9c8;
     --color-error: #a3372a;
-    --firelight-strength: 0.55;
+    --firelight-strength: 1.6;
 
     color-scheme: light;
   }
@@ -166,7 +169,7 @@ input, textarea, select {
   --color-highlight-bg: rgba(169, 112, 28, 0.18);
   --color-border: #e2d9c8;
   --color-error: #a3372a;
-  --firelight-strength: 0.55;
+  --firelight-strength: 1.6;
 
   color-scheme: light;
 }
@@ -198,7 +201,7 @@ input, textarea, select {
   --color-highlight-bg: rgba(138, 74, 42, 0.2);
   --color-border: #cdba90;
   --color-error: #96382a;
-  --firelight-strength: 0.5;
+  --firelight-strength: 1.6;
   --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.35 0 0 0 0 0.28 0 0 0 0 0.18 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   color-scheme: light;
@@ -235,10 +238,14 @@ body {
 /* that pulsed on time would read as a broken animation.                    */
 /*                                                                          */
 /* Only `opacity` animates, so the whole effect stays on the compositor and */
-/* never triggers layout or paint. Everything else about it is restraint:   */
-/* the swing is a few hundredths of an alpha, it is off entirely for anyone */
-/* who asked for reduced motion, and the nav's ☼ button turns it off for    */
-/* good (theme-boot.js applies that choice before first paint).             */
+/* never triggers layout or paint. It is off entirely for anyone who asked  */
+/* for reduced motion, and the nav's flame button turns it off for good     */
+/* (theme-boot.js applies that choice before first paint).                  */
+/*                                                                          */
+/* On amplitude: the first cut was so restrained nobody could see it. The   */
+/* swing is what reads as fire, not the tint, so the keyframes now dip to a */
+/* quarter and the ceiling only rose a little — the page is never much more */
+/* orange than before, it just travels much further getting there.          */
 /* ---------------------------------------------------------------------- */
 
 .firelight {
@@ -247,7 +254,6 @@ body {
   /* Above the page, below the lightbox (200) and the skip link (100). */
   z-index: 1;
   pointer-events: none;
-  opacity: var(--firelight-strength);
 }
 
 :root[data-firelight="off"] .firelight {
@@ -255,7 +261,8 @@ body {
 }
 
 .firelight__glow,
-.firelight__flicker {
+.firelight__flicker,
+.firelight__shadow {
   position: absolute;
   inset: 0;
   will-change: opacity;
@@ -263,14 +270,28 @@ body {
 
 .firelight__glow {
   background: radial-gradient(120% 85% at 50% 0%,
-    rgba(255, 176, 92, 0.11), rgba(255, 140, 48, 0.045) 45%, rgba(255, 120, 40, 0) 72%);
+    rgba(255, 176, 92, calc(0.17 * var(--firelight-strength))),
+    rgba(255, 140, 48, calc(0.075 * var(--firelight-strength))) 45%,
+    rgba(255, 120, 40, 0) 74%);
   opacity: 0.7;
 }
 
 .firelight__flicker {
   background: radial-gradient(85% 60% at 22% 100%,
-    rgba(255, 150, 60, 0.075), rgba(255, 130, 40, 0) 68%);
+    rgba(255, 150, 60, calc(0.12 * var(--firelight-strength))),
+    rgba(255, 130, 40, 0) 68%);
   opacity: 0.6;
+}
+
+/* The third layer darkens instead of lighting, and it is the one that
+   carries the effect on the pale themes: amber added to cream barely
+   changes its brightness, but the corners falling into shadow reads as
+   the fire dipping on any background at all. */
+.firelight__shadow {
+  background: radial-gradient(115% 95% at 50% 20%,
+    rgba(26, 15, 4, 0) 42%,
+    rgba(26, 15, 4, calc(0.14 * var(--firelight-strength))) 100%);
+  opacity: 0.55;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -281,32 +302,22 @@ body {
   .firelight__flicker {
     animation: firelight-breathe 7.3s ease-in-out infinite reverse;
   }
+
+  /* Counter-phase: the room darkens as the flame drops. */
+  .firelight__shadow {
+    animation: firelight-breathe 9.1s ease-in-out infinite reverse;
+  }
 }
 
 @keyframes firelight-breathe {
-  0% { opacity: 0.58; }
-  14% { opacity: 0.92; }
-  27% { opacity: 0.68; }
+  0% { opacity: 0.3; }
+  14% { opacity: 0.85; }
+  27% { opacity: 0.45; }
   41% { opacity: 1; }
-  58% { opacity: 0.72; }
-  72% { opacity: 0.96; }
-  88% { opacity: 0.64; }
-  100% { opacity: 0.58; }
-}
-
-/* Without JS the toggle can't do anything, so it isn't offered. */
-.firelight-toggle {
-  display: none;
-}
-
-.js .firelight-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-:root[data-firelight="off"] .firelight-toggle {
-  opacity: 0.5;
+  58% { opacity: 0.52; }
+  72% { opacity: 0.92; }
+  88% { opacity: 0.36; }
+  100% { opacity: 0.3; }
 }
 
 a {
@@ -483,6 +494,52 @@ mark {
     transform: scale(0.92);
   }
 }
+
+/* F44's firelight switch. It borrows .theme-toggle's shape and only says
+   what differs: it carries a flame, and — unlike the theme cycler — it has
+   a state to show. Lit is an amber flame in a ring the same colour; unlit
+   is the same flame gone cold, smaller and grey. Colour alone would fail
+   WCAG 1.4.1, so the ring and the size change carry the state too. These
+   rules sit after .theme-toggle deliberately: both are one class deep, so
+   order is what decides them. */
+.js .firelight-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* Without JS the switch can't do anything, so it isn't offered at all. */
+.firelight-toggle {
+  display: none;
+}
+
+:root[data-firelight="off"] .firelight-toggle {
+  color: var(--color-text-dim);
+  border-color: var(--color-border);
+}
+
+:root[data-firelight="off"] .firelight-toggle:hover {
+  border-color: var(--color-accent);
+}
+
+.firelight-toggle__flame {
+  display: block;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+:root[data-firelight="off"] .firelight-toggle__flame {
+  transform: scale(0.82);
+  opacity: 0.7;
+}
+
+/* The hollow heart of the flame is the button's own background showing
+   through, which is why it's a filled path and not a cut-out. */
+.firelight-toggle__core {
+  fill: var(--color-bg-raised);
+}
+
 
 /* ---------------------------------------------------------------------- */
 /* Flash messages                                                          */

@@ -704,6 +704,8 @@ TRANSLATIONS_FR = {
     "Keeping it safe": "Le garder en sécurité",
 
     # --- strings only static/js/i18n.js reads (see i18n.py's JS_STRINGS) ---
+    "Turn the firelight off": "Éteindre la lueur du feu",
+    "Turn the firelight on": "Allumer la lueur du feu",
     "Close": "Fermer",
     "Flip": "Changer",
     "Switch camera": "Changer de caméra",

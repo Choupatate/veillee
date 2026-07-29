@@ -15,10 +15,12 @@ where the timeline, story, and editor each render as a page resting on a desk.
 The editor follows whichever one you pick: the writing surface is the theme's
 own paper, in the same serif the finished story page uses.
 
-Next to the theme toggle, a **☼ button** turns *firelight* off and on — a
-barely-there wash of warm light over the page whose brightness drifts up and
-down as if a fire were burning in the room. It's on by default, off for anyone
-whose system asks for reduced motion, and the choice is remembered per browser.
+Next to the theme toggle, a **flame button** turns *firelight* off and on — a
+wash of warm light over the page whose brightness drifts up and down as if a
+fire were burning in the room. The flame is lit and amber, in a ring of the
+same colour, while the firelight is on, and small and grey once it's off. It's
+on by default, off for anyone whose system asks for reduced motion, and the
+choice is remembered per browser.
 
 See `PLAN.md` for the full design specification this app was built from, and
 `REVIEW.md` for the production-readiness review it was subsequently audited

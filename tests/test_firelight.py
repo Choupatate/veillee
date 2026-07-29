@@ -23,6 +23,7 @@ def test_the_wash_and_its_switch_are_on_every_page(auth_client):
     assert '<div class="firelight" aria-hidden="true">' in html
     assert 'class="firelight__glow"' in html
     assert 'class="firelight__flicker"' in html
+    assert 'class="firelight__shadow"' in html
     assert 'id="firelight-toggle"' in html
     assert "/static/js/firelight.js" in html
 
@@ -48,6 +49,56 @@ def test_the_switch_is_labelled_and_translated():
     base = (APP / "templates" / "base.html").read_text()
     assert "aria-label=\"{{ _('Firelight') }}\"" in base
     assert TRANSLATIONS_FR["Firelight"] != "Firelight"
+
+
+def test_the_label_says_what_a_press_will_do():
+    """"Firelight, pressed" tells a screen-reader user the state and nothing
+    about the action. JS rewrites the label to the action, in whichever
+    language the page is in — so both strings have to be in the table JS
+    reads, not just the templates' one."""
+    from app.i18n import JS_STRINGS
+    from app.translations_fr import TRANSLATIONS_FR
+
+    for text in ("Turn the firelight off", "Turn the firelight on"):
+        assert text in JS_STRINGS
+        assert TRANSLATIONS_FR.get(text) not in (None, text)
+        assert '"' + text + '"' in FIRELIGHT_JS
+    assert "storybookT(" in FIRELIGHT_JS
+
+
+def test_the_switch_carries_a_flame():
+    """An unlabelled glyph told nobody what the button was for. The flame is
+    inline SVG rather than an <img> so it can take the button's colour."""
+    base = (APP / "templates" / "base.html").read_text()
+    assert 'class="firelight-toggle__flame"' in base
+    assert 'class="firelight-toggle__core"' in base
+    assert "<svg" in base.split('id="firelight-toggle"')[1].split("</button>")[0]
+
+
+def test_the_lit_and_unlit_states_differ_by_more_than_colour():
+    """WCAG 1.4.1: colour alone can't be the signal. The ring colour, the
+    flame colour and the flame's size all change together."""
+    lit = re.search(r"\.js \.firelight-toggle \{([^}]*)\}", MAIN_CSS).group(1)
+    assert "color: var(--color-accent)" in lit
+    assert "border-color: var(--color-accent)" in lit
+
+    unlit = re.search(
+        r':root\[data-firelight="off"\] \.firelight-toggle \{([^}]*)\}', MAIN_CSS
+    ).group(1)
+    assert "color: var(--color-text-dim)" in unlit
+    assert "border-color: var(--color-border)" in unlit
+
+    flame = re.search(
+        r':root\[data-firelight="off"\] \.firelight-toggle__flame \{([^}]*)\}', MAIN_CSS
+    ).group(1)
+    assert "scale(" in flame
+
+
+def test_the_switch_styling_wins_over_the_theme_toggle():
+    """It reuses .theme-toggle's shape, and both are one class deep — so
+    whichever comes last in the file decides the colours. Move this block
+    above .theme-toggle and the lit state silently goes grey."""
+    assert MAIN_CSS.index(".js .firelight-toggle {") > MAIN_CSS.index(".theme-toggle {")
 
 
 # --- the off switch ----------------------------------------------------------
@@ -82,11 +133,11 @@ def test_the_button_is_not_offered_without_js():
 
 
 def test_every_theme_declares_its_own_strength():
-    """`.firelight` sets `opacity: var(--firelight-strength)` with no
-    fallback on purpose: a theme that forgets to declare it should fail
-    here rather than quietly wash a bright page with full-strength amber.
-    Every block that defines the palette has to define the strength too.
-    (Print is excluded: it repaints the palette white and hides the wash.)"""
+    """The gradients multiply their alphas by `var(--firelight-strength)` with
+    no fallback on purpose: a theme that forgets to declare it makes the
+    gradient invalid, which shows nothing at all — and fails here. Every
+    block that defines the palette has to define the strength too. (Print
+    is excluded: it repaints the palette white and hides the wash.)"""
     screen = MAIN_CSS[:MAIN_CSS.index("@media print")]
     palettes = screen.count("--color-bg:")
     assert palettes >= 4, "the theme blocks moved — check this test"
@@ -106,12 +157,31 @@ def test_the_animation_is_off_for_reduced_motion():
     assert "animation: firelight-breathe" not in outside
 
 
-def test_the_two_layers_run_on_mismatched_cycles():
+def test_the_layers_run_on_mismatched_cycles():
     """Equal durations would beat in step and read as a pulse; the whole
     point is that a fire never repeats on time."""
     durations = re.findall(r"animation: firelight-breathe ([\d.]+)s", MAIN_CSS)
-    assert len(durations) == 2
-    assert durations[0] != durations[1]
+    assert len(durations) == 3
+    assert len(set(durations)) == 3
+
+
+def test_the_strength_is_a_multiplier_and_not_an_opacity():
+    """`opacity` clamps at 1, and the pale themes need more paint than the
+    dark one, not less — amber on near-white barely moves its brightness.
+    So the strength multiplies the gradient alphas instead, and at least one
+    theme sets it above 1."""
+    assert not re.search(r"\.firelight \{[^}]*opacity:", MAIN_CSS)
+    assert "calc(0.17 * var(--firelight-strength))" in MAIN_CSS
+    screen = MAIN_CSS[:MAIN_CSS.index("@media print")]
+    values = [float(v) for v in re.findall(r"--firelight-strength: ([\d.]+);", screen)]
+    assert max(values) > 1
+
+
+def test_a_darkening_layer_carries_the_pale_themes():
+    """Adding amber to cream changes its hue, not its brightness — without
+    a layer that takes light away, the manuscript theme barely moves."""
+    shadow = re.findall(r"\.firelight__shadow \{([^}]*)\}", MAIN_CSS)
+    assert any("rgba(26, 15, 4" in block for block in shadow)
 
 
 def test_the_wash_cannot_swallow_a_click():
