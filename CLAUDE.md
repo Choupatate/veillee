@@ -94,7 +94,10 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   it is what lets a pack ship with a palette and no artwork at all. Two
   conventions `tests/test_themes.py` enforces: the same filename means the
   same picture in every pack (a pack is a skin, not a rename), and the
-  default pack (`ranch`) is the only one allowed no holes.
+  default pack (`ranch`) is the only one allowed no holes. A pack's
+  optional `theme.json` declares which colour schemes it offers; that list
+  reaches the page as `<html data-schemes>` and is what `theme-boot.js`
+  and `theme.js` cycle, so neither hardcodes the scheme names.
 
 Web layer — Flask, split by resource; each `routes_api_*`/`routes_*`
 sub-file registers its routes onto a blueprint object (`bp`) defined in

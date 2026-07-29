@@ -241,6 +241,9 @@ def create_app(test_config=None):
             "app_title": app.config["TITLE"] or i18n._("Storybook"),
             # None for the default pack, whose colours are main.css's own.
             "theme_stylesheet": themes.stylesheet_url_path(app.config["THEME"]),
+            # Which colour schemes the pack offers, for the nav toggle and
+            # for theme-boot.js's check of what was last stored (F46).
+            "color_schemes": themes.color_schemes(app.config["THEME"]),
             "current_language": i18n.current_language(),
             "js_strings": i18n.js_strings(i18n.current_language()),
             # slug -> display name for audience groups (F40 Phase 2). A

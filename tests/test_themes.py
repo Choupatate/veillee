@@ -19,8 +19,10 @@ import pytest
 from app import themes
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "app" / "templates"
-MAIN_CSS = (Path(__file__).resolve().parent.parent / "app" / "static" / "css"
-            / "main.css").read_text()
+STATIC = Path(__file__).resolve().parent.parent / "app" / "static"
+MAIN_CSS = (STATIC / "css" / "main.css").read_text()
+THEME_BOOT = (STATIC / "js" / "theme-boot.js").read_text()
+THEME_JS = (STATIC / "js" / "theme.js").read_text()
 
 
 # --- resolution and fallback -------------------------------------------------
@@ -166,3 +168,96 @@ def test_the_default_pack_needs_no_stylesheet(app):
     assert themes.stylesheet_url_path(themes.DEFAULT_THEME) is None
     html = app.test_client().get("/login").data.decode()
     assert "themes/ranch/theme.css" not in html
+
+
+# --- which colour schemes a pack offers --------------------------------------
+
+
+def test_a_pack_that_says_nothing_offers_every_scheme():
+    assert themes.color_schemes(themes.DEFAULT_THEME) == list(themes.DEFAULT_COLOR_SCHEMES)
+
+
+def test_a_pack_can_narrow_the_schemes_it_offers():
+    """Orbit has no aged paper in it, so it doesn't own a "manuscript"
+    scheme — and the nav toggle stops offering one. A toggle that cycles to
+    a scheme the pack never designed is worse than one stop fewer."""
+    assert themes.color_schemes("orbit") == ["dark", "light"]
+
+
+@pytest.mark.parametrize("body", [
+    '{"schemes": []}',
+    '{"schemes": ["chartreuse"]}',
+    '{"schemes": "dark"}',
+    '{"nope": 1}',
+    '[]',
+    'not json at all',
+])
+def test_a_theme_json_that_declares_nothing_usable_falls_back(tmp_path, monkeypatch, body):
+    """Half a pack is still a pack: anything unreadable here means "all of
+    them", never "none of them", because none of them is a toggle that
+    does nothing."""
+    monkeypatch.setattr(themes, "THEMES_DIR", tmp_path)
+    (tmp_path / "moon").mkdir(parents=True)
+    (tmp_path / "moon" / "theme.json").write_text(body)
+    assert themes.color_schemes("moon") == list(themes.DEFAULT_COLOR_SCHEMES)
+
+
+def test_an_unknown_pack_offers_every_scheme():
+    assert themes.color_schemes("nope") == list(themes.DEFAULT_COLOR_SCHEMES)
+
+
+def test_the_page_tells_the_scripts_which_schemes_exist(app_factory):
+    """`data-schemes` is on <html> so theme-boot.js can read it in <head>,
+    before first paint."""
+    ranch = app_factory().test_client().get("/login").data.decode()
+    assert 'data-schemes="dark light manuscript"' in ranch
+
+    orbit = app_factory(THEME="orbit").test_client().get("/login").data.decode()
+    assert 'data-schemes="dark light"' in orbit
+
+
+def test_the_scripts_read_the_list_rather_than_hardcoding_it():
+    """Both halves have to follow the pack: the boot script decides whether
+    a stored scheme may be applied, and the toggle decides what it cycles
+    through."""
+    assert 'getAttribute("data-schemes")' in THEME_BOOT
+    assert "window.StorybookSchemes" in THEME_BOOT
+    assert "window.StorybookSchemes" in THEME_JS
+
+
+def test_a_scheme_the_pack_does_not_offer_is_not_applied():
+    """A reader who chose manuscript in a ranch book and then opens an orbit
+    one must not be handed a scheme that pack never designed — theme-boot
+    checks membership before applying."""
+    assert "allowed.indexOf(stored) !== -1" in THEME_BOOT
+
+
+# --- the data URIs a pack embeds ---------------------------------------------
+
+
+def test_no_pack_embeds_a_raw_hash_in_a_data_uri():
+    """A raw `#` inside `url("data:image/svg+xml,…")` starts a fragment
+    identifier: the browser truncates the SVG at the first fill colour and
+    the image silently disappears. It has to be `%23`. This cost an hour
+    once — the CSS parses, the property computes, and nothing is drawn."""
+    for theme in themes.available_themes():
+        css_path = themes.THEMES_DIR / theme / "theme.css"
+        if not css_path.is_file():
+            continue
+        for uri in re.findall(r'url\("(data:image/svg\+xml,[^"]*)"\)', css_path.read_text()):
+            assert "#" not in uri, f"{theme}: raw # in a data URI truncates it"
+
+
+def test_a_pack_can_lay_a_texture_over_its_background():
+    """The hook orbit's starfield hangs on. Defaulted to `none` in main.css
+    so a pack that says nothing gets a plain background."""
+    assert "--surface-texture: none;" in MAIN_CSS
+    assert "background-image: var(--surface-texture, none);" in MAIN_CSS
+
+
+def test_orbit_puts_stars_in_the_night_and_not_in_the_day():
+    css = (themes.THEMES_DIR / "orbit" / "theme.css").read_text()
+    assert css.count("--surface-texture:") >= 2
+    # the light scheme turns it off — you can't see stars in daylight
+    light = re.search(r':root\[data-theme="light"\] \{([^}]*)\}', css).group(1)
+    assert "--surface-texture: none;" in light

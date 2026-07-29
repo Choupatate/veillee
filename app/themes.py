@@ -23,10 +23,16 @@ Two conventions hold it together:
   a pack is expected to look right in all three.
 """
 
+import json
 import re
 from pathlib import Path
 
 THEMES_DIR = Path(__file__).resolve().parent / "static" / "themes"
+
+#: The colour schemes main.css itself declares. A pack that says nothing
+#: offers all three; a pack whose world has no aged paper in it says so in
+#: its `theme.json` and the nav toggle stops offering one.
+DEFAULT_COLOR_SCHEMES = ("dark", "light", "manuscript")
 
 #: The pack every other pack falls back to, and the one a book gets when
 #: `STORYBOOK_THEME` is unset. It is the only pack guaranteed to be
@@ -69,6 +75,34 @@ def image_url_path(theme: str, filename: str) -> str:
             if (THEMES_DIR / theme / "img" / filename).is_file():
                 return f"themes/{theme}/img/{filename}"
     return f"themes/{DEFAULT_THEME}/img/{filename}"
+
+
+def color_schemes(theme: str) -> list[str]:
+    """The colour schemes this pack offers, in the order the nav toggle
+    cycles them. From the pack's optional `theme.json`; the full built-in
+    set when it has none, an unreadable one, or one that names no scheme
+    main.css actually declares.
+
+    A pack narrowing this is not cosmetic. The ranch's third scheme is aged
+    paper, which in a book set in orbit is simply the wrong world — and a
+    toggle that cycles to a scheme the pack never designed is worse than a
+    toggle with one fewer stop.
+    """
+    if not is_valid_theme(theme):
+        return list(DEFAULT_COLOR_SCHEMES)
+    try:
+        data = json.loads((THEMES_DIR / theme / "theme.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return list(DEFAULT_COLOR_SCHEMES)
+    if not isinstance(data, dict):
+        return list(DEFAULT_COLOR_SCHEMES)
+    declared = data.get("schemes")
+    if not isinstance(declared, list):
+        return list(DEFAULT_COLOR_SCHEMES)
+    # Only names main.css knows: an unknown one would be a toggle stop that
+    # changes nothing, which reads as a broken button.
+    schemes = [s for s in declared if s in DEFAULT_COLOR_SCHEMES]
+    return schemes or list(DEFAULT_COLOR_SCHEMES)
 
 
 def stylesheet_url_path(theme: str) -> str | None:

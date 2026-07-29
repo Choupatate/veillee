@@ -73,8 +73,8 @@ the exact `F<N>.` heading text to jump to it.
 - **F45** — A toggle that looks off when it is off: Draft and Archive (and
   every other pressed chip) stopped being imitable by a plain hover
 - **F46** — Theme packs: the art direction became a folder, so a second one
-  (*orbit*, a book kept off Earth) could ship its palette on day one and
-  its pictures one at a time
+  (*orbit*, a book kept off Earth, under a starfield) could ship its
+  palette on day one and its pictures one at a time
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5810,8 +5810,76 @@ One F44 test changed shape: it asserted the shadow layer's literal
 `rgba(26, 15, 4, …)`, which is now `var(--ambience-shade)`. It asserts the
 variable instead — the layer still has to exist and still has to darken.
 
-Verified in a browser under `STORYBOOK_THEME=orbit` at 1280px in all three
-schemes: login, timeline and a story page, including the CSS-drawn divider
-and the inherited ranch illustrations mounted on orbit's dark plate.
+Verified in a browser under `STORYBOOK_THEME=orbit` at 1280px: login,
+timeline and a story page, including the CSS-drawn divider and the
+inherited ranch illustrations mounted on orbit's dark plate.
 
-`pytest` (1170) and `ruff check .` green.
+### Follow-up: a pack owns its schemes, and orbit gets a sky
+
+Three corrections from seeing it running, all of them the same mistake:
+orbit had inherited assumptions from the ranch instead of making its own.
+
+**A pack now decides which colour schemes it offers.** Orbit's third scheme
+was aged-paper regolith — a ranch reflex, and the wrong world. But deleting
+it wasn't enough, because the toggle's list was hardcoded in `theme.js` and
+would still have cycled to a scheme the pack no longer designed. So a pack
+declares its schemes in an optional `theme.json`:
+
+```json
+{ "schemes": ["dark", "light"] }
+```
+
+That list reaches the page as `<html data-schemes="dark light">` — on the
+root element, so `theme-boot.js` can read it in `<head>` before first paint
+— and both scripts now work from it instead of a literal. `theme.js` cycles
+it; `theme-boot.js` checks membership before applying whatever was stored,
+so a reader who chose *manuscript* in a ranch book and then opens an orbit
+one isn't handed a scheme that pack never designed. They fall back to their
+system preference, which is the right answer and not an error.
+
+Anything unreadable in `theme.json` means *all* the schemes, never none —
+a pack with a typo in its metadata should look over-generous, not present a
+toggle that does nothing.
+
+**Both of orbit's schemes are blue now.** The night side is near-black
+(`#04060d`) with marine blue in the raised surfaces; the day side is sky
+blue and marine, the same two colours the other way round. Not white paper
+— there is no paper out here, and a white scheme in a space book was the
+same borrowed instinct as the regolith.
+
+**And it has a sky.** A new `--surface-texture` variable, defaulted to
+`none` in main.css and applied on `body`, lets a pack lay something over
+its background. Orbit tiles a starfield: two self-contained SVG data URIs
+at different sizes and brightnesses — a dense field of faint far stars at
+360px, a sparse one of brighter near stars at 600px — so the pattern never
+lines up with itself and the sky has some depth. Nothing is fetched, the
+same rule the ranch's aged paper follows. The light scheme sets it to
+`none`: the stars are still there, you simply can't see them in daylight.
+
+That starfield cost an hour to a trap worth writing down: **a raw `#`
+inside `url("data:image/svg+xml,…")` starts a fragment identifier.** Every
+`fill='#cfe2ff'` truncated the SVG at the first colour. The CSS parsed, the
+property computed, `background-image` reported a `url(...)`, and nothing
+was drawn. It has to be `%23`, and a test now walks every pack's stylesheet
+and fails on a raw `#` in a data URI.
+
+### Tests
+
+`tests/test_themes.py` grew to 40: the scheme list defaulting to all three,
+orbit narrowing it to two, six kinds of unusable `theme.json` all falling
+back rather than emptying the toggle, `data-schemes` rendered for both
+packs, both scripts reading it rather than hardcoding, theme-boot checking
+membership before applying a stored scheme, the `%23` rule across every
+pack's CSS, and orbit putting stars in the night and not in the day.
+
+`tests/test_i18n.py` asserted the exact string `<html lang="en">`; the tag
+grew `data-schemes`, so those five assertions now match the lang attribute
+without pinning the whole tag.
+
+Verified in a browser: the toggle cycling dark→light→dark and never
+offering a third stop, a stale `manuscript` from another book being ignored
+on load, and the starfield measured off a screenshot (peak pixel 224 of 255
+against a `#04060d` sky) rather than trusted to the eye — which is how the
+truncated data URI was caught in the first place.
+
+`pytest` (1185) and `ruff check .` green.

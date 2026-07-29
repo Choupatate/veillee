@@ -143,6 +143,10 @@ input, textarea, select {
      tucked into an album, which is the effect we want. */
   --illo-mount: #f9f2e1;
   --illo-mount-edge: #e2d9c8;
+  /* What a pack lays over its background, if anything. The ranch's aged
+     paper sets its own further down, per scheme. */
+  --surface-texture: none;
+  --surface-texture-size: auto;
   /* The two pictures CSS draws rather than templates. */
   --flourish-image: url("../themes/ranch/img/rope-divider.png");
   --brand-mark: url("../themes/ranch/img/brand-star.png");
@@ -230,7 +234,13 @@ input, textarea, select {
 /* ---------------------------------------------------------------------- */
 
 body {
-  background: var(--color-bg);
+  background-color: var(--color-bg);
+  /* F46: a theme pack may lay something over its background — the orbit
+     pack tiles a starfield here. `none` for a pack that doesn't, which is
+     every pack that says nothing. */
+  background-image: var(--surface-texture, none);
+  background-repeat: repeat;
+  background-size: var(--surface-texture-size, auto);
   color: var(--color-text);
   font-family: var(--font-sans);
   line-height: 1.5;

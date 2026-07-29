@@ -128,10 +128,10 @@ def test_a_nonsense_book_default_is_ignored():
 
 def test_book_default_is_read_from_the_environment(app_factory):
     client = app_factory(DEFAULT_LANGUAGE="fr").test_client()
-    assert b'<html lang="fr">' in client.get("/login").data
+    assert b'<html lang="fr"' in client.get("/login").data
     # ...and the reader can still override it from the picker.
     client.post("/language/en", data={"next": "/login"})
-    assert b'<html lang="en">' in client.get("/login").data
+    assert b'<html lang="en"' in client.get("/login").data
 
 
 # --- translation and plurals --------------------------------------------------
@@ -239,9 +239,9 @@ def test_the_choice_survives_logging_out(auth_client):
 
 
 def test_html_lang_attribute_follows_the_choice(client):
-    assert b'<html lang="en">' in client.get("/login").data
+    assert b'<html lang="en"' in client.get("/login").data
     client.post("/language/fr", data={"next": "/login"})
-    assert b'<html lang="fr">' in client.get("/login").data
+    assert b'<html lang="fr"' in client.get("/login").data
 
 
 def test_unknown_language_is_404_not_a_stored_cookie(client):
@@ -266,7 +266,7 @@ def test_pages_render_in_french_without_error(auth_client, path):
     resp = auth_client.get(path)
     assert resp.status_code == 200
     html = resp.data.decode()
-    assert '<html lang="fr">' in html
+    assert '<html lang="fr"' in html
     # A page still showing the English nav means _() didn't reach it.
     assert "Fil du temps" in html or "Personnes" in html or "Aide" in html
 

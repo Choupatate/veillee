@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="{{ current_language }}">
+{# data-schemes is read by theme-boot.js before first paint and by
+   theme.js for the toggle: the colour schemes *this pack* offers (F46). It
+   lives on <html> so the boot script can read it without waiting for the
+   body. #}
+<html lang="{{ current_language }}" data-schemes="{{ color_schemes | join(' ') }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

@@ -729,16 +729,25 @@ illustrations, its icons. Two ship with the app, chosen with
 
 - **`ranch`** (the default) — the hand-drawn western storybook the app was
   built around: amber lamplight, aged paper, rope and lantern.
-- **`orbit`** — the same book kept somewhere off Earth: deep blue-black,
-  instrument cyan, and a distant star in place of the fire.
+- **`orbit`** — the same book kept off Earth: the night side is near-black
+  shot through with marine blue under a tiled starfield; the day side is
+  sky blue and marine, the same two colours the other way round. Instrument
+  cyan throughout, and a distant star where the ranch has a fire.
 
 This is one setting for the whole book, not a per-reader choice — the art
-direction is the book's identity, the way its title is. The
-light/dark/manuscript toggle stays each reader's own, *within* whichever
-pack the book uses, so a pack sets all three schemes.
+direction is the book's identity, the way its title is. The colour-scheme
+toggle stays each reader's own, *within* whichever pack the book uses.
+
+**A pack also decides which colour schemes it offers.** The ranch has all
+three; orbit has two, because aged paper is the wrong world out there — its
+`theme.json` says `{"schemes": ["dark", "light"]}` and the nav toggle simply
+has one fewer stop. A reader who chose manuscript in a ranch book and then
+opens an orbit one is never handed a scheme that pack didn't design; they
+fall back to their system preference.
 
 A pack is just a folder under `app/static/themes/<name>/`: a `theme.css`
-re-declaring whichever colour variables it wants to change, and an `img/`
+re-declaring whichever colour variables it wants to change, an optional
+`theme.json` (only for the list of colour schemes, so far), and an `img/`
 folder of pictures. **A pack only has to draw what it wants to change** —
 anything missing falls back to the default pack's copy. That's what makes a
 new art direction practical: the palette is a complete, working theme on

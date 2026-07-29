@@ -1,9 +1,9 @@
-/* Orbit — a theme pack for a book kept somewhere off Earth (F46).
+/* Orbit — a theme pack for a book kept off Earth (F46).
  *
  * The default pack is a ranch at dusk: amber lamplight on aged paper. This
- * one is a ship's cabin on the night side of a planet — deep blue-black,
- * instrument cyan, and the slow wash of a distant star instead of a fire in
- * the hearth.
+ * one is the view from a window on the night side: black shot through with
+ * marine blue, instrument cyan, and a distant star where the ranch has a
+ * fire in the hearth.
  *
  * It is a *pack*, not a fork: this file only re-declares variables main.css
  * already reads. Anything it leaves alone stays as main.css set it, and any
@@ -12,20 +12,27 @@
  * artwork in `img/` can arrive one picture at a time — see
  * IMAGE-PROMPTS-ORBIT.md for what each one has to show.
  *
- * All three colour schemes are set, because the pack is the book's identity
- * and the light/dark/manuscript toggle stays the reader's. "Manuscript"
- * here is the daylight side: a pale regolith grey rather than aged paper.
+ * **Two schemes, not three.** `theme.json` declares them, and the nav
+ * toggle offers exactly those. The ranch's third scheme is aged paper,
+ * which out here is simply the wrong world — a pack should not own a
+ * scheme it would not have designed. Both of orbit's are blue:
+ *
+ *   dark  — the night side: near-black with marine blue in the raised
+ *           surfaces, and a tiled starfield across the whole page.
+ *   light — the day side: sky blue and marine, the same two colours in the
+ *           other order. Not white paper; there is no paper out here.
  */
 
 :root {
-  --color-bg: #080b16;
-  --color-bg-raised: #101627;
-  --color-text: #dce6f5;
-  --color-text-dim: #93a3c0;
+  /* --- night side (also the default with no stored choice) ------------- */
+  --color-bg: #04060d;
+  --color-bg-raised: #0c1526;
+  --color-text: #dbe7f7;
+  --color-text-dim: #8ea3c4;
   --color-accent: #5cc8f5;
-  --color-accent-text: #05080f;
+  --color-accent-text: #04060d;
   --color-highlight-bg: rgba(92, 200, 245, 0.2);
-  --color-border: #1e2942;
+  --color-border: #17253f;
   --color-error: #f0736b;
 
   /* Photographs are printed, not aged: no sepia out here, just a touch of
@@ -33,16 +40,16 @@
   --photo-filter: saturate(0.92) contrast(1.06) brightness(0.97) hue-rotate(-6deg);
 
   /* An illustration is mounted on a plate of instrument glass rather than a
-     paper card, in every scheme — the same reasoning as the ranch's cream:
-     one constant mount reads as an object placed on the page. */
-  --illo-mount: #0d1424;
-  --illo-mount-edge: #24304d;
+     paper card. It stays the same in both schemes for the reason the
+     ranch's cream does: a constant mount reads as an object placed on the
+     page rather than part of it. */
+  --illo-mount: #0b1322;
+  --illo-mount-edge: #22304d;
 
-  /* Both of these are decoration CSS draws rather than art a template
-     names, so the pack supplies them without needing a single file: a
-     horizon line that fades to nothing at both ends, and a small star for
-     the tree's root card. A pack with real artwork can point these at
-     `img/…` instead, and this is the seam where it would. */
+  /* Decoration CSS draws rather than art a template names, so the pack
+     supplies both without a single file: a horizon line that fades out at
+     each end, and a small ringed star for the tree's root card. A pack with
+     real artwork can point these at `img/…`, and this is the seam. */
   --flourish-image:
     radial-gradient(circle at 50% 50%, rgba(220, 230, 245, 0.95) 0 1.5px, rgba(220, 230, 245, 0) 2px),
     linear-gradient(to right,
@@ -53,78 +60,72 @@
     radial-gradient(closest-side ellipse at 50% 50%, rgba(92, 200, 245, 0) 52%,
       rgba(92, 200, 245, 0.85) 54%, rgba(92, 200, 245, 0.85) 62%, rgba(92, 200, 245, 0) 64%);
 
-  /* The ambience is a star, not a hearth: cold white-blue light with a
-     faint cyan edge, and the shadow it leaves is the void rather than
-     soot. F44's machinery is unchanged — only the colours are. */
+  /* The ambience is a star, not a hearth: cold white-blue light, and the
+     shadow it leaves when it dips is the void rather than soot. F44's
+     machinery is unchanged — only the colours are. */
   --ambience-glow: 150, 205, 255;
   --ambience-glow-edge: 92, 200, 245;
-  --ambience-shade: 2, 4, 12;
+  --ambience-shade: 0, 1, 6;
+
+  /* The starfield. Two tiles of different size and brightness so the
+     pattern never lines up with itself and the sky has some depth: a dense
+     field of faint far stars, and a sparse one of brighter near ones. Both
+     are self-contained SVG data URIs — nothing is fetched, which is the
+     same rule the ranch's aged paper follows. */
+  --surface-texture:
+    url("data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20width='600'%20height='600'><circle%20cx='250'%20cy='249'%20r='1.62'%20fill='%23eaf3ff'%20opacity='0.85'/><circle%20cx='568'%20cy='158'%20r='1.53'%20fill='%23eaf3ff'%20opacity='0.99'/><circle%20cx='600'%20cy='538'%20r='2.09'%20fill='%23eaf3ff'%20opacity='0.82'/><circle%20cx='446'%20cy='33'%20r='1.91'%20fill='%23eaf3ff'%20opacity='0.98'/><circle%20cx='575'%20cy='451'%20r='2.1'%20fill='%23eaf3ff'%20opacity='0.77'/><circle%20cx='573'%20cy='277'%20r='2.15'%20fill='%23eaf3ff'%20opacity='0.97'/><circle%20cx='373'%20cy='301'%20r='1.72'%20fill='%23eaf3ff'%20opacity='0.84'/><circle%20cx='585'%20cy='500'%20r='2.09'%20fill='%23eaf3ff'%20opacity='0.76'/><circle%20cx='13'%20cy='467'%20r='2.01'%20fill='%23eaf3ff'%20opacity='0.78'/><circle%20cx='276'%20cy='156'%20r='1.93'%20fill='%23eaf3ff'%20opacity='0.76'/><circle%20cx='92'%20cy='284'%20r='1.9'%20fill='%23eaf3ff'%20opacity='0.93'/><circle%20cx='557'%20cy='158'%20r='1.95'%20fill='%23eaf3ff'%20opacity='0.82'/><circle%20cx='486'%20cy='320'%20r='1.55'%20fill='%23eaf3ff'%20opacity='0.79'/><circle%20cx='483'%20cy='591'%20r='2.02'%20fill='%23eaf3ff'%20opacity='0.92'/></svg>"),
+    url("data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20width='360'%20height='360'><circle%20cx='217'%20cy='344'%20r='1.08'%20fill='%23cfe2ff'%20opacity='0.69'/><circle%20cx='103'%20cy='147'%20r='1.32'%20fill='%23cfe2ff'%20opacity='0.51'/><circle%20cx='116'%20cy='143'%20r='1.27'%20fill='%23cfe2ff'%20opacity='0.5'/><circle%20cx='234'%20cy='163'%20r='1.14'%20fill='%23cfe2ff'%20opacity='0.7'/><circle%20cx='176'%20cy='106'%20r='1.21'%20fill='%23cfe2ff'%20opacity='0.69'/><circle%20cx='49'%20cy='210'%20r='1.17'%20fill='%23cfe2ff'%20opacity='0.78'/><circle%20cx='244'%20cy='153'%20r='1.28'%20fill='%23cfe2ff'%20opacity='0.63'/><circle%20cx='184'%20cy='220'%20r='1.29'%20fill='%23cfe2ff'%20opacity='0.61'/><circle%20cx='295'%20cy='329'%20r='1.13'%20fill='%23cfe2ff'%20opacity='0.62'/><circle%20cx='257'%20cy='128'%20r='0.87'%20fill='%23cfe2ff'%20opacity='0.62'/><circle%20cx='18'%20cy='330'%20r='1.33'%20fill='%23cfe2ff'%20opacity='0.76'/><circle%20cx='85'%20cy='237'%20r='1.36'%20fill='%23cfe2ff'%20opacity='0.73'/><circle%20cx='145'%20cy='332'%20r='1.06'%20fill='%23cfe2ff'%20opacity='0.64'/><circle%20cx='5'%20cy='201'%20r='0.98'%20fill='%23cfe2ff'%20opacity='0.58'/><circle%20cx='351'%20cy='354'%20r='0.95'%20fill='%23cfe2ff'%20opacity='0.56'/><circle%20cx='9'%20cy='281'%20r='1.02'%20fill='%23cfe2ff'%20opacity='0.77'/><circle%20cx='159'%20cy='37'%20r='1.04'%20fill='%23cfe2ff'%20opacity='0.71'/><circle%20cx='272'%20cy='339'%20r='0.9'%20fill='%23cfe2ff'%20opacity='0.51'/><circle%20cx='297'%20cy='57'%20r='1.36'%20fill='%23cfe2ff'%20opacity='0.61'/><circle%20cx='263'%20cy='281'%20r='0.94'%20fill='%23cfe2ff'%20opacity='0.66'/><circle%20cx='313'%20cy='315'%20r='1.12'%20fill='%23cfe2ff'%20opacity='0.62'/><circle%20cx='333'%20cy='336'%20r='1.21'%20fill='%23cfe2ff'%20opacity='0.56'/><circle%20cx='181'%20cy='29'%20r='1.21'%20fill='%23cfe2ff'%20opacity='0.47'/><circle%20cx='240'%20cy='338'%20r='0.96'%20fill='%23cfe2ff'%20opacity='0.75'/><circle%20cx='184'%20cy='354'%20r='1.05'%20fill='%23cfe2ff'%20opacity='0.59'/><circle%20cx='20'%20cy='169'%20r='0.83'%20fill='%23cfe2ff'%20opacity='0.62'/><circle%20cx='216'%20cy='220'%20r='1.12'%20fill='%23cfe2ff'%20opacity='0.54'/><circle%20cx='167'%20cy='98'%20r='1.25'%20fill='%23cfe2ff'%20opacity='0.54'/><circle%20cx='270'%20cy='352'%20r='1.07'%20fill='%23cfe2ff'%20opacity='0.79'/><circle%20cx='337'%20cy='266'%20r='1.29'%20fill='%23cfe2ff'%20opacity='0.55'/><circle%20cx='166'%20cy='58'%20r='1.19'%20fill='%23cfe2ff'%20opacity='0.52'/><circle%20cx='327'%20cy='254'%20r='1.24'%20fill='%23cfe2ff'%20opacity='0.64'/><circle%20cx='124'%20cy='279'%20r='0.87'%20fill='%23cfe2ff'%20opacity='0.76'/><circle%20cx='272'%20cy='126'%20r='1.02'%20fill='%23cfe2ff'%20opacity='0.5'/><circle%20cx='134'%20cy='334'%20r='1.29'%20fill='%23cfe2ff'%20opacity='0.6'/><circle%20cx='172'%20cy='241'%20r='0.9'%20fill='%23cfe2ff'%20opacity='0.58'/><circle%20cx='66'%20cy='213'%20r='1.06'%20fill='%23cfe2ff'%20opacity='0.47'/><circle%20cx='257'%20cy='45'%20r='0.84'%20fill='%23cfe2ff'%20opacity='0.47'/><circle%20cx='39'%20cy='240'%20r='0.83'%20fill='%23cfe2ff'%20opacity='0.45'/><circle%20cx='134'%20cy='316'%20r='1.27'%20fill='%23cfe2ff'%20opacity='0.52'/></svg>");
+  --surface-texture-size: 600px 600px, 360px 360px;
 
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
-    --color-bg: #eef2f9;
-    --color-bg-raised: #e0e7f3;
-    --color-text: #16203a;
-    --color-text-dim: #4c5b7a;
-    --color-accent: #1668a8;
-    --color-accent-text: #f2f8ff;
-    --color-highlight-bg: rgba(22, 104, 168, 0.18);
-    --color-border: #ccd6e8;
-    --color-error: #b1352c;
+    --color-bg: #dbe9f8;
+    --color-bg-raised: #c9dcf1;
+    --color-text: #0d2740;
+    --color-text-dim: #405a78;
+    --color-accent: #14567f;
+    --color-accent-text: #f0f7ff;
+    --color-highlight-bg: rgba(20, 86, 127, 0.18);
+    --color-border: #a9c4e0;
+    --color-error: #a83a30;
     --firelight-strength: 1.6;
+    /* Daylight: the stars are still there, we simply cannot see them. */
+    --surface-texture: none;
 
     color-scheme: light;
   }
 }
 
 :root[data-theme="light"] {
-  --color-bg: #eef2f9;
-  --color-bg-raised: #e0e7f3;
-  --color-text: #16203a;
-  --color-text-dim: #4c5b7a;
-  --color-accent: #1668a8;
-  --color-accent-text: #f2f8ff;
-  --color-highlight-bg: rgba(22, 104, 168, 0.18);
-  --color-border: #ccd6e8;
-  --color-error: #b1352c;
+  --color-bg: #dbe9f8;
+  --color-bg-raised: #c9dcf1;
+  --color-text: #0d2740;
+  --color-text-dim: #405a78;
+  --color-accent: #14567f;
+  --color-accent-text: #f0f7ff;
+  --color-highlight-bg: rgba(20, 86, 127, 0.18);
+  --color-border: #a9c4e0;
+  --color-error: #a83a30;
   --firelight-strength: 1.6;
+  --surface-texture: none;
 
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --color-bg: #080b16;
-  --color-bg-raised: #101627;
-  --color-text: #dce6f5;
-  --color-text-dim: #93a3c0;
+  --color-bg: #04060d;
+  --color-bg-raised: #0c1526;
+  --color-text: #dbe7f7;
+  --color-text-dim: #8ea3c4;
   --color-accent: #5cc8f5;
-  --color-accent-text: #05080f;
+  --color-accent-text: #04060d;
   --color-highlight-bg: rgba(92, 200, 245, 0.2);
-  --color-border: #1e2942;
+  --color-border: #17253f;
   --color-error: #f0736b;
   --firelight-strength: 1;
 
   color-scheme: dark;
-}
-
-/* The ranch's third scheme is aged paper; orbit's is the daylight side of
-   a rock — pale regolith with a fine dust grain, the same self-contained
-   SVG turbulence main.css uses so nothing is fetched. */
-:root[data-theme="manuscript"] {
-  --color-bg: #d9d5cd;
-  --color-bg-raised: #cbc7bf;
-  --color-text: #24262b;
-  --color-text-dim: #4e525c;
-  --color-accent: #9c4a22;
-  --color-accent-text: #f6f1e8;
-  --color-highlight-bg: rgba(156, 74, 34, 0.2);
-  --color-border: #b3aea4;
-  --color-error: #8f3025;
-  --firelight-strength: 1.45;
-  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.22 0 0 0 0 0.21 0 0 0 0 0.19 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-
-  color-scheme: light;
 }
