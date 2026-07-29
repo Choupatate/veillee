@@ -3,3 +3,6 @@
    editor.js"). #}
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/toastui/toastui-editor.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/toastui/theme/toastui-editor-dark.css') }}">
+{# F44: must come last — it re-dresses the two sheets above in the app's
+   theme variables, and load order is half of how it wins. #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/editor-theme.css') }}">

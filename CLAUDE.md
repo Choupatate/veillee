@@ -124,6 +124,12 @@ Frontend:
 - `app/static/vendor/` — vendored third-party JS (family-chart, d3, Toast UI
   Editor). Treat as read-only/generated; if you need to update one, redo the
   vendoring process documented in its banner comment, don't hand-edit it.
+- `app/static/css/editor-theme.css` — the only place Toast UI's own class
+  names may be styled (F44). It re-dresses the vendored editor in the theme
+  variables so the writing surface matches the rest of the app. Two rules
+  its header explains at length and neither of which is optional: it must
+  stay linked *after* the vendor sheets, and every selector must keep its
+  `:root` prefix. `tests/test_editor_theme.py` fails if either slips.
 
 ## Data-safety conventions (follow these for any new filesystem/upload code)
 

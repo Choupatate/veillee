@@ -1,0 +1,380 @@
+/* Storybook — the writing surface, in the book's own colours (F44).
+ *
+ * Toast UI ships its own palette: a white page, a blue-grey toolbar, 13px
+ * Open Sans. Dropped into this app it read as a foreign widget pasted onto
+ * the page — worst of all in the manuscript theme, where a stark white box
+ * sat on aged paper. Everything here re-dresses that widget in main.css's
+ * theme variables, so the editor follows the light/dark/manuscript toggle
+ * like every other surface, and writing a story looks like reading one.
+ *
+ * Two conventions to keep if you edit this file:
+ *
+ * - It is linked from `_editor_head.html` *after* the two vendored
+ *   stylesheets. base.html links main.css before `{% block head %}`, so
+ *   rules living in main.css would load first and lose. This file is the
+ *   only place Toast UI's own class names may be styled.
+ * - Every selector is prefixed with `:root`. That is not decoration: the
+ *   vendored dark theme uses two-class selectors (`.toastui-editor-dark
+ *   .toastui-editor-defaultUI-toolbar`), and a bare one-class rule here
+ *   would lose to it on specificity no matter what order it loads in.
+ *   `:root` costs one class-worth of specificity and applies everywhere,
+ *   including the popups. Match the vendor's class count, then add `:root`.
+ *
+ * The vendored CSS itself stays untouched (CLAUDE.md: treat vendor/ as
+ * read-only). Colours come from variables only — never hardcode a hex here
+ * or the fourth theme someone adds will be wrong again.
+ */
+
+/* ---------------------------------------------------------------------- */
+/* The frame: one more field on a page full of fields                      */
+/* ---------------------------------------------------------------------- */
+
+:root .toastui-editor-defaultUI {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background-color: var(--color-bg-raised);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Toolbar                                                                 */
+/* ---------------------------------------------------------------------- */
+
+:root .toastui-editor-defaultUI-toolbar {
+  background-color: transparent;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+/* background-color only: the icons themselves are one sprite positioned by
+   `background-position-y`, which the vendor's dark theme shifts to the
+   light-glyph row. Touch the shorthand and every icon disappears. */
+:root .toastui-editor-toolbar-icons {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+:root .toastui-editor-toolbar-icons:not(:disabled):hover {
+  background-color: var(--color-highlight-bg);
+  border-color: transparent;
+}
+
+:root .toastui-editor-defaultUI-toolbar button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+:root .toastui-editor-toolbar-divider {
+  background-color: var(--color-border);
+}
+
+/* The one toolbar button that is text rather than sprite (editor.js adds
+   it for ==highlight==), which is why it needs a colour of its own. */
+:root .editor__highlight-btn {
+  color: var(--color-text-dim);
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+:root .editor__highlight-btn:hover {
+  color: var(--color-accent);
+}
+
+:root .toastui-editor-tooltip {
+  background-color: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+:root .toastui-editor-tooltip .arrow {
+  background-color: var(--color-bg-raised);
+}
+
+/* ---------------------------------------------------------------------- */
+/* The page you write on                                                   */
+/* ---------------------------------------------------------------------- */
+
+:root .toastui-editor-ww-container,
+:root .toastui-editor-md-container,
+:root .toastui-editor-md-container .toastui-editor,
+:root .toastui-editor-md-container .toastui-editor-md-preview {
+  background-color: transparent;
+}
+
+:root .toastui-editor-main .toastui-editor-md-splitter {
+  background-color: var(--color-border);
+}
+
+/* Serif, at reading size: the same typography the finished story page uses
+   (`.story__body`), a shade smaller so a phone still fits a paragraph. */
+:root .toastui-editor-contents {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+/* A little more air between paragraphs than the vendor's 10px, so the
+   rhythm on screen is close to the one the story page will have. */
+:root .toastui-editor-contents p {
+  margin: 0 0 0.9rem;
+}
+
+:root .ProseMirror,
+:root .toastui-editor-contents p,
+:root .toastui-editor-contents div,
+:root .toastui-editor-contents li,
+:root .toastui-editor-contents table td,
+:root .toastui-editor-contents table td p {
+  color: var(--color-text);
+}
+
+/* Markdown mode is source, not prose — it stays sans, like a form field. */
+:root .toastui-editor-md-container .ProseMirror {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+}
+
+:root .toastui-editor-contents-placeholder::before {
+  color: var(--color-text-dim);
+}
+
+:root .toastui-editor-contents h1,
+:root .toastui-editor-contents h2,
+:root .toastui-editor-contents h3,
+:root .toastui-editor-contents h4,
+:root .toastui-editor-contents h5,
+:root .toastui-editor-contents h6 {
+  font-family: var(--font-serif);
+  color: var(--color-text);
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+:root .toastui-editor-contents h1 {
+  font-size: 1.6em;
+}
+
+:root .toastui-editor-contents h2 {
+  font-size: 1.35em;
+}
+
+/* Same rule as `.story__body blockquote`, so a quote looks in the editor
+   the way it will look on the page. */
+:root .toastui-editor-contents blockquote {
+  border-left: 3px solid var(--color-accent);
+  padding-left: 1rem;
+  color: var(--color-text-dim);
+}
+
+:root .toastui-editor-contents blockquote p,
+:root .toastui-editor-contents blockquote ul,
+:root .toastui-editor-contents blockquote ol {
+  color: var(--color-text-dim);
+}
+
+:root .toastui-editor-contents ul,
+:root .toastui-editor-contents ol,
+:root .toastui-editor-contents menu {
+  color: var(--color-text);
+}
+
+:root .toastui-editor-contents ul > li::before {
+  background-color: var(--color-text-dim);
+}
+
+:root .toastui-editor-contents ol > li::before {
+  color: var(--color-text-dim);
+}
+
+:root .toastui-editor-contents a,
+:root .toastui-editor-contents a:hover {
+  color: var(--color-accent);
+}
+
+:root .toastui-editor-contents hr {
+  border-color: var(--color-border);
+}
+
+:root .toastui-editor-contents img {
+  border-radius: 0.75rem;
+}
+
+:root .toastui-editor-contents code {
+  background-color: var(--color-highlight-bg);
+  color: var(--color-text);
+}
+
+:root .toastui-editor-contents pre {
+  background-color: var(--color-bg);
+}
+
+:root .toastui-editor-contents pre code {
+  background-color: transparent;
+  color: var(--color-text);
+}
+
+:root .toastui-editor-contents table,
+:root .toastui-editor-contents table th,
+:root .toastui-editor-contents table td {
+  border-color: var(--color-border);
+}
+
+:root .toastui-editor-contents table th {
+  background-color: var(--color-bg);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Markdown-mode syntax colours                                            */
+/* ---------------------------------------------------------------------- */
+
+:root .toastui-editor-md-delimiter,
+:root .toastui-editor-md-thematic-break,
+:root .toastui-editor-md-link,
+:root .toastui-editor-md-table,
+:root .toastui-editor-md-block-quote,
+:root .toastui-editor-md-meta,
+:root .toastui-editor-md-html,
+:root .toastui-editor-md-code.toastui-editor-md-delimiter {
+  color: var(--color-text-dim);
+}
+
+:root .toastui-editor-md-block-quote .toastui-editor-md-marked-text,
+:root .toastui-editor-md-list-item .toastui-editor-md-meta,
+:root .toastui-editor-md-table .toastui-editor-md-table-cell,
+:root .toastui-editor-md-code.toastui-editor-md-marked-text {
+  color: var(--color-text);
+}
+
+:root .toastui-editor-md-link.toastui-editor-md-link-url.toastui-editor-md-marked-text,
+:root .toastui-editor-md-link.toastui-editor-md-link-desc.toastui-editor-md-marked-text,
+:root .toastui-editor-md-list-item-style.toastui-editor-md-list-item-odd,
+:root .toastui-editor-md-list-item-style.toastui-editor-md-list-item-even {
+  color: var(--color-accent);
+}
+
+:root .toastui-editor-md-code {
+  background-color: var(--color-highlight-bg);
+}
+
+:root .toastui-editor-md-code-block-line-background {
+  background-color: var(--color-bg);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Mode tabs (WYSIWYG / Markdown, and Write / Preview)                     */
+/* ---------------------------------------------------------------------- */
+
+:root .toastui-editor-mode-switch,
+:root .toastui-editor-defaultUI .toastui-editor-md-tab-container {
+  background-color: transparent;
+  border-top-color: var(--color-border);
+  border-bottom-color: var(--color-border);
+  font-family: var(--font-sans);
+}
+
+:root .toastui-editor-mode-switch .tab-item,
+:root .toastui-editor-md-tab-container .tab-item {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-dim);
+}
+
+:root .toastui-editor-mode-switch .tab-item.active,
+:root .toastui-editor-md-tab-container .tab-item.active {
+  background-color: var(--color-highlight-bg);
+  border-top-color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Popups: the link and image dialogs, and the context menu                */
+/* ---------------------------------------------------------------------- */
+
+:root .toastui-editor-popup,
+:root .toastui-editor-context-menu,
+:root .toastui-editor-dropdown-toolbar {
+  background-color: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+/* The vendor centres a 300px popup on the button that opened it by hand
+   (`left: <px>` inline, `margin-left: -150px`), which on a phone drops half
+   the link dialog off the left edge. Pin it inside the editor instead. The
+   `!important` is the only way to beat an inline style set from JS. */
+@media (max-width: 32rem) {
+  :root .toastui-editor-popup {
+    left: 0.5rem !important;
+    right: 0.5rem;
+    width: auto;
+    max-width: none;
+    margin-left: 0;
+  }
+}
+
+:root .toastui-editor-popup-body label,
+:root .toastui-editor-context-menu .menu-group {
+  color: var(--color-text-dim);
+}
+
+:root .toastui-editor-popup-body input[type='text'] {
+  background-color: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+:root .toastui-editor-popup-body input[type='text']:focus {
+  outline-color: var(--color-accent);
+}
+
+:root .toastui-editor-popup-add-heading ul li:hover,
+:root .toastui-editor-context-menu li:not(.disabled):hover {
+  background-color: var(--color-highlight-bg);
+}
+
+:root .toastui-editor-popup-body .toastui-editor-file-name,
+:root .toastui-editor-popup-body .toastui-editor-file-select-button {
+  background-color: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+:root .toastui-editor-popup-body .toastui-editor-file-select-button:hover {
+  border-color: var(--color-accent);
+}
+
+:root .toastui-editor-popup-add-image .toastui-editor-tabs .tab-item {
+  color: var(--color-text-dim);
+  border-bottom-color: var(--color-border);
+}
+
+:root .toastui-editor-popup-add-image .toastui-editor-tabs .tab-item.active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+:root .toastui-editor-defaultUI .toastui-editor-close-button {
+  background-color: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+:root .toastui-editor-defaultUI .toastui-editor-close-button:hover {
+  border-color: var(--color-accent);
+}
+
+:root .toastui-editor-defaultUI .toastui-editor-ok-button {
+  background-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+:root .toastui-editor-defaultUI .toastui-editor-ok-button:hover {
+  background-color: var(--color-accent);
+  color: var(--color-accent-text);
+  opacity: 0.88;
+}

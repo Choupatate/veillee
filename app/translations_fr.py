@@ -19,6 +19,7 @@ TRANSLATIONS_FR = {
     # --- navigation and chrome ---------------------------------------------
     "Skip to content": "Aller au contenu",
     "Toggle color theme": "Changer de thème",
+    "Firelight": "Lueur du feu",
     "Language": "Langue",
     "People": "Personnes",
     "Help": "Aide",
