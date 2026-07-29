@@ -70,6 +70,8 @@ the exact `F<N>.` heading text to jump to it.
 - **F44** — Writing in the book's own hand, and firelight: the editor
   re-dressed in the theme variables instead of Toast UI's white box, plus
   a slow warm wash over every page with a flame switch to turn it off
+- **F45** — A toggle that looks off when it is off: Draft and Archive (and
+  every other pressed chip) stopped being imitable by a plain hover
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5643,3 +5645,57 @@ with at least one theme above 1, the darkening layer, and three distinct
 cycle durations rather than two.
 
 `pytest` (1141) and `ruff check .` green.
+
+## F45. A toggle that looks off when it is off
+
+Reported from real use: the editor's **Draft** and **Archive** chips didn't
+seem to switch off when you clicked them.
+
+They did switch off — the state round-tripped to disk correctly the whole
+time. What failed was the paint, and the cause was a collision between two
+rules that were each reasonable on their own:
+
+```css
+.btn:hover                              { border-color: var(--color-accent); }
+.editor__toggle-chip[aria-pressed=true] { border-color: var(--color-accent);
+                                          color: var(--color-accent); }
+```
+
+The accent is what "on" means on every toggle in the app — and it is also
+what hover gives every button in the app. So with the pointer still resting
+on a chip you had just switched off, the two states differed by *text
+colour alone*, under an identical accent ring, next to a colour icon that
+never changes. On a phone it was worse than subtle: `:hover` sticks to the
+last element tapped until something else is tapped, so a chip you turned off
+went on looking lit indefinitely.
+
+Both halves are now fixed:
+
+- **A lit toggle is filled, not merely outlined** —
+  `background: var(--color-highlight-bg)` on top of the accent border and
+  text. A fill is something hover never gives, so it is the signal that
+  actually separates the states, and it holds up in all four themes because
+  it is the theme's own highlight colour.
+- **Hover on an unlit toggle stops at a neutral border**
+  (`var(--color-text-dim)`) instead of the accent. F23 asked for hover
+  feedback on everything; it just can't be delivered in the one colour that
+  already carries meaning here.
+
+Applied to `.editor__toggle-chip` (Draft, Archive and F40's audience chips,
+which share the class) and to `.editor__gender-btn`, which had exactly the
+same two-rule collision one screen over. `.editor__author-chip` gets the
+hover half — it had the same defect, but its lit colour is the author's own,
+so a generic accent fill would fight it. `.people-picker__row` was already
+safe: a ticked row shows a ✓, and a shape is not a colour.
+
+### Tests
+
+`tests/test_toggle_chips.py`, four: the lit state carries a fill and not
+just an outline, hovering an unlit toggle doesn't borrow the accent, the
+toggle rules stay downstream of `.btn:hover` in the cascade, and — since the
+wiring is what makes the paint worth having — the draft flag still round
+trips through the API to disk.
+
+Verified in a browser in all three themes at 390px and 1280px, including
+the case that produced the report: clicking a chip off and leaving the
+pointer on it.
