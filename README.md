@@ -723,11 +723,18 @@ voice memos and zip import/export aren't wired up as tools.
 
 Everything above is written for whoever sets Storybook up. The family
 actually reading and writing in it day to day gets its own **Help** page
-(linked in the nav) instead — a shorter, plain-language version of the
-same feature tour with no setup/configuration talk, covering what a
-Story vs. an Instant is, what sealing a letter or a draft does, the
-family tree and life dates, growing up, reading it back, voice memos,
-and backups.
+(linked in the nav) instead — not a shorter version of this tour but a
+**glossary**: one plain-language line per word the interface actually uses,
+grouped into writing a memory, who can read a story, the cast and the
+family tree, reading it back, photos and voice memos, family accounts, and
+keeping it safe. It explains what a thing *is* and when you'd want it, and
+never what a button does — an icon of a camera does not need a sentence
+saying it takes photos.
+
+The section on **who can read a story** only appears when accounts are on,
+since without them there is nobody to keep a story from. It leads with a
+picture of a group standing inside a rope circle with the rest of the
+family outside it, because the scoping rule is easier to see than to read.
 
 ## Opening it to the internet
 
