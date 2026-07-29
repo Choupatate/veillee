@@ -2615,8 +2615,25 @@ img.person-family__thumb {
 }
 
 .editor__toggle-chip[aria-pressed="true"] {
+  /* The fill is what makes "on" unmistakable. Border and text colour alone
+     were not enough: `.btn:hover` also borrows the accent for its border,
+     so a chip you had just switched off went on looking lit for as long as
+     the pointer stayed on it — and on a touch screen `:hover` sticks to the
+     last thing tapped, so it looked lit until you tapped somewhere else.
+     Hover can change a border; only a press fills the pill. */
+  background: var(--color-highlight-bg);
   border-color: var(--color-accent);
   color: var(--color-accent);
+}
+
+/* The other half of the same fix: on a toggle the accent *means* on, so
+   hovering one that is off must not reach for it. These stop at a neutral
+   border instead — the hover feedback F23 asked for, in a colour that
+   can't be mistaken for a state. */
+.editor__toggle-chip[aria-pressed="false"]:hover,
+.editor__gender-btn[aria-pressed="false"]:hover,
+.editor__author-chip[aria-pressed="false"]:hover {
+  border-color: var(--color-text-dim);
 }
 
 /* Who a story is kept to (F40 Phase 2). The chips reuse the toggle-chip
@@ -3077,7 +3094,10 @@ img.family-chip__thumb {
   font-size: 0.875rem;
 }
 
+/* Same three-part lit state as .editor__toggle-chip, and for the same
+   reason — see the note there. */
 .editor__gender-btn[aria-pressed="true"] {
+  background: var(--color-highlight-bg);
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
