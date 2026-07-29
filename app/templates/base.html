@@ -27,11 +27,22 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
 <a class="skip-link" href="#content">{{ _("Skip to content") }}</a>
+{# F44: a click-through wash of warm light over the whole page, breathing
+   the way a fire in the room would. Purely decorative, hence aria-hidden;
+   the ☼ button below turns it off for good. #}
+<div class="firelight" aria-hidden="true">
+  <span class="firelight__glow"></span>
+  <span class="firelight__flicker"></span>
+</div>
 <nav class="site-nav">
   <div class="site-nav__row">
     <a class="site-nav__brand" href="{{ url_for('pages.timeline') }}">{{ app_title }}</a>
     <button type="button" class="theme-toggle" id="theme-toggle" aria-label="{{ _('Toggle color theme') }}">
       <span aria-hidden="true">&#9680;</span>
+    </button>
+    <button type="button" class="theme-toggle firelight-toggle" id="firelight-toggle"
+            aria-label="{{ _('Firelight') }}" title="{{ _('Firelight') }}">
+      <span aria-hidden="true">&#9788;</span>
     </button>
   </div>
   {% include "_language_picker.html" %}
@@ -70,6 +81,7 @@
 {% block content %}{% endblock %}
 </main>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<script src="{{ url_for('static', filename='js/firelight.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

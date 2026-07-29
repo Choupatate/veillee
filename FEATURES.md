@@ -67,6 +67,9 @@ the exact `F<N>.` heading text to jump to it.
 - **F43** — What a backup may carry: an export stops handing every family
   member the household's password hashes, and a restore stops colliding
   on the cast (or importing someone else's logins)
+- **F44** — Writing in the book's own hand, and firelight: the editor
+  re-dressed in the theme variables instead of Toast UI's white box, plus
+  a slow warm wash over every page with a ☼ switch to turn it off
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5448,3 +5451,136 @@ back stories and people but never logins. It's admin-only, which is exactly
 who needs to know before a disaster recovery.
 
 `pytest` (1114) and `ruff check .` green.
+
+## F44. Writing in the book's own hand, and firelight
+
+Two requests, one theme: the app looks like a hand-made book everywhere
+except the one screen where the book is actually written, and the room it
+is read in could use a fire.
+
+### The editor didn't belong to the app
+
+Toast UI ships its own palette — a white page, a blue-grey toolbar, 13px
+Open Sans — and until now the app just dropped that widget onto the page
+and hoped. The result was worst in the manuscript theme, where a stark
+white rectangle sat on aged paper with a cold grey rail across the top of
+it, and only slightly better in dark, where the vendored dark theme's
+`#121212`/`#232428` read blue next to the app's warm `#141210`. Nothing
+about the writing surface said "book": not the font, not the size, not the
+colour of the paper.
+
+`app/static/css/editor-theme.css` re-dresses it. Every value in that file
+is one of main.css's theme variables, so the editor now follows the
+light/dark/manuscript toggle like every other surface: the frame is a field
+like the tags and title fields around it, the toolbar is transparent over
+that field with a hairline under it, and the writing area is the theme's
+own paper carrying the theme's own text colour. The prose itself is
+`var(--font-serif)` at 1.0625rem/1.7 — the same typography `.story__body`
+uses on the finished page, a shade smaller so a paragraph still fits a
+phone. Blockquotes take the accent-coloured left rule the story page gives
+them. Writing a memory now looks like reading one.
+
+The dressing goes all the way down, because half-dressed is worse than
+undressed: the link and image dialogs, the context menu, the ⋯ overflow
+toolbar a phone falls back to, the tooltips, the Markdown/WYSIWYG tabs, the
+markdown-mode syntax colours, and the `==` highlight button `editor.js`
+adds by hand (which had no colour of its own at all and was invisible on a
+dark toolbar).
+
+**Two mechanical rules, both easy to break silently, both now tested.**
+
+The sheet is linked from `_editor_head.html` rather than living in
+main.css, because base.html links main.css *before* `{% block head %}` —
+rules in main.css would load before the vendor's and lose. And every
+selector carries a `:root` prefix, which is not decoration: the vendored
+dark theme selects with two classes (`.toastui-editor-dark
+.toastui-editor-defaultUI-toolbar`), so a one-class rule here loses to it
+whatever the load order. `:root` buys exactly the class-worth of
+specificity that ties it, and last-loaded then wins. Drop the prefix on one
+rule and that rule stops applying **in dark theme only** — the kind of bug
+that ships.
+
+The vendored CSS itself was not touched, and the vendored dark theme is
+still loaded: it carries the toolbar icon sprite's second row (light glyphs
+at `background-position-y: -49px`) plus dozens of rules for tables, code
+blocks and task lists this app's toolbar never offers. Replacing all of
+that to save one HTTP request would have been a lot of surface area for
+nothing.
+
+One consequence worth naming: the icon sprite is the only part of the
+editor that can't be a CSS variable, since the row is chosen by a class.
+`theme.js` now fires a `storybook:themechange` event and `editor.js`
+re-applies `toastui-editor-dark` on the editor when it hears one, so
+switching theme with the editor open no longer leaves light glyphs on a
+suddenly-cream toolbar. Everything else follows the toggle live, for free.
+
+While in there, a mobile bug that predates this: the vendor centres its
+300px popup on the button that opened it by hand (`left: <px>` inline plus
+`margin-left: -150px`), which on a 390px phone drops half the link dialog
+off the left edge. Under 32rem the popup is now pinned inside the editor
+instead. The one `!important` in the file is there because the vendor's
+position is an inline style set from JS, and that is the only way to beat
+one.
+
+### Firelight
+
+The app is called *veillée* — an evening spent together by the fire — and
+the reading themes are all warm paper and lamplight, so the room was asking
+for the fire itself.
+
+`.firelight` is a fixed, click-through overlay of two warm radial gradients
+that animate nothing but `opacity`, so the whole effect lives on the
+compositor and can never cause a layout or a repaint. The two layers run on
+deliberately mismatched cycles — 11s and 7.3s, one reversed — because a
+fire that pulsed on a countable beat would read as a broken animation
+rather than a fire. Measured on the timeline in dark theme, the mean
+brightness of the upper page drifts between about 26.6 and 30.4 of 255 over
+a cycle: a breath you notice if you look up, never a flicker you have to
+read through.
+
+Each theme declares its own `--firelight-strength`, because a wash that
+looks like lamplight on `#141210` looks like a yellow filter on aged paper:
+dark takes it at full strength, light and manuscript at about half. That
+variable has **no fallback** on purpose — a new theme that forgets to
+declare it should fail a test rather than quietly wash a bright page at
+full strength, and `test_every_theme_declares_its_own_strength` is that
+test.
+
+The ☼ button next to the theme toggle turns it off for good. Like the
+theme, the choice is stored in `localStorage` and re-applied by
+`theme-boot.js` in `<head>`, so a page never paints the wash and then yanks
+it away. Only the string `"off"` is ever *read* back, because firelight is
+on by default and an empty slot has to mean on for a first visit. The
+button isn't rendered without JS (it couldn't do anything), and it carries
+`aria-pressed` set from the DOM rather than from the server, since the page
+is cacheable and the preference isn't.
+
+Restraint, in the places it matters: `pointer-events: none` so it can never
+swallow a click; `z-index: 1`, above the page but under the lightbox (200)
+and the skip link (100); hidden entirely in print; and no animation at all
+under `prefers-reduced-motion: reduce`, where the layers keep their warm
+tint but stop moving — the same bargain `.lasso-spinner` makes. It is
+decoration, so the overlay is `aria-hidden` and only the button is
+announced.
+
+### Tests
+
+`tests/test_editor_theme.py` (7) pins the two contracts that break
+silently: the stylesheet loads after both vendor sheets on both editors,
+every selector keeps its `:root` prefix, no hex colour ever appears in the
+file, the icon sprite is never touched with the `background` shorthand
+(which would erase every glyph), and no other page pays for a sheet it
+doesn't need.
+
+`tests/test_firelight.py` (14) covers the markup on every page including
+login, the `aria-hidden`/`aria-pressed` split, the `data-firelight`
+attribute applied before first paint, the button not being offered without
+JS, every theme declaring a strength, the reduced-motion guard, the two
+cycles being unequal, `pointer-events: none`, the z-index staying under the
+lightbox, and the print rule.
+
+Verified in a browser at 390px and 1280px across all three themes: the
+editor with prose in it, both editor modes, the ⋯ overflow toolbar, the
+link dialog on a phone, and the firelight measured frame by frame.
+
+`pytest` (1135) and `ruff check .` green.

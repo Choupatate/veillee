@@ -8,10 +8,17 @@ Everything is stored as plain **markdown files and images on disk** — no datab
 If you delete the app entirely and keep the `stories/` folder, every story is still
 fully readable with nothing more than a file browser and a text editor.
 
-Three themes are available from the toggle in the top-right corner: dark (the
+Three themes are available from the toggle in the top-left corner: dark (the
 default), light, and manuscript — a warm, aged-paper look with a subtly grained
 texture (a self-contained inline SVG filter, no image assets or network requests)
 where the timeline, story, and editor each render as a page resting on a desk.
+The editor follows whichever one you pick: the writing surface is the theme's
+own paper, in the same serif the finished story page uses.
+
+Next to the theme toggle, a **☼ button** turns *firelight* off and on — a
+barely-there wash of warm light over the page whose brightness drifts up and
+down as if a fire were burning in the room. It's on by default, off for anyone
+whose system asks for reduced motion, and the choice is remembered per browser.
 
 See `PLAN.md` for the full design specification this app was built from, and
 `REVIEW.md` for the production-readiness review it was subsequently audited

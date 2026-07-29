@@ -40,5 +40,8 @@
     document.documentElement.setAttribute("data-theme", next);
     if (window.SafeStorage) window.SafeStorage.setString(STORAGE_KEY, next);
     syncThemeColorMeta();
+    // Anything that can't be expressed as a CSS variable — the Toast UI
+    // toolbar's icon sprite (F44) — listens for this rather than polling.
+    window.dispatchEvent(new CustomEvent("storybook:themechange", { detail: next }));
   });
 })();

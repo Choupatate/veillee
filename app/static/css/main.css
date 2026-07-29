@@ -124,6 +124,10 @@ input, textarea, select {
   --color-border: #2c2822;
   --color-error: #e0796a;
 
+  /* How much of F44's firelight wash this theme wants. A dark room takes
+     the full warmth; a lit one goes yellow long before that. */
+  --firelight-strength: 1;
+
   --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
@@ -146,6 +150,7 @@ input, textarea, select {
     --color-highlight-bg: rgba(169, 112, 28, 0.18);
     --color-border: #e2d9c8;
     --color-error: #a3372a;
+    --firelight-strength: 0.55;
 
     color-scheme: light;
   }
@@ -161,6 +166,7 @@ input, textarea, select {
   --color-highlight-bg: rgba(169, 112, 28, 0.18);
   --color-border: #e2d9c8;
   --color-error: #a3372a;
+  --firelight-strength: 0.55;
 
   color-scheme: light;
 }
@@ -175,6 +181,7 @@ input, textarea, select {
   --color-highlight-bg: rgba(217, 164, 65, 0.22);
   --color-border: #2c2822;
   --color-error: #e0796a;
+  --firelight-strength: 1;
 
   color-scheme: dark;
 }
@@ -191,6 +198,7 @@ input, textarea, select {
   --color-highlight-bg: rgba(138, 74, 42, 0.2);
   --color-border: #cdba90;
   --color-error: #96382a;
+  --firelight-strength: 0.5;
   --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.35 0 0 0 0 0.28 0 0 0 0 0.18 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   color-scheme: light;
@@ -215,6 +223,90 @@ body {
     var(--paper-texture);
   background-repeat: no-repeat, repeat;
   background-size: cover, 240px 240px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* F44: firelight — the room the veillée happens in                        */
+/*                                                                          */
+/* A fixed, click-through wash of warm light over the whole page whose      */
+/* brightness drifts up and down as if a fire were burning somewhere off    */
+/* the screen. Two layers on deliberately mismatched cycles (11s and 7.3s)  */
+/* so the combined luminance never settles into a countable beat — a fire   */
+/* that pulsed on time would read as a broken animation.                    */
+/*                                                                          */
+/* Only `opacity` animates, so the whole effect stays on the compositor and */
+/* never triggers layout or paint. Everything else about it is restraint:   */
+/* the swing is a few hundredths of an alpha, it is off entirely for anyone */
+/* who asked for reduced motion, and the nav's ☼ button turns it off for    */
+/* good (theme-boot.js applies that choice before first paint).             */
+/* ---------------------------------------------------------------------- */
+
+.firelight {
+  position: fixed;
+  inset: 0;
+  /* Above the page, below the lightbox (200) and the skip link (100). */
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--firelight-strength);
+}
+
+:root[data-firelight="off"] .firelight {
+  display: none;
+}
+
+.firelight__glow,
+.firelight__flicker {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
+}
+
+.firelight__glow {
+  background: radial-gradient(120% 85% at 50% 0%,
+    rgba(255, 176, 92, 0.11), rgba(255, 140, 48, 0.045) 45%, rgba(255, 120, 40, 0) 72%);
+  opacity: 0.7;
+}
+
+.firelight__flicker {
+  background: radial-gradient(85% 60% at 22% 100%,
+    rgba(255, 150, 60, 0.075), rgba(255, 130, 40, 0) 68%);
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .firelight__glow {
+    animation: firelight-breathe 11s ease-in-out infinite;
+  }
+
+  .firelight__flicker {
+    animation: firelight-breathe 7.3s ease-in-out infinite reverse;
+  }
+}
+
+@keyframes firelight-breathe {
+  0% { opacity: 0.58; }
+  14% { opacity: 0.92; }
+  27% { opacity: 0.68; }
+  41% { opacity: 1; }
+  58% { opacity: 0.72; }
+  72% { opacity: 0.96; }
+  88% { opacity: 0.64; }
+  100% { opacity: 0.58; }
+}
+
+/* Without JS the toggle can't do anything, so it isn't offered. */
+.firelight-toggle {
+  display: none;
+}
+
+.js .firelight-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:root[data-firelight="off"] .firelight-toggle {
+  opacity: 0.5;
 }
 
 a {
@@ -4028,6 +4120,7 @@ img.family-chip__thumb {
   .story__footer,
   .flash-container,
   .skip-link,
+  .firelight,
   .theme-toggle,
   .book__print-btn,
   .tree__back,

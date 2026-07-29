@@ -9,4 +9,10 @@ document.documentElement.classList.add("js");
   if (stored === "light" || stored === "dark" || stored === "manuscript") {
     document.documentElement.setAttribute("data-theme", stored);
   }
+  // F44: firelight is on unless it was turned off, so only "off" is ever
+  // stored — an empty slot has to mean "on" for a first visit. Applied here
+  // rather than in firelight.js so the wash never fades in after paint.
+  if (window.SafeStorage.getString("storybook-firelight") === "off") {
+    document.documentElement.setAttribute("data-firelight", "off");
+  }
 })();

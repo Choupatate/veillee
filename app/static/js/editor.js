@@ -1131,6 +1131,16 @@
 
     editor.on("change", markDirty);
 
+    // F44: every colour in editor-theme.css is a CSS variable, so the
+    // editor follows the theme toggle on its own — except the toolbar
+    // icons, which are one sprite whose row is picked by a class. Re-apply
+    // that class on a theme change so the glyphs don't stay light on a
+    // suddenly-cream toolbar.
+    window.addEventListener("storybook:themechange", function () {
+      var ui = root.querySelector(".toastui-editor-defaultUI");
+      if (ui) ui.classList.toggle("toastui-editor-dark", isDarkTheme());
+    });
+
     return {
       getMarkdown: function () {
         return toStoredMarkdown(editor.getMarkdown());
