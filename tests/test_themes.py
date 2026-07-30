@@ -152,14 +152,19 @@ def test_the_default_is_the_default_pack(app):
 
 
 def test_pages_serve_the_configured_pack(app_factory):
-    """End to end: set the pack, and the pictures on a real page come from
-    it — or from the default when it hasn't drawn them."""
+    """End to end, and both halves of the fallback on one page: the login
+    page draws orbit's own illustration, and its nav still borrows the
+    ranch's icons, because orbit hasn't drawn those yet."""
     app = app_factory(THEME="orbit")
     client = app.test_client()
     html = client.get("/login").data.decode()
     assert "/static/themes/orbit/theme.css" in html
-    # orbit ships no artwork yet, so every picture is inherited
-    assert "/static/themes/ranch/img/" in html
+    assert "/static/themes/orbit/img/login-campfire.jpg" in html
+
+    page = app.test_client()
+    page.post("/login", data={"password": "test-password"})
+    nav = page.get("/").data.decode()
+    assert "/static/themes/ranch/img/icon-new-story.png" in nav
 
 
 def test_the_default_pack_needs_no_stylesheet(app):

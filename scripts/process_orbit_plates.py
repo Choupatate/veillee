@@ -21,9 +21,10 @@ OUT = Path(__file__).resolve().parent.parent / "app" / "static" / "themes" / "or
 
 # source stem -> (output name, long edge)
 ASSETS = {
+    "26cf2215-3914": ("login-campfire.jpg", 856),
     "646b6b20-3887": ("person-oval.jpg", 732),
     "1534805c-3888": ("empty-chest.jpg", 729),
-    "cf5c4503-3889": ("group-circle.jpg", 760),
+    "802471b4-3915": ("group-circle.jpg", 860),
     "42b94658-3890": ("sealed-letter.jpg", 620),
     "bd2bee74-3891": ("firsts-boots.jpg", 760),
     "6a8e7374-3892": ("growth-doorpost.jpg", 760),

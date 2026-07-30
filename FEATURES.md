@@ -5884,21 +5884,22 @@ truncated data URI was caught in the first place.
 
 ### Follow-up: the pack gets its artwork
 
-Sixteen of orbit's seventeen illustrations arrived, generated from the
-prompts in `IMAGE-PROMPTS-ORBIT.md`. They are committed under
-`app/static/themes/orbit/img/`, 808 KB in total, and the pack now inherits
-only what it hasn't drawn:
+All seventeen of orbit's illustrations arrived, generated from the prompts
+in `IMAGE-PROMPTS-ORBIT.md` and committed under
+`app/static/themes/orbit/img/` — 928 KB in total. The pack now inherits
+from the ranch only its icons:
 
 | File | Size | | File | Size |
 |---|---|---|---|---|
-| `person-oval.jpg` | 590×732 | | `accounts-keys.jpg` | 760×510 |
-| `empty-chest.jpg` | 729×587 | | `invite-card.jpg` | 700×564 |
-| `group-circle.jpg` | 760×578 | | `write-link-pass.jpg` | 700×564 |
-| `sealed-letter.jpg` | 486×620 | | `help-lantern.jpg` | 582×700 |
-| `firsts-boots.jpg` | 760×496 | | `book-frame.jpg` | 723×897 |
-| `growth-doorpost.jpg` | 558×760 | | `instant-camera.jpg` | 652×516 |
-| `almanac-book.jpg` | 700×700 | | `tree-sapling.jpg` | 605×760 |
-| `history-pages.jpg` | 720×598 | | `tumbleweed.jpg` | 900×429 |
+| `login-campfire.jpg` | 856×621 | | `accounts-keys.jpg` | 760×510 |
+| `person-oval.jpg` | 590×732 | | `invite-card.jpg` | 700×564 |
+| `empty-chest.jpg` | 729×587 | | `write-link-pass.jpg` | 700×564 |
+| `group-circle.jpg` | 860×450 | | `help-lantern.jpg` | 582×700 |
+| `sealed-letter.jpg` | 486×620 | | `book-frame.jpg` | 723×897 |
+| `firsts-boots.jpg` | 760×496 | | `instant-camera.jpg` | 652×516 |
+| `growth-doorpost.jpg` | 558×760 | | `tree-sapling.jpg` | 605×760 |
+| `almanac-book.jpg` | 700×700 | | `tumbleweed.jpg` | 900×429 |
+| `history-pages.jpg` | 720×598 | | | |
 
 Two things every generation needed fixing, and neither is a judgement call,
 so `scripts/process_orbit_plates.py` does both and stays in the repo for
@@ -5923,11 +5924,24 @@ The prompt document gained both as hard rules for future generations, on
 top of the two it already had, and every prompt block now carries the
 negatives inline.
 
-Still outstanding, and recorded at the top of `IMAGE-PROMPTS-ORBIT.md`:
-`login-campfire.jpg` was never generated (it is the first thing anyone
-sees); `group-circle.jpg` is committed but its crew's faces are visible
-through their visors, which breaks the pack's own rule on the one picture
-that has to *teach* rather than decorate; and none of the 13 icons exist
-yet, so every button on a blue page still wears the ranch's brown leather.
+Two plates took a second pass, and both are worth recording because they
+are the failure modes to watch for in the next batch:
+
+- **`group-circle.jpg`** came back with the crew's faces visible through
+  their visors. On any other picture that would be a style slip; on this
+  one — the only illustration in the app whose job is to *teach* the
+  scoping rule rather than decorate — a face turns it into a portrait of
+  somebody. The fix was one sentence added to the prompt (*every visor is
+  completely dark and opaque, with nothing visible behind it*), and the
+  regeneration also improved the composition: the figure outside the ring
+  is now visibly busy with a rover of their own, which is exactly the
+  "not excluded, just not in this one" reading the picture needs.
+- **`login-campfire.jpg`** was simply missed in the first batch, and it is
+  the first thing anyone ever sees.
+
+Still outstanding: **the 13 icons**. None exist yet, so every button on a
+blue page still wears the ranch's brown leather. That is the whole
+remaining list, and it is recorded at the top of
+`IMAGE-PROMPTS-ORBIT.md`.
 
 `pytest` (1185) and `ruff check .` green.

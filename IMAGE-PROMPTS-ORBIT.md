@@ -9,17 +9,9 @@ file is how a pack drifts.
 Generate externally, process locally, commit the result under
 `app/static/themes/orbit/img/` — the app never fetches an image at runtime.
 
-**Status:** 16 of the 17 illustrations are generated, processed and
-committed. Still wanted:
-
-- **`login-campfire.jpg`** — never generated, and it's the first thing
-  anyone sees (login page and the timeline's footer). Prompt 1 below.
-- **`group-circle.jpg`** — committed, but the crew's faces are visible
-  through their visors, which breaks the pack's no-faces rule and makes
-  the one picture that has to *teach* look like a portrait. Prompt 4 has
-  been sharpened; worth a regeneration.
-- **The 13 icons** — none generated, so every button still shows the
-  ranch's western icon on a blue page. Their section is at the end.
+**Status: all 17 illustrations are generated, processed and committed.**
+What is left is **the 13 icons** — none exist yet, so every button still
+shows the ranch's western icon on a blue page. Their section is at the end.
 
 **Nothing here is blocking.** The orbit pack works with any subset: its
 palette is complete, and any picture it hasn't drawn falls back to the
@@ -134,15 +126,21 @@ margin. Their section is at the end.
 
 ## Where to start
 
-In this order, for the largest visible change per generation:
+The illustrations are done. **The icons are what is left**, and they are
+what a reader notices next: every button on a blue page is still wearing
+the ranch's brown leather. Thirteen of them, one prompt, a table of
+subjects — the last section of this file.
 
-1. `login-campfire.jpg` — the first thing anyone sees, and the only
-   illustration still missing entirely.
-2. `group-circle.jpg` — the one picture in the app that has to *teach*
-   something rather than decorate, and the one whose first generation
-   came back with faces.
-3. The icons — 13 of them, and until they land every button on a blue page
-   is still wearing the ranch's brown leather.
+Two of the illustrations took a second pass, and both for reasons worth
+remembering when the icons come back:
+
+- `group-circle.jpg` — the first generation showed the crew's faces
+  through their visors. It is the one picture in the app that has to
+  *teach* rather than decorate, and a face turns it into a portrait. The
+  fix was one sentence in the prompt: *every visor is completely dark and
+  opaque*.
+- `login-campfire.jpg` — simply missed in the first batch, and it is the
+  first thing anyone ever sees.
 
 ---
 
