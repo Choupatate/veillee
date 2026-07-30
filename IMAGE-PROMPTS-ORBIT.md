@@ -9,12 +9,22 @@ file is how a pack drifts.
 Generate externally, process locally, commit the result under
 `app/static/themes/orbit/img/` — the app never fetches an image at runtime.
 
-**Nothing here is blocking.** The orbit pack already works with zero image
-files: its palette is complete, and any picture it hasn't drawn falls back
-to the ranch's (`app/themes.py`). So these can be generated one at a time,
-in any order, and each one that lands simply replaces a fallback. Start
-with the four in "Where to start" if you want the biggest visible change
-for the least work.
+**Status:** 16 of the 17 illustrations are generated, processed and
+committed. Still wanted:
+
+- **`login-campfire.jpg`** — never generated, and it's the first thing
+  anyone sees (login page and the timeline's footer). Prompt 1 below.
+- **`group-circle.jpg`** — committed, but the crew's faces are visible
+  through their visors, which breaks the pack's no-faces rule and makes
+  the one picture that has to *teach* look like a portrait. Prompt 4 has
+  been sharpened; worth a regeneration.
+- **The 13 icons** — none generated, so every button still shows the
+  ranch's western icon on a blue page. Their section is at the end.
+
+**Nothing here is blocking.** The orbit pack works with any subset: its
+palette is complete, and any picture it hasn't drawn falls back to the
+ranch's (`app/themes.py`). Generate one at a time, in any order; each one
+that lands simply replaces a fallback.
 
 **Every prompt below is complete.** Copy one whole fenced block into Gemini
 as-is; the style, the ground, the size constraint and the negatives are
@@ -47,8 +57,8 @@ can be matched to the set:
   cratered moons. Rings are the pack's signature shape — it is what makes
   an icon legible at 20px.
 
-Two hard rules, both carried over from the ranch pack and both
-non-negotiable:
+Three hard rules. The first two are carried over from the ranch pack;
+the third is what the first batch of generations taught:
 
 **No lettering, ever.** The interface is bilingual (F38). A word baked into
 an illustration can't be translated and will sit there in English on a
@@ -57,9 +67,23 @@ patches with words, no star charts with names. If lettering appears anyway,
 reply *"remove all text, numerals and lettering; leave those surfaces blank
 or with faint tick marks"*.
 
-**No faces.** Visors are dark and reflective. This is a style choice in the
-ranch pack and a stronger one here: an empty visor lets any reader be the
-cosmonaut.
+**No faces.** Visors are **dark, opaque and reflective** — you cannot see
+through them at all. This is a style choice in the ranch pack and a
+stronger one here: an empty visor lets any reader be the cosmonaut. A
+generation that shows eyes, a nose or a smile behind the glass is a
+regeneration, not a keeper.
+
+**No corner mark, no signature, no border.** Two things generators like to
+add that both have to be asked away:
+
+- *A sparkle, star, diamond or logo in a corner.* Every generation in the
+  first batch came back with a small grey four-pointed sparkle stamped
+  about 100 pixels in from the bottom-right corner. Ask for it not to be
+  there — and check anyway, because the request is not always honoured.
+  (The processing script covers that exact spot regardless; see below.)
+- *A paper or card border around the picture.* Several plates came back
+  matted on cream stock, which fights the pack's dark `--illo-mount` and
+  reads as a double frame. The artwork has to run edge to edge.
 
 ## How to run these through Gemini
 
@@ -80,9 +104,16 @@ cosmonaut.
 
 ## Processing what comes back
 
-Same pipeline as the ranch pack, with one difference in step 2:
+Same pipeline as the ranch pack, with two differences — step 1 and step 2:
 
-1. Trim to the drawn content, keep a little margin.
+1. **Trim off any cream border and cover the corner mark.** Both are
+   mechanical and neither depends on the generation: the border is a
+   uniformly light margin, and the sparkle sits at a fixed inset (97-144
+   pixels from the right and bottom edges, about 47 across), so it is
+   covered by geometry rather than by detection — which is the only thing
+   that works on the plates where it is a pale mark on pale regolith. It
+   is replaced with the same box copied from directly above it. F46 in
+   FEATURES.md records the script that did this for the first batch.
 2. **Keep the deep blue-black background baked into the JPEG.** The `.illo`
    class mounts it as a plate in every colour scheme — including the light
    ones, where it reads as a viewport cut into the page. (The orbit pack
@@ -93,8 +124,8 @@ Same pipeline as the ranch pack, with one difference in step 2:
    illustration weight.
 4. **The squint test**: view it at 250px wide. If the idea disappears, ask
    for fewer elements and larger shapes, not more detail.
-5. Look at it in **all three colour schemes** at a 390px viewport before
-   committing — the light schemes are where a too-dark plate goes wrong.
+5. Look at it in **both colour schemes** at a 390px viewport before
+   committing — the day side is where a too-dark plate goes wrong.
 6. Add the file to F46's table in FEATURES.md so the inventory stays true.
 
 **Icons are different** and follow F22's rules, not these: transparent PNG,
@@ -103,14 +134,15 @@ margin. Their section is at the end.
 
 ## Where to start
 
-Four files, in this order, for the largest visible change per generation:
+In this order, for the largest visible change per generation:
 
-1. `login-campfire.jpg` — the first thing anyone sees.
-2. `person-oval.jpg` — stands in for every person without a photo, so it
-   appears dozens of times across `/people` and the tree.
-3. `empty-chest.jpg` — the empty timeline, i.e. every new book's day one.
-4. `group-circle.jpg` — the one picture in the app that has to *teach*
-   something rather than decorate.
+1. `login-campfire.jpg` — the first thing anyone sees, and the only
+   illustration still missing entirely.
+2. `group-circle.jpg` — the one picture in the app that has to *teach*
+   something rather than decorate, and the one whose first generation
+   came back with faces.
+3. The icons — 13 of them, and until they land every button on a blue page
+   is still wearing the ranch's brown leather.
 
 ---
 
@@ -144,6 +176,8 @@ Wide landscape composition, roughly 4:3, with quiet empty space left and
 right. The three figures should read as a single warm cluster at thumbnail
 size.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals, no mission patches with words. No
 faces. No neon, no purple, no photographic realism.
 ```
@@ -177,6 +211,8 @@ instrument cyan #5cc8f5, pale starlight #dce6f5, a single rust orange
 Upright portrait composition, roughly 4:5, the helmet centred and large
 enough to read clearly at 120 pixels tall.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals. No face, no eyes, no skull imagery —
 this must feel like a seat kept warm, never like a ghost.
 ```
@@ -209,6 +245,8 @@ band on the case.
 
 Landscape composition, roughly 5:4, with quiet empty space around the case.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals. Nothing damaged, nothing sinister — the
 case is waiting, not abandoned.
 ```
@@ -234,6 +272,8 @@ plate: flat colour, confident hand-drawn linework, no photographic
 rendering.
 
 Scene: five cosmonauts in soft ribbed spacesuits stand on pale regolith.
+Every visor is completely dark and opaque — a solid reflective panel with
+no face, no eyes and nothing visible behind it.
 Four of them stand together inside a glowing circular ring marked on the
 ground — a soft cyan light-ring, like a landing circle, clearly closed and
 clearly enclosing them. They are lit warmly by it. The fifth cosmonaut
@@ -250,6 +290,8 @@ suit so all five clearly belong to the same crew.
 Wide landscape composition, roughly 5:4. The ring must be unmistakably a
 closed boundary at 250 pixels wide.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals. No faces. Nobody sad, nobody turned
 away, no barrier or wall — a line of light on the ground, not a fence.
 ```
@@ -278,6 +320,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 
 Portrait-ish composition, roughly 4:5, the capsule centred.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals, no dates. No padlock, no chain, no
 keyhole — this is a seal to be broken in its own time, not security.
 ```
@@ -306,6 +350,8 @@ Palette: instrument cyan #5cc8f5, pale starlight #dce6f5, one rust orange
 
 Wide landscape composition, roughly 3:2, with the trail leading the eye.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals. No flag, no planted banner — this is
 about a first step, not a conquest.
 ```
@@ -334,6 +380,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 Upright portrait composition, roughly 3:4, so the height of the marks is
 the subject.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals, no dates beside the marks — ticks only.
 No face.
 ```
@@ -360,6 +408,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 
 Square-ish composition, roughly 1:1.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals, no dials with numbers. No zodiac
 symbols.
 ```
@@ -387,6 +437,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 
 Landscape composition, roughly 6:5.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals — wavy strokes only, and they must not
 resolve into letters at any zoom.
 ```
@@ -413,6 +465,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 
 Wide landscape composition, roughly 3:2.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals, no barcodes that resolve into
 characters.
 ```
@@ -440,6 +494,8 @@ Palette: instrument cyan #5cc8f5, pale starlight #dce6f5, rust orange
 
 Landscape composition, roughly 5:4.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals. No crowd, no queue.
 ```
 
@@ -465,6 +521,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 
 Landscape composition, roughly 5:4.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals.
 ```
 
@@ -489,6 +547,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 
 Upright portrait composition, roughly 5:6.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals, no dials with markings — the panel is
 blank on purpose.
 ```
@@ -515,6 +575,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 
 Portrait composition, roughly 4:5.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals, no title on the cover — the emblem
 carries it.
 ```
@@ -541,6 +603,8 @@ Background: deep blue-black, hex #0d1424. Palette: instrument cyan
 
 Landscape composition, roughly 5:4.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals on the camera's controls.
 ```
 
@@ -567,6 +631,8 @@ place this pack allows green — a soft leaf green on the seedling.
 
 Portrait composition, roughly 4:5.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals.
 ```
 
@@ -593,6 +659,8 @@ Palette: instrument cyan #5cc8f5, pale starlight #dce6f5.
 Wide landscape composition, roughly 2:1, with a lot of empty space around
 the satellite — the emptiness is the joke.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals. Nothing on fire, nothing exploding, no
 warning symbols.
 ```
@@ -631,6 +699,8 @@ The shape must still be recognisable when the whole image is 20 pixels
 wide: large silhouette, generous negative space, no thin lines, no small
 elements.
 
+No sparkle, star, diamond or logo in any corner. No border, frame or
+paper mat around the picture — the artwork runs edge to edge.
 No text, no lettering, no numerals. No 3D rendering, no perspective, no
 photographic style.
 ```

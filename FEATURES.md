@@ -5882,4 +5882,52 @@ on load, and the starfield measured off a screenshot (peak pixel 224 of 255
 against a `#04060d` sky) rather than trusted to the eye — which is how the
 truncated data URI was caught in the first place.
 
+### Follow-up: the pack gets its artwork
+
+Sixteen of orbit's seventeen illustrations arrived, generated from the
+prompts in `IMAGE-PROMPTS-ORBIT.md`. They are committed under
+`app/static/themes/orbit/img/`, 808 KB in total, and the pack now inherits
+only what it hasn't drawn:
+
+| File | Size | | File | Size |
+|---|---|---|---|---|
+| `person-oval.jpg` | 590×732 | | `accounts-keys.jpg` | 760×510 |
+| `empty-chest.jpg` | 729×587 | | `invite-card.jpg` | 700×564 |
+| `group-circle.jpg` | 760×578 | | `write-link-pass.jpg` | 700×564 |
+| `sealed-letter.jpg` | 486×620 | | `help-lantern.jpg` | 582×700 |
+| `firsts-boots.jpg` | 760×496 | | `book-frame.jpg` | 723×897 |
+| `growth-doorpost.jpg` | 558×760 | | `instant-camera.jpg` | 652×516 |
+| `almanac-book.jpg` | 700×700 | | `tree-sapling.jpg` | 605×760 |
+| `history-pages.jpg` | 720×598 | | `tumbleweed.jpg` | 900×429 |
+
+Two things every generation needed fixing, and neither is a judgement call,
+so `scripts/process_orbit_plates.py` does both and stays in the repo for
+the next batch:
+
+- **A cream paper mat.** Six plates came back matted on card stock, which
+  against orbit's dark `--illo-mount` reads as a double frame. The script
+  strips a margin only where it is genuinely uniform and light, so a plate
+  whose own artwork reaches the edge — a lit horizon, a pale regolith
+  floor — is never cut into.
+- **The generator's corner sparkle.** Every single plate carried a small
+  grey four-pointed mark near the bottom-right. Detection is the obvious
+  approach and it fails: on the plates where the mark sits on pale
+  regolith it has almost no local contrast. Measuring instead showed it is
+  stamped at a *fixed* inset — 97 to 144 pixels from the right and bottom
+  edges, about 47 across — in every generation regardless of aspect ratio.
+  So it is covered by geometry, with the same box copied from directly
+  above it, which is invisible at display size because these backgrounds
+  are locally uniform vertically.
+
+The prompt document gained both as hard rules for future generations, on
+top of the two it already had, and every prompt block now carries the
+negatives inline.
+
+Still outstanding, and recorded at the top of `IMAGE-PROMPTS-ORBIT.md`:
+`login-campfire.jpg` was never generated (it is the first thing anyone
+sees); `group-circle.jpg` is committed but its crew's faces are visible
+through their visors, which breaks the pack's own rule on the one picture
+that has to *teach* rather than decorate; and none of the 13 icons exist
+yet, so every button on a blue page still wears the ranch's brown leather.
+
 `pytest` (1185) and `ruff check .` green.
