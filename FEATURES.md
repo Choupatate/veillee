@@ -5939,9 +5939,51 @@ are the failure modes to watch for in the next batch:
 - **`login-campfire.jpg`** was simply missed in the first batch, and it is
   the first thing anyone ever sees.
 
-Still outstanding: **the 13 icons**. None exist yet, so every button on a
-blue page still wears the ranch's brown leather. That is the whole
-remaining list, and it is recorded at the top of
-`IMAGE-PROMPTS-ORBIT.md`.
+### Follow-up: the first icons, and the rule they taught
+
+Five icons came back; two were committed (`icon-new-story`,
+`icon-instant`) and three were not. `scripts/process_orbit_icons.py` does
+their processing: cover the corner sparkle *first* — it is lighter than
+the grey backdrop, so the key would stop at it and leave an opaque speck
+floating beside the icon — then flood the background from the four corners
+so an enclosed grey area *inside* the artwork (the hole in a ring, the
+gaps in a dashed circle) stays part of the icon instead of being punched
+out with it, then trim, pad to a square by 2%, and downscale to 160×160.
+
+**What the batch taught is a contrast rule, and it is the useful part.**
+An icon has to read on both of orbit's schemes, and measured against the
+raised surface each sits on, *no single colour in the pack's palette
+does*:
+
+| | night side | day side |
+|---|---|---|
+| pale starlight `#dce6f5` | 14.5:1 | **1.11:1** |
+| instrument cyan `#5cc8f5` | 9.6:1 | **1.36:1** |
+| dark navy `#17253f` | **1.19:1** | 10.9:1 |
+| rust `#c8622f` | 4.6:1 | 2.9:1 |
+
+A pale or cyan icon vanishes in daylight; a dark one vanishes at night.
+Which is exactly why the ranch's icons survive on both cream and
+near-black: they are light shapes inside a *dark outline*, so whichever
+scheme you are in, one half of the icon carries it. The orbit icon prompt
+now requires a dark navy outline on every shape, thick enough to survive
+20 pixels, with cyan and starlight as fills inside it. Rendering the batch
+at 20/24/44px on both schemes is what surfaced this; the two icons that
+passed did so because they are chunky solid masses, not because they were
+right.
+
+The second lesson was smaller and also general: **a subject line has to
+name a shape, not a concept.** "A ringed planet inside a downward chevron"
+came back as a shield with ears — the generator drew the container and
+ignored the direction. The three rejected subjects were rewritten to
+describe silhouettes ("a thick downward-pointing arrow, its shaft crossed
+by a tilted planet's ring seen edge-on…").
+
+The three that were held back — `icon-save` (read as a fox's head),
+`icon-draft` (strokes too fine, and pale-on-pale in daylight) and
+`icon-archive` (read as a cup) — are simply absent from the pack, so those
+buttons keep the ranch's icons until a better generation lands. That is
+the per-file fallback doing exactly the job it exists for: a wrong icon is
+worse than a borrowed one.
 
 `pytest` (1185) and `ruff check .` green.

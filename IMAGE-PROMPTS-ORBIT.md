@@ -10,8 +10,15 @@ Generate externally, process locally, commit the result under
 `app/static/themes/orbit/img/` — the app never fetches an image at runtime.
 
 **Status: all 17 illustrations are generated, processed and committed.**
-What is left is **the 13 icons** — none exist yet, so every button still
-shows the ranch's western icon on a blue page. Their section is at the end.
+Of the 13 icons, **2 are in** (`icon-new-story`, `icon-instant`) and 11 are
+not, so most buttons still show the ranch's western icon on a blue page.
+
+The first icon batch also taught the rule now at the head of the icon
+section: **every icon needs a dark navy outline**, because no single colour
+in the pack's palette is legible on both the night side and the day side.
+The two that are committed predate that rule and read acceptably without
+it; when the rest arrive outlined, regenerating those two to match is
+worth it — a half-outlined icon set looks like a mistake.
 
 **Nothing here is blocking.** The orbit pack works with any subset: its
 palette is complete, and any picture it hasn't drawn falls back to the
@@ -672,9 +679,37 @@ background, bold flat shapes that survive being drawn at 20 pixels. The
 pack's signature shape is the **ring** — a tilted ellipse around a body —
 because it is the one silhouette that stays legible that small.
 
-Generate at 512×512 on a plain mid-grey background, then key out the
-background, trim to content, and pad by 2% before downscaling to 160×160
-(the same recipe F22's entries describe).
+Generate at 512×512 on a plain mid-grey background, then run
+`scripts/process_orbit_icons.py`, which keys the background out, trims to
+content, pads by 2% and downscales to 160×160.
+
+### The rule the first batch taught: every icon needs a dark outline
+
+An icon has to read on **both** of orbit's schemes, and no single colour in
+the pack's palette does. Measured against the raised surface each one sits
+on:
+
+| | on the night side | on the day side |
+|---|---|---|
+| pale starlight `#dce6f5` | 14.5:1 | **1.11:1** |
+| instrument cyan `#5cc8f5` | 9.6:1 | **1.36:1** |
+| dark navy `#17253f` | **1.19:1** | 10.9:1 |
+| rust `#c8622f` | 4.6:1 | 2.9:1 |
+
+A pale or cyan icon is invisible in daylight; a dark one is invisible at
+night. This is exactly why the ranch's icons work on both cream and near-
+black: they are **light shapes inside a dark outline**, so whichever scheme
+you are in, one half of the icon carries it.
+
+So: **every shape carries a dark navy `#17253f` outline, thick enough to
+survive 20 pixels**, with cyan and pale starlight as the fills inside it.
+The prompt below says so; do not drop it, and check a generation against
+the day side before accepting it.
+
+The other thing the first batch taught: *the subject line has to name a
+shape, not a concept*. "A ringed planet inside a downward chevron" came
+back as a shield with ears — the generator drew the container, not the
+direction. Where a subject is abstract, describe the silhouette you want.
 
 Committed sizes and filenames must match the ranch pack exactly:
 `icon-new-story.png`, `icon-instant.png`, `icon-save.png`, `icon-draft.png`,
@@ -686,16 +721,24 @@ A single prompt covers the set; change only the **subject** line:
 
 ```
 A single bold, flat vector-style icon, centred, drawn as one confident
-shape with thick strokes and no fine detail — the visual weight of a
-mission patch symbol. Two colours only: instrument cyan #5cc8f5 and pale
-starlight #dce6f5, with one rust orange #c8622f accent allowed. Plain flat
-mid-grey background, no shadow, no gradient, no glow, no outline box.
+shape — the visual weight of a mission patch symbol.
+
+Every shape is outlined in dark navy #17253f, with a thick, even stroke
+roughly one tenth of the icon's width. Inside those outlines the fills are
+instrument cyan #5cc8f5 and pale starlight #dce6f5, with one rust orange
+#c8622f accent allowed. The outline is not optional: this icon has to stay
+legible on a near-black background and on a pale blue one, and only the
+dark outline works on both.
+
+Plain flat mid-grey background, no shadow, no gradient, no glow, no
+rounded-square badge or container behind the icon.
 
 Subject: <SUBJECT>
 
 The shape must still be recognisable when the whole image is 20 pixels
-wide: large silhouette, generous negative space, no thin lines, no small
-elements.
+wide: one large silhouette, generous negative space, no stroke thinner
+than a tenth of the icon's width, no small elements, no more than three
+distinct parts.
 
 No sparkle, star, diamond or logo in any corner. No border, frame or
 paper mat around the picture — the artwork runs edge to edge.
@@ -709,9 +752,9 @@ Subjects, one per file:
 |---|---|
 | `icon-new-story.png` | a ringed planet with a stylus arcing over it like an orbit |
 | `icon-instant.png` | a chunky survey camera seen head-on, one round lens |
-| `icon-save.png` | a ringed planet inside a downward chevron |
-| `icon-draft.png` | a planet drawn as a dashed outline, its ring solid |
-| `icon-archive.png` | a sealed storage canister with one band |
+| `icon-save.png` | a thick downward-pointing arrow, its shaft crossed by a tilted planet's ring seen edge-on, the arrowhead resting on a short horizontal bar |
+| `icon-draft.png` | a ringed planet whose body is drawn as four thick dashes with wide gaps between them, the ring solid and unbroken |
+| `icon-archive.png` | a wide storage crate seen square-on, wider than it is tall, with a separate lid bar across the top and one rust band across the middle |
 | `icon-seal.png` | a capsule with a single wax seal disc on its seam |
 | `icon-source.png` | a small antenna dish pointing up and to the right |
 | `icon-record.png` | a round microphone grille with two sound arcs |

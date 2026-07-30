@@ -152,19 +152,28 @@ def test_the_default_is_the_default_pack(app):
 
 
 def test_pages_serve_the_configured_pack(app_factory):
-    """End to end, and both halves of the fallback on one page: the login
-    page draws orbit's own illustration, and its nav still borrows the
-    ranch's icons, because orbit hasn't drawn those yet."""
-    app = app_factory(THEME="orbit")
-    client = app.test_client()
-    html = client.get("/login").data.decode()
-    assert "/static/themes/orbit/theme.css" in html
-    assert "/static/themes/orbit/img/login-campfire.jpg" in html
+    """End to end: a page under a pack draws that pack's pictures, and
+    borrows the default's for whatever it hasn't drawn.
 
-    page = app.test_client()
-    page.post("/login", data={"password": "test-password"})
-    nav = page.get("/").data.decode()
-    assert "/static/themes/ranch/img/icon-new-story.png" in nav
+    Which files fall in which half is deliberately read off disk rather
+    than written down — orbit is filling its `img/` in over time, and a
+    test that named specific files would fail every time one landed."""
+    app = app_factory(THEME="orbit")
+    pack_img = themes.THEMES_DIR / "orbit" / "img"
+    own = {p.name for p in pack_img.iterdir() if p.is_file()}
+    assert own, "orbit has no artwork at all — this test proves nothing"
+
+    client = app.test_client()
+    client.post("/login", data={"password": "test-password"})
+    pages = "".join(client.get(url).data.decode() for url in ("/", "/login", "/new", "/help"))
+
+    assert "/static/themes/orbit/theme.css" in pages
+    drawn = re.findall(r"/static/themes/orbit/img/([a-z0-9.-]+)", pages)
+    borrowed = re.findall(r"/static/themes/ranch/img/([a-z0-9.-]+)", pages)
+    assert drawn, "nothing on these pages came from the pack"
+    assert borrowed, "nothing on these pages fell back — has orbit drawn everything?"
+    assert set(drawn) <= own
+    assert not (set(borrowed) & own), "a file the pack owns was still served from the default"
 
 
 def test_the_default_pack_needs_no_stylesheet(app):
