@@ -3242,6 +3242,34 @@ img.family-chip__thumb {
   color: var(--color-text-dim);
 }
 
+/* The recording level (F47). Decorative on its own — what it is for is
+   letting someone see that the microphone has gone dead while they are
+   still talking, which no wording on the page can do. */
+.editor__voice-meter {
+  flex: 1;
+  min-width: 4rem;
+  max-width: 10rem;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.editor__voice-meter-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+  transition: width 80ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor__voice-meter-fill {
+    transition: none;
+  }
+}
+
 .editor__voice-message {
   margin: 0;
   font-family: var(--font-sans);

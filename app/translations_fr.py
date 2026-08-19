@@ -727,6 +727,26 @@ TRANSLATIONS_FR = {
     "Microphone access was denied.": "L'accès au microphone a été refusé.",
     "Could not save the recording.": "Impossible d'enregistrer l'audio.",
     "Could not delete the recording.": "Impossible de supprimer l'enregistrement.",
+    "Recording stopped when the page went to the background. Everything "
+    "recorded up to then has been saved.":
+        "L'enregistrement s'est arrêté quand la page est passée en "
+        "arrière-plan. Tout ce qui avait été enregistré est sauvegardé.",
+    "Recording stopped when the microphone became unavailable. Everything "
+    "recorded up to then has been saved.":
+        "L'enregistrement s'est arrêté quand le microphone est devenu "
+        "indisponible. Tout ce qui avait été enregistré est sauvegardé.",
+    "Recording stopped when the microphone went silent. Everything recorded "
+    "up to then has been saved.":
+        "L'enregistrement s'est arrêté quand le microphone est devenu "
+        "muet. Tout ce qui avait été enregistré est sauvegardé.",
+    "The recording was interrupted. Everything recorded up to then has been "
+    "saved.":
+        "L'enregistrement a été interrompu. Tout ce qui avait été "
+        "enregistré est sauvegardé.",
+    "Could not reach the server. The recording is still here — keep this "
+    "page open and it will try again.":
+        "Impossible de joindre le serveur. L'enregistrement est toujours "
+        "là — gardez cette page ouverte et il réessaiera.",
     "Adding the photo…": "Ajout de la photo…",
     "Could not add that photo.": "Impossible d'ajouter cette photo.",
     "Resume": "Reprendre",

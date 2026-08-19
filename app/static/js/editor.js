@@ -27,6 +27,11 @@
   var storyId = form.dataset.storyId || null;
   var dirty = false;
 
+  // True while a voice recording is running or a finished one has not
+  // reached the server yet (F47) — audio that exists nowhere but this tab,
+  // and so is worth stopping a page from being closed over.
+  var audioAtRisk = false;
+
   // --- Endpoint parametrization (FEATURES.md F14) ---------------------------
   //
   // Story and person editors share this file rather than forking it. The
@@ -849,23 +854,37 @@
     });
   }
 
-  // --- Voice memos (F12) ----------------------------------------------------
+  // --- Voice memos (F12, kept alive across screen locks in F47) --------------
   var voiceSection = document.getElementById("editor-voice");
   if (voiceSection) {
     var recordBtn = document.getElementById("voice-record-btn");
     var pauseBtn = document.getElementById("voice-pause-btn");
     var stopBtn = document.getElementById("voice-stop-btn");
     var timerEl = document.getElementById("voice-timer");
+    var meterEl = document.getElementById("voice-meter");
+    var meterFillEl = document.getElementById("voice-meter-fill");
     var voiceMessageEl = document.getElementById("voice-message");
     var voiceListEl = document.getElementById("voice-list");
 
     var mediaRecorder = null;
+    var activeStream = null;
     var recordedChunks = [];
-    var recordStartTime = null;
-    var elapsedBeforePause = 0;
+    var clock = window.RecorderLogic.createClock();
     var timerInterval = null;
+    var audioContext = null;
+    var meterFrame = null;
+    var silenceWatch = null;
     var recordMimeType = null;
     var recordExt = null;
+    // Finished recordings still on their way to the server. A queue rather
+    // than one blob: an upload the phone froze mid-flight has to survive
+    // until the page is looked at again, and must not be dropped because
+    // another recording was started in the meantime.
+    var uploadQueue = [];
+    var uploading = false;
+    // Set when a recording ended by itself; shown once its audio is safe,
+    // so the news arrives with the memo rather than instead of it.
+    var interruptionMessage = "";
 
     var showVoiceMessage = makeMessageSetter(voiceMessageEl);
 
@@ -888,16 +907,15 @@
       return { mimeType: "audio/mp4", ext: "m4a" };
     }
 
-    function formatElapsed(ms) {
-      var totalSeconds = Math.floor(ms / 1000);
-      var minutes = Math.floor(totalSeconds / 60);
-      var seconds = totalSeconds % 60;
-      return (minutes < 10 ? "0" : "") + minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+    function updateTimer() {
+      timerEl.textContent = window.RecorderLogic.formatElapsed(
+        window.RecorderLogic.elapsed(clock, Date.now())
+      );
     }
 
-    function updateTimer() {
-      var elapsed = elapsedBeforePause + (recordStartTime ? Date.now() - recordStartTime : 0);
-      timerEl.textContent = formatElapsed(elapsed);
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
     }
 
     function appendMemoToList(filename) {
@@ -921,15 +939,177 @@
       voiceListEl.appendChild(li);
     }
 
-    function uploadMemo(blob) {
+    function uploadMemo(item) {
       return ensureStoryId().then(function (id) {
         var formData = new FormData();
-        formData.append("file", blob, "memo." + recordExt);
+        formData.append("file", item.blob, "memo." + item.ext);
         return fetch("/api/stories/" + id + "/memos", window.CsrfFetch.withToken({
           method: "POST",
           body: formData,
-        })).then(window.FetchJson.parse);
+        })).then(window.FetchJson.parse, function () {
+          // The request never reached the server — offline, or the page
+          // was frozen mid-upload behind a locked screen. Flagged so the
+          // message can promise another go instead of blaming the file.
+          var offline = new Error("");
+          offline.offline = true;
+          throw offline;
+        });
       });
+    }
+
+    // A recording is over: hand its audio to the queue, which owns it from
+    // here, and let the page know it is no longer the only copy.
+    function finishRecording(blob, ext) {
+      if (blob && blob.size) {
+        uploadQueue.push({ blob: blob, ext: ext });
+      } else {
+        resetRecordUI();
+        showVoiceMessage(interruptionMessage);
+        interruptionMessage = "";
+      }
+      audioAtRisk = uploadQueue.length > 0;
+      drainUploads();
+    }
+
+    function drainUploads() {
+      if (uploading || !uploadQueue.length) return;
+      uploading = true;
+      recordBtn.disabled = true;
+      showVoiceMessage(window.storybookT("Saving…"));
+      uploadMemo(uploadQueue[0])
+        .then(function (data) {
+          uploadQueue.shift();
+          uploading = false;
+          audioAtRisk = uploadQueue.length > 0;
+          appendMemoToList(data.filename);
+          resetRecordUI();
+          recordBtn.disabled = false;
+          showVoiceMessage(interruptionMessage);
+          interruptionMessage = "";
+          drainUploads();
+        })
+        .catch(function (error) {
+          // The recording stays at the head of the queue: every way back to
+          // this page tries again, and beforeunload guards the one way of
+          // losing it that is left.
+          uploading = false;
+          resetRecordUI();
+          recordBtn.disabled = false;
+          showVoiceMessage(
+            error && error.offline
+              ? window.storybookT("Could not reach the server. The recording is still here — keep this page open and it will try again.")
+              : (error && error.message) || window.storybookT("Could not save the recording.")
+          );
+        });
+    }
+
+    // --- the level meter, and the microphone watchdog behind it -------------
+    //
+    // A MediaRecorder whose microphone has been switched off does not stop
+    // and does not error: it records silence, and nothing on the page looks
+    // any different. So the input is measured while it runs — shown as a
+    // bar, which is what lets someone see it go flat while they are still
+    // talking, and watched for a run of mathematical silence long enough to
+    // mean the microphone is gone rather than the room is quiet.
+    function startMeter(stream) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx || !meterFillEl) return;
+      try {
+        audioContext = new Ctx();
+        var analyser = audioContext.createAnalyser();
+        analyser.fftSize = 1024;
+        audioContext.createMediaStreamSource(stream).connect(analyser);
+        // The watchdog needs to tell a noise floor from a true zero, which
+        // 8-bit time-domain data cannot do — where only that is available
+        // the bar still moves and only the watchdog stands down.
+        var samples = analyser.getFloatTimeDomainData
+          ? new Float32Array(analyser.fftSize)
+          : null;
+        if (samples) silenceWatch = window.RecorderLogic.createSilenceWatch();
+        meterEl.hidden = false;
+        meterFrame = requestAnimationFrame(function tick() {
+          meterFrame = requestAnimationFrame(tick);
+          if (!mediaRecorder || mediaRecorder.state !== "recording") {
+            // Paused: no input is being kept, so neither the bar nor the
+            // watchdog should read anything into the silence.
+            meterFillEl.style.width = "0%";
+            if (samples) silenceWatch = window.RecorderLogic.createSilenceWatch();
+            return;
+          }
+          var level = samples ? rms(analyser, samples) : byteRms(analyser);
+          meterFillEl.style.width = window.RecorderLogic.meterWidth(level) * 100 + "%";
+          if (!samples) return;
+          silenceWatch = window.RecorderLogic.watchSilence(silenceWatch, level, Date.now());
+          if (silenceWatch.dead) interrupt("muted");
+        });
+      } catch (e) {
+        stopMeter();
+      }
+    }
+
+    function rms(analyser, samples) {
+      analyser.getFloatTimeDomainData(samples);
+      var sum = 0;
+      for (var i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+      return Math.sqrt(sum / samples.length);
+    }
+
+    function byteRms(analyser) {
+      var bytes = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(bytes);
+      var sum = 0;
+      for (var i = 0; i < bytes.length; i++) {
+        var v = (bytes[i] - 128) / 128;
+        sum += v * v;
+      }
+      return Math.sqrt(sum / bytes.length);
+    }
+
+    function stopMeter() {
+      if (meterFrame) cancelAnimationFrame(meterFrame);
+      meterFrame = null;
+      silenceWatch = null;
+      if (audioContext) {
+        try {
+          audioContext.close();
+        } catch (e) {
+          /* already closed */
+        }
+        audioContext = null;
+      }
+      if (meterEl) meterEl.hidden = true;
+      if (meterFillEl) meterFillEl.style.width = "0%";
+    }
+
+    function releaseStream() {
+      stopMeter();
+      if (window.StorybookWakeLock) window.StorybookWakeLock.release();
+      if (!activeStream) return;
+      activeStream.getTracks().forEach(function (track) {
+        track.stop();
+      });
+      activeStream = null;
+    }
+
+    // Something took the microphone or the page away. The audio recorded so
+    // far exists nowhere but this tab, so end the recording deliberately —
+    // that is what hands the chunks over — rather than letting it be killed.
+    function interrupt(reason) {
+      if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+      var policy = window.RecorderLogic.interruption(reason);
+      if (!policy.salvage) return;
+      interruptionMessage = window.storybookT(policy.message);
+      try {
+        mediaRecorder.stop();
+      } catch (e) {
+        // A recorder the browser already tore down never fires "stop", so
+        // the chunks it did give us are salvaged by hand.
+        var chunks = recordedChunks;
+        recordedChunks = [];
+        releaseStream();
+        stopTimer();
+        finishRecording(new Blob(chunks, { type: recordMimeType }), recordExt);
+      }
     }
 
     function resetRecordUI() {
@@ -946,14 +1126,16 @@
     } else {
       recordBtn.addEventListener("click", function () {
         showVoiceMessage("");
+        interruptionMessage = "";
         navigator.mediaDevices
           .getUserMedia({ audio: true })
           .then(function (stream) {
             var picked = pickMimeType();
+            activeStream = stream;
             recordMimeType = picked.mimeType;
             recordExt = picked.ext;
             recordedChunks = [];
-            elapsedBeforePause = 0;
+            var ext = picked.ext;
             try {
               mediaRecorder = new MediaRecorder(stream, { mimeType: recordMimeType });
             } catch (e) {
@@ -963,31 +1145,34 @@
               if (event.data && event.data.size > 0) recordedChunks.push(event.data);
             });
             mediaRecorder.addEventListener("stop", function () {
-              stream.getTracks().forEach(function (track) {
-                track.stop();
+              var chunks = recordedChunks;
+              recordedChunks = [];
+              releaseStream();
+              stopTimer();
+              finishRecording(new Blob(chunks, { type: recordMimeType }), ext);
+            });
+            mediaRecorder.addEventListener("error", function () {
+              interrupt("error");
+            });
+            stream.getAudioTracks().forEach(function (track) {
+              track.addEventListener("ended", function () {
+                interrupt("ended");
               });
-              clearInterval(timerInterval);
-              timerInterval = null;
-              var blob = new Blob(recordedChunks, { type: recordMimeType });
-              recordBtn.disabled = true;
-              uploadMemo(blob)
-                .then(function (data) {
-                  appendMemoToList(data.filename);
-                  resetRecordUI();
-                  recordBtn.disabled = false;
-                })
-                .catch(function (error) {
-                  showVoiceMessage((error && error.message) || window.storybookT("Could not save the recording."));
-                  resetRecordUI();
-                  recordBtn.disabled = false;
-                });
+              track.addEventListener("mute", function () {
+                interrupt("muted");
+              });
             });
             mediaRecorder.start(1000);
-            recordStartTime = Date.now();
+            audioAtRisk = true;
+            startMeter(stream);
+            // Keep the screen from locking under a recording that is still
+            // only in this page. Best-effort: see wake-lock.js.
+            if (window.StorybookWakeLock) window.StorybookWakeLock.request();
             recordBtn.hidden = true;
             pauseBtn.hidden = false;
             stopBtn.hidden = false;
             timerEl.hidden = false;
+            clock = window.RecorderLogic.startClock(Date.now());
             updateTimer();
             timerInterval = setInterval(updateTimer, 1000);
           })
@@ -1000,12 +1185,13 @@
         if (!mediaRecorder) return;
         if (mediaRecorder.state === "recording") {
           mediaRecorder.pause();
-          elapsedBeforePause += Date.now() - recordStartTime;
-          recordStartTime = null;
+          clock = window.RecorderLogic.pauseClock(clock, Date.now());
+          updateTimer();
           pauseBtn.textContent = window.storybookT("Resume");
         } else if (mediaRecorder.state === "paused") {
           mediaRecorder.resume();
-          recordStartTime = Date.now();
+          clock = window.RecorderLogic.resumeClock(clock, Date.now());
+          updateTimer();
           pauseBtn.textContent = window.storybookT("Pause");
         }
       });
@@ -1014,6 +1200,20 @@
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
           mediaRecorder.stop();
         }
+      });
+
+      // A backgrounded page loses the microphone on a phone and may be
+      // frozen outright, so leaving is treated as the end of the recording;
+      // coming back is the moment to finish whatever the freeze cut off.
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "hidden") {
+          interrupt("hidden");
+        } else {
+          drainUploads();
+        }
+      });
+      window.addEventListener("pagehide", function () {
+        interrupt("hidden");
       });
     }
 
@@ -1443,7 +1643,7 @@
   });
 
   window.addEventListener("beforeunload", function (event) {
-    if (!dirty) return;
+    if (!dirty && !audioAtRisk) return;
     event.preventDefault();
     event.returnValue = "";
   });

@@ -75,6 +75,10 @@ the exact `F<N>.` heading text to jump to it.
 - **F46** — Theme packs: the art direction became a folder, so a second one
   (*orbit*, a book kept off Earth, under a starfield) could ship its
   palette on day one and its pictures one at a time
+- **F47** — A recording that survives a locked screen: the phone is asked to
+  stay awake while you talk, anything that interrupts a recording anyway
+  ends it on purpose and keeps the audio, and a level meter makes a
+  microphone that has quietly died visible while you are still talking
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5987,3 +5991,185 @@ the per-file fallback doing exactly the job it exists for: a wrong icon is
 worse than a borrowed one.
 
 `pytest` (1185) and `ruff check .` green.
+
+
+## F47. A recording that survives a locked screen
+
+Reported from a phone, and the worst kind of bug this app can have:
+
+> my screen turned off while recording on the app on chrome and the thing
+> stopped recording when my phone screen closed... that is a real problem
+> as I lost nearly 2 minutes of recording because of this
+
+...and then, on looking at the file:
+
+> the recording carried on but there was no voice during the 2 minutes.
+> and when I stopped the thing there is 1 minute of recording and 2
+> minutes of no noise
+
+That second message is the whole feature. The recorder did **not** stop.
+Android took the microphone away with the screen and `MediaRecorder` went
+on banking silence — no error, no `stop` event, a timer still counting up.
+Someone talked for two minutes into a microphone that was not there, and
+found out on playback. A recorder that dies loudly is a nuisance; one that
+keeps a straight face while recording nothing is a trap.
+
+Underneath it is a second property, the one that makes any of this
+dangerous: **until a recording is stopped and uploaded, its audio exists
+in exactly one place — the tab.** No file on disk, nothing on the server,
+nothing another tab could recover.
+
+So there are three jobs, in order of how much they are worth:
+
+1. keep the screen on, so the microphone is never taken in the first place;
+2. when it is taken anyway, end the recording *on purpose* and keep what
+   was captured — never carry on into silence;
+3. show the input level, so a microphone that dies is visible while
+   someone is still talking rather than discovered afterwards.
+
+### Keep the screen awake — `static/js/wake-lock.js`
+
+A small module around the [Screen Wake Lock
+API](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API):
+`request()` while recording, `release()` when the microphone is released.
+It needs a secure context, which is the same condition `getUserMedia`
+already imposes — wherever recording works at all, the lock can at least
+be asked for.
+
+The part that is easy to get wrong: **the browser drops the lock whenever
+the page is hidden, and never gives it back.** A page that asks once and
+assumes it holds the screen forever is wrong the first time the user
+glances at a notification. The module therefore remembers that the lock is
+*wanted*, listens for `visibilitychange`, and asks again on the way back —
+and asks for nothing while hidden, where the request would be refused
+anyway.
+
+Everything about it is best-effort by design. A browser without the API, a
+battery saver refusing the request, a rejected promise — all resolve
+`false` and change nothing except that the screen behaves as it always
+did. Nothing downstream is allowed to depend on the lock being held; the
+salvage below is what makes the feature safe, and the lock is what makes
+it pleasant.
+
+### Treat an interruption as the end of a recording, not a failure
+
+The rule is stated once, in `static/js/recorder-logic.js`, and it has no
+exceptions: **anything that interrupts a recording stops it on purpose.**
+Stopping is what makes `MediaRecorder` hand over its chunks; letting the
+browser kill the recorder instead is what loses them. Four interruptions,
+all of them observed rather than imagined:
+
+| reason | what it is |
+| --- | --- |
+| `hidden` | the page went to the background — screen lock, or an app switch |
+| `ended` | the microphone track ended: device gone, or taken by another app |
+| `muted` | the track went silent, so carrying on would bank silence |
+| `error` | `MediaRecorder` itself gave up |
+
+Each carries its own sentence, shown *after* the audio is safe, so the
+news arrives with the memo rather than instead of it: "Recording stopped
+when the page went to the background. Everything recorded up to then has
+been saved." An unrecognised reason salvages too, and borrows the generic
+wording — a new browser behaviour should cost a vague message, never the
+recording.
+
+This does mean switching apps mid-recording ends the memo. That is the
+deliberate trade: a memo that stops early is an inconvenience, and the
+next tap starts another one; a memo that records silence, or vanishes, is
+not recoverable at all.
+
+### Show the level — the thing that would have caught it live
+
+Interruptions only help if the browser reports one, and the case that
+started this reported nothing at all. So while a recording runs, the input
+is measured through an `AnalyserNode` and drawn as a small bar beside the
+timer. It costs one `requestAnimationFrame` loop and answers, continuously,
+the question no wording on a page can: *is it still hearing me?*
+
+The same measurement feeds a watchdog. A live microphone in a silent room
+is never mathematically silent — room tone and the preamp's own noise sit
+orders of magnitude above zero — while a microphone the phone has switched
+off is exactly zero. Twenty unbroken seconds of that is treated as `muted`
+and salvaged.
+
+Three deliberate limits on it:
+
+- **Twenty seconds, not five.** Some phones gate their noise suppressor all
+  the way to zero between words. The two mistakes are not equal: ending a
+  good recording early is a rude surprise, while missing a dead microphone
+  only falls through to the interruptions above, which catch the
+  screen-lock case anyway.
+- **It stands down while paused.** Nothing is being kept, so a silent pause
+  means nothing.
+- **It stands down without float precision.** `getByteTimeDomainData`
+  quantises a quiet room's noise floor to zero, which would make the
+  watchdog stop perfectly good recordings; where only 8-bit data exists the
+  bar still moves and only the watchdog goes quiet.
+
+The bar is `aria-hidden`: it duplicates nothing a screen reader needs, and
+when it matters the watchdog says the same thing in words.
+
+### The upload queue
+
+Salvaging is only half of it. The likeliest moment to *need* the salvage —
+a phone freezing the page behind a lock screen — is also the likeliest
+moment for the upload to be cut off mid-flight. So a finished recording
+goes into a queue rather than straight into a single in-flight request:
+
+- the head is uploaded; on success it is shifted off and the next one
+  starts, so a memo saved during an interruption never blocks the one
+  recorded after it;
+- **on failure it stays at the head.** Every way back into the page —
+  `visibilitychange` to visible, another recording finishing — drains the
+  queue again. A network failure is told apart from a refusal by the
+  server, so the message can promise another go ("keep this page open and
+  it will try again") instead of blaming the file;
+- while anything is queued, or a recording is running, `beforeunload`
+  warns. Closing the tab is now the only way left to lose audio, and it
+  takes a confirmation.
+
+### The clock, made a value
+
+`recorder-logic.js` also owns the elapsed-time clock the timer reads:
+`{ banked, startedAt }`, with `start`/`pause`/`resume` as pure functions of
+the old clock and the current time. It replaces a pair of mutable
+variables in `editor.js` that pause and resume shuffled between them, and
+it is where two small bugs were fixed on the way past — a system clock
+jumping backwards can no longer run the timer backwards, and an hour of
+recording now reads `1:00:00` instead of `60:00` (memos have no length
+cap, so an hour is reachable).
+
+### Tests
+
+The two decidable pieces are DOM-free UMD modules with plain-Node tests,
+per the repo's usual split:
+
+- `tests/js/recorder_logic_test.mjs` (29) — the clock across pause,
+  resume, restart and a backwards system clock; the `mm:ss` / `h:mm:ss`
+  readout; every interruption salvaging, including one nobody anticipated;
+  the watchdog holding its nerve through a noise floor and a reset run, and
+  the meter's dB curve putting speech in the middle of the bar.
+- `tests/js/wake_lock_test.mjs` (11) — driven through a hand-written fake
+  window, which is the only way to stage the case that matters: the
+  browser dropping the lock while hidden, and the page taking it back on
+  return. Also that a refusal resolves `false` rather than throwing, and
+  that an unsupported browser is simply unsupported.
+- `tests/test_recording_guard.py` (20) — the server-rendered contract: the
+  scripts are served on both editor pages and *before* `editor.js` (no
+  bundler, so page order is the whole dependency mechanism), the lock is
+  released where the stream is, every interruption is wired up, the
+  beforeunload guard covers unsaved audio, the queue only shifts on
+  success, the meter ships hidden and takes its colour from the theme, the
+  watchdog stands down while paused and without float precision — and,
+  asking `recorder-logic.js` itself for the list so it cannot drift, that
+  every sentence the recorder can say exists in `JS_STRINGS` and is
+  translated into French.
+
+Verified by hand in Chromium at 390px with a fake microphone, which is the
+only way to see the actual bug: record, hide the page, and watch the memo
+arrive anyway. Also checked there: the lock held and then let go, the
+blocked-upload-then-return retry, the bar moving with the fake device's
+tone and dropping to zero while paused, and the watchdog ending a recording
+into silence with its memo intact.
+
+`pytest` (1207) and `ruff check .` green.

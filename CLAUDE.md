@@ -137,6 +137,16 @@ Frontend:
   ancestor walks, chain validation), unit-tested directly under Node via
   `tests/js/tree_logic_test.mjs`. Keep new pure tree logic here rather than
   inline in `tree.js`, so it stays testable without a browser.
+- `app/static/js/recorder-logic.js` + `wake-lock.js` — the voice
+  recorder's survival kit (F47). Audio in a `MediaRecorder` exists only in
+  the tab until it is stopped and uploaded, so a phone locking its screen
+  loses it: the app holds a screen wake lock while recording, and treats
+  every interruption (page hidden, track ended or muted, recorder error)
+  as a reason to stop *deliberately* — which is what hands over the
+  chunks — and upload. A finished recording that fails to upload stays
+  queued and is retried on the way back to the page, and `beforeunload`
+  guards it meanwhile. Don't add a code path that ends a recording
+  without saving what it captured.
 - `app/static/vendor/` — vendored third-party JS (family-chart, d3, Toast UI
   Editor). Treat as read-only/generated; if you need to update one, redo the
   vendoring process documented in its banner comment, don't hand-edit it.

@@ -481,6 +481,25 @@ the story folder, same numbering scheme as photos.
 home network rather than on the same machine as the browser, put a
 reverse proxy with a certificate in front of it to use this feature.
 
+While a recording is running the app asks the browser to **keep the screen
+awake**, because a phone that locks its screen mid-sentence takes the
+microphone with it — and, worse, doesn't stop the recording: it keeps
+going, storing silence, with the timer still counting up. If the browser
+won't hold that lock, or you lock the phone yourself, or another app takes
+the microphone, the recording is ended on purpose and everything captured
+up to that moment is uploaded and kept — you get a memo and a line saying
+what happened, never silence and a lost story. Should the upload not get
+through (the phone froze the page behind a lock screen, say), the audio
+stays in the tab and is sent again the moment you come back to it; closing
+the tab first is the only way to lose it, and the browser asks you to
+confirm before that happens.
+
+A **level bar** next to the timer moves with your voice, so a microphone
+that has quietly died is visible while you're still talking rather than
+discovered on playback. If it reads perfect silence for twenty seconds
+straight — which a live microphone in a quiet room never does — the
+recording is ended and saved on the assumption the microphone is gone.
+
 Drop a plain-text file named after a memo with a `.txt` extension next to
 it (e.g. `memo-001.txt`) and its contents show up as a "Transcript" under
 that recording — the app never writes these itself, so anyone can type

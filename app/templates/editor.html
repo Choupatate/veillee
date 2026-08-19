@@ -94,6 +94,11 @@
       <button type="button" id="voice-pause-btn" class="btn editor__voice-pause" hidden>{{ _("Pause") }}</button>
       <button type="button" id="voice-stop-btn" class="btn editor__voice-stop" hidden>{{ _("Stop") }}</button>
       <span class="editor__voice-timer" id="voice-timer" hidden>00:00</span>
+      {# F47: a live level, so a microphone the phone has switched off is
+         visible as a flat bar instead of being discovered on playback. #}
+      <span class="editor__voice-meter" id="voice-meter" hidden aria-hidden="true">
+        <span class="editor__voice-meter-fill" id="voice-meter-fill"></span>
+      </span>
     </div>
     <p class="editor__voice-message" id="voice-message" hidden></p>
     <ul class="editor__voice-list" id="voice-list">
