@@ -22,8 +22,12 @@ Read these before making non-trivial changes, in this order:
 - `REVIEW.md` — a past production-readiness audit and the fixes it drove.
   Historical record, not necessarily reflecting the current code.
 - `IMAGE-PROMPTS.md` — the house style and per-asset prompts for the
-  illustrations still missing (F42). Read it before generating, adding or
-  placing any illustration, and add finished assets to F17's table.
+  default (*ranch*) pack's illustrations (F42). Read it before generating,
+  adding or placing any ranch illustration, and add finished assets to
+  F17's table.
+- `IMAGE-PROMPTS-ORBIT.md` — the same thing for the *orbit* pack (F46),
+  whose artwork is still to be drawn. A house style belongs to one art
+  direction: never mix the two files' style rules.
 
 When you finish a feature or fix worth documenting, add a section to
 `FEATURES.md` following the existing style rather than leaving it
@@ -82,6 +86,18 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
 - `app/dates.py`, `app/prompts.py`, `app/rendering.py`, `app/epub.py` — age-
   label computation, the writing-prompts list, markdown-to-HTML rendering,
   and EPUB export, respectively.
+- `app/themes.py` — theme packs (F46). A pack is a folder under
+  `app/static/themes/<name>/`: a `theme.css` of colour variables and an
+  `img/` folder. **No template ever names an image folder** — they call the
+  `theme_img('name.png')` Jinja global, which serves the configured pack's
+  copy or falls back to the default pack's. That fallback is load-bearing:
+  it is what lets a pack ship with a palette and no artwork at all. Two
+  conventions `tests/test_themes.py` enforces: the same filename means the
+  same picture in every pack (a pack is a skin, not a rename), and the
+  default pack (`ranch`) is the only one allowed no holes. A pack's
+  optional `theme.json` declares which colour schemes it offers; that list
+  reaches the page as `<html data-schemes>` and is what `theme-boot.js`
+  and `theme.js` cycle, so neither hardcodes the scheme names.
 
 Web layer — Flask, split by resource; each `routes_api_*`/`routes_*`
 sub-file registers its routes onto a blueprint object (`bp`) defined in
@@ -121,6 +137,16 @@ Frontend:
   ancestor walks, chain validation), unit-tested directly under Node via
   `tests/js/tree_logic_test.mjs`. Keep new pure tree logic here rather than
   inline in `tree.js`, so it stays testable without a browser.
+- `app/static/js/recorder-logic.js` + `wake-lock.js` — the voice
+  recorder's survival kit (F47). Audio in a `MediaRecorder` exists only in
+  the tab until it is stopped and uploaded, so a phone locking its screen
+  loses it: the app holds a screen wake lock while recording, and treats
+  every interruption (page hidden, track ended or muted, recorder error)
+  as a reason to stop *deliberately* — which is what hands over the
+  chunks — and upload. A finished recording that fails to upload stays
+  queued and is retried on the way back to the page, and `beforeunload`
+  guards it meanwhile. Don't add a code path that ends a recording
+  without saving what it captured.
 - `app/static/vendor/` — vendored third-party JS (family-chart, d3, Toast UI
   Editor). Treat as read-only/generated; if you need to update one, redo the
   vendoring process documented in its banner comment, don't hand-edit it.

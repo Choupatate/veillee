@@ -254,6 +254,16 @@ JS_STRINGS = (
     "Imported {n} story. Reloading…", "Imported {n} stories. Reloading…",
     "Add a partner above first.", "Only {names}",
     "Turn the firelight off", "Turn the firelight on",
+    "Recording stopped when the page went to the background. Everything "
+    "recorded up to then has been saved.",
+    "Recording stopped when the microphone became unavailable. Everything "
+    "recorded up to then has been saved.",
+    "Recording stopped when the microphone went silent. Everything recorded "
+    "up to then has been saved.",
+    "The recording was interrupted. Everything recorded up to then has been "
+    "saved.",
+    "Could not reach the server. The recording is still here — keep this "
+    "page open and it will try again.",
 )
 
 

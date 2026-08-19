@@ -72,6 +72,13 @@ the exact `F<N>.` heading text to jump to it.
   a slow warm wash over every page with a flame switch to turn it off
 - **F45** — A toggle that looks off when it is off: Draft and Archive (and
   every other pressed chip) stopped being imitable by a plain hover
+- **F46** — Theme packs: the art direction became a folder, so a second one
+  (*orbit*, a book kept off Earth, under a starfield) could ship its
+  palette on day one and its pictures one at a time
+- **F47** — A recording that survives a locked screen: the phone is asked to
+  stay awake while you talk, anything that interrupts a recording anyway
+  ends it on purpose and keeps the audio, and a level meter makes a
+  microphone that has quietly died visible while you are still talking
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -5699,3 +5706,470 @@ trips through the API to disk.
 Verified in a browser in all three themes at 390px and 1280px, including
 the case that produced the report: clicking a chip off and leaving the
 pointer on it.
+
+## F46. Theme packs — the art direction as a folder
+
+The app had three *colour schemes* (dark, light, manuscript) and exactly one
+*look*: the hand-drawn western storybook of F17 and F22. Adding a palette
+was already 15 lines. Adding a **different world** was impossible, because
+every one of the 37 pictures was named directly in a template.
+
+This splits the two apart. A **theme pack** is a folder:
+
+```
+app/static/themes/ranch/img/*          ← the 37 files that were in static/img/
+app/static/themes/orbit/theme.css      ← a palette, and no pictures at all
+```
+
+Templates stopped naming folders. `{{ theme_img('help-lantern.jpg') }}`
+returns the configured pack's copy when it has one and the default pack's
+otherwise, and `STORYBOOK_THEME` says which pack a book uses.
+
+### The fallback is the whole design
+
+A pack of 35 illustrations is a wall nobody starts climbing. A pack that
+works the day its palette is written, and takes its artwork one picture at
+a time, is a ramp. So a pack **only has to draw what it wants to change**,
+and `orbit` ships today with a complete palette and zero image files,
+borrowing every picture from `ranch` while its own are drawn.
+
+Everything else follows from wanting that property to stay true:
+
+- **A pack is a skin, not a rename.** The same filename means the same
+  picture in every pack. Rename one and it silently inherits the default's
+  forever while shipping a file nothing loads — so a test walks the packs
+  and fails on any file the default pack has no name for.
+- **The default pack is the only one allowed no holes.** Another test
+  scans every `theme_img(...)` call in every template and fails if `ranch`
+  is missing one.
+- **An unknown `STORYBOOK_THEME` fails at startup**, like
+  `STORYBOOK_AUTHORS` does. Silently serving the default pack would be a
+  puzzle to debug and the fix is one word.
+- **The filename is validated like a path, because it is one.** It builds a
+  URL *and* a filesystem probe, so anything that isn't a plain asset name
+  resolves to the default pack rather than being interpolated.
+
+### Two axes, kept apart
+
+The pack is the **book's** identity, set once by whoever runs it. The
+light/dark/manuscript toggle stays **each reader's** choice within it. So a
+pack declares all three schemes rather than replacing the toggle — three
+states, not nine, and a reader who prefers a light screen still gets one
+whatever world the book is set in.
+
+### What a pack can change, beyond colour
+
+Three ranch-isms were hardcoded in `main.css` and had to be lifted for a
+pack to be more than a palette:
+
+- `--illo-mount` / `--illo-mount-edge` — the `.illo` card's paper. It was
+  literally `#f9f2e1`, the cream the shipped JPEGs are drawn on. A pack
+  whose pictures are drawn on black needs the mount to follow, or every
+  card shows a seam.
+- `--flourish-image` / `--brand-mark` — the two pictures CSS draws rather
+  than a template names (the rope divider, the tree's root star). Both are
+  now variables, and both use background *longhands* rather than the
+  shorthand, so a pack can supply several gradient layers instead of one
+  image — which is exactly what `orbit` does, drawing its divider and star
+  in pure CSS and shipping no file for either.
+- `--ambience-glow` / `--ambience-glow-edge` / `--ambience-shade` — F44's
+  firelight, as colours. The machinery is untouched; only the hue moves. In
+  `orbit` the hearth becomes a distant star: cold white-blue light, and the
+  shadow it leaves when it dips is the void rather than soot.
+
+`--photo-filter` was already a variable, so `orbit` drops F35's sepia for a
+faint cool cast without any change to the code that applies it.
+
+### The orbit pack
+
+A ship's cabin on the night side of a planet: `#080b16` ground, instrument
+cyan `#5cc8f5`, rust orange for warmth. Its "manuscript" scheme is the
+daylight side — pale regolith grey with a fine dust grain, reusing the same
+self-contained SVG turbulence the ranch's aged paper uses.
+
+`IMAGE-PROMPTS-ORBIT.md` is its prompt catalogue: 17 illustrations and 13
+icons, each with what a reader has to understand from the picture alone,
+plus the pack's house style (retro-futurist encyclopaedia plates,
+cosmonauts with dark visors, rings as the signature shape). It carries the
+ranch pack's two hard rules unchanged — no lettering ever, because the
+interface is bilingual, and no faces, so any reader can be the cosmonaut.
+
+Written as a separate file rather than a section: a house style belongs to
+one art direction, and two sets of style rules in one document is how a
+pack drifts.
+
+### Tests
+
+`tests/test_themes.py`, 25: the fallback in both directions, a pack serving
+what it has, an unknown pack falling back rather than interpolating,
+filenames that aren't plain asset names (traversal, subpaths, uppercase,
+empty) never reaching a pack, pack names rejected the same way, the default
+pack being complete against every `theme_img` call in every template, no
+pack shipping a file the default has no name for, no template naming an
+image folder directly, `main.css` hardcoding no pack's art, an unknown
+`STORYBOOK_THEME` raising at startup, and a real page served under `orbit`
+carrying orbit's stylesheet and ranch's pictures.
+
+One F44 test changed shape: it asserted the shadow layer's literal
+`rgba(26, 15, 4, …)`, which is now `var(--ambience-shade)`. It asserts the
+variable instead — the layer still has to exist and still has to darken.
+
+Verified in a browser under `STORYBOOK_THEME=orbit` at 1280px: login,
+timeline and a story page, including the CSS-drawn divider and the
+inherited ranch illustrations mounted on orbit's dark plate.
+
+### Follow-up: a pack owns its schemes, and orbit gets a sky
+
+Three corrections from seeing it running, all of them the same mistake:
+orbit had inherited assumptions from the ranch instead of making its own.
+
+**A pack now decides which colour schemes it offers.** Orbit's third scheme
+was aged-paper regolith — a ranch reflex, and the wrong world. But deleting
+it wasn't enough, because the toggle's list was hardcoded in `theme.js` and
+would still have cycled to a scheme the pack no longer designed. So a pack
+declares its schemes in an optional `theme.json`:
+
+```json
+{ "schemes": ["dark", "light"] }
+```
+
+That list reaches the page as `<html data-schemes="dark light">` — on the
+root element, so `theme-boot.js` can read it in `<head>` before first paint
+— and both scripts now work from it instead of a literal. `theme.js` cycles
+it; `theme-boot.js` checks membership before applying whatever was stored,
+so a reader who chose *manuscript* in a ranch book and then opens an orbit
+one isn't handed a scheme that pack never designed. They fall back to their
+system preference, which is the right answer and not an error.
+
+Anything unreadable in `theme.json` means *all* the schemes, never none —
+a pack with a typo in its metadata should look over-generous, not present a
+toggle that does nothing.
+
+**Both of orbit's schemes are blue now.** The night side is near-black
+(`#04060d`) with marine blue in the raised surfaces; the day side is sky
+blue and marine, the same two colours the other way round. Not white paper
+— there is no paper out here, and a white scheme in a space book was the
+same borrowed instinct as the regolith.
+
+**And it has a sky.** A new `--surface-texture` variable, defaulted to
+`none` in main.css and applied on `body`, lets a pack lay something over
+its background. Orbit tiles a starfield: two self-contained SVG data URIs
+at different sizes and brightnesses — a dense field of faint far stars at
+360px, a sparse one of brighter near stars at 600px — so the pattern never
+lines up with itself and the sky has some depth. Nothing is fetched, the
+same rule the ranch's aged paper follows. The light scheme sets it to
+`none`: the stars are still there, you simply can't see them in daylight.
+
+That starfield cost an hour to a trap worth writing down: **a raw `#`
+inside `url("data:image/svg+xml,…")` starts a fragment identifier.** Every
+`fill='#cfe2ff'` truncated the SVG at the first colour. The CSS parsed, the
+property computed, `background-image` reported a `url(...)`, and nothing
+was drawn. It has to be `%23`, and a test now walks every pack's stylesheet
+and fails on a raw `#` in a data URI.
+
+### Tests
+
+`tests/test_themes.py` grew to 40: the scheme list defaulting to all three,
+orbit narrowing it to two, six kinds of unusable `theme.json` all falling
+back rather than emptying the toggle, `data-schemes` rendered for both
+packs, both scripts reading it rather than hardcoding, theme-boot checking
+membership before applying a stored scheme, the `%23` rule across every
+pack's CSS, and orbit putting stars in the night and not in the day.
+
+`tests/test_i18n.py` asserted the exact string `<html lang="en">`; the tag
+grew `data-schemes`, so those five assertions now match the lang attribute
+without pinning the whole tag.
+
+Verified in a browser: the toggle cycling dark→light→dark and never
+offering a third stop, a stale `manuscript` from another book being ignored
+on load, and the starfield measured off a screenshot (peak pixel 224 of 255
+against a `#04060d` sky) rather than trusted to the eye — which is how the
+truncated data URI was caught in the first place.
+
+### Follow-up: the pack gets its artwork
+
+All seventeen of orbit's illustrations arrived, generated from the prompts
+in `IMAGE-PROMPTS-ORBIT.md` and committed under
+`app/static/themes/orbit/img/` — 928 KB in total. The pack now inherits
+from the ranch only its icons:
+
+| File | Size | | File | Size |
+|---|---|---|---|---|
+| `login-campfire.jpg` | 856×621 | | `accounts-keys.jpg` | 760×510 |
+| `person-oval.jpg` | 590×732 | | `invite-card.jpg` | 700×564 |
+| `empty-chest.jpg` | 729×587 | | `write-link-pass.jpg` | 700×564 |
+| `group-circle.jpg` | 860×450 | | `help-lantern.jpg` | 582×700 |
+| `sealed-letter.jpg` | 486×620 | | `book-frame.jpg` | 723×897 |
+| `firsts-boots.jpg` | 760×496 | | `instant-camera.jpg` | 652×516 |
+| `growth-doorpost.jpg` | 558×760 | | `tree-sapling.jpg` | 605×760 |
+| `almanac-book.jpg` | 700×700 | | `tumbleweed.jpg` | 900×429 |
+| `history-pages.jpg` | 720×598 | | | |
+
+Two things every generation needed fixing, and neither is a judgement call,
+so `scripts/process_orbit_plates.py` does both and stays in the repo for
+the next batch:
+
+- **A cream paper mat.** Six plates came back matted on card stock, which
+  against orbit's dark `--illo-mount` reads as a double frame. The script
+  strips a margin only where it is genuinely uniform and light, so a plate
+  whose own artwork reaches the edge — a lit horizon, a pale regolith
+  floor — is never cut into.
+- **The generator's corner sparkle.** Every single plate carried a small
+  grey four-pointed mark near the bottom-right. Detection is the obvious
+  approach and it fails: on the plates where the mark sits on pale
+  regolith it has almost no local contrast. Measuring instead showed it is
+  stamped at a *fixed* inset — 97 to 144 pixels from the right and bottom
+  edges, about 47 across — in every generation regardless of aspect ratio.
+  So it is covered by geometry, with the same box copied from directly
+  above it, which is invisible at display size because these backgrounds
+  are locally uniform vertically.
+
+The prompt document gained both as hard rules for future generations, on
+top of the two it already had, and every prompt block now carries the
+negatives inline.
+
+Two plates took a second pass, and both are worth recording because they
+are the failure modes to watch for in the next batch:
+
+- **`group-circle.jpg`** came back with the crew's faces visible through
+  their visors. On any other picture that would be a style slip; on this
+  one — the only illustration in the app whose job is to *teach* the
+  scoping rule rather than decorate — a face turns it into a portrait of
+  somebody. The fix was one sentence added to the prompt (*every visor is
+  completely dark and opaque, with nothing visible behind it*), and the
+  regeneration also improved the composition: the figure outside the ring
+  is now visibly busy with a rover of their own, which is exactly the
+  "not excluded, just not in this one" reading the picture needs.
+- **`login-campfire.jpg`** was simply missed in the first batch, and it is
+  the first thing anyone ever sees.
+
+### Follow-up: the first icons, and the rule they taught
+
+Five icons came back; two were committed (`icon-new-story`,
+`icon-instant`) and three were not. `scripts/process_orbit_icons.py` does
+their processing: cover the corner sparkle *first* — it is lighter than
+the grey backdrop, so the key would stop at it and leave an opaque speck
+floating beside the icon — then flood the background from the four corners
+so an enclosed grey area *inside* the artwork (the hole in a ring, the
+gaps in a dashed circle) stays part of the icon instead of being punched
+out with it, then trim, pad to a square by 2%, and downscale to 160×160.
+
+**What the batch taught is a contrast rule, and it is the useful part.**
+An icon has to read on both of orbit's schemes, and measured against the
+raised surface each sits on, *no single colour in the pack's palette
+does*:
+
+| | night side | day side |
+|---|---|---|
+| pale starlight `#dce6f5` | 14.5:1 | **1.11:1** |
+| instrument cyan `#5cc8f5` | 9.6:1 | **1.36:1** |
+| dark navy `#17253f` | **1.19:1** | 10.9:1 |
+| rust `#c8622f` | 4.6:1 | 2.9:1 |
+
+A pale or cyan icon vanishes in daylight; a dark one vanishes at night.
+Which is exactly why the ranch's icons survive on both cream and
+near-black: they are light shapes inside a *dark outline*, so whichever
+scheme you are in, one half of the icon carries it. The orbit icon prompt
+now requires a dark navy outline on every shape, thick enough to survive
+20 pixels, with cyan and starlight as fills inside it. Rendering the batch
+at 20/24/44px on both schemes is what surfaced this; the two icons that
+passed did so because they are chunky solid masses, not because they were
+right.
+
+The second lesson was smaller and also general: **a subject line has to
+name a shape, not a concept.** "A ringed planet inside a downward chevron"
+came back as a shield with ears — the generator drew the container and
+ignored the direction. The three rejected subjects were rewritten to
+describe silhouettes ("a thick downward-pointing arrow, its shaft crossed
+by a tilted planet's ring seen edge-on…").
+
+The three that were held back — `icon-save` (read as a fox's head),
+`icon-draft` (strokes too fine, and pale-on-pale in daylight) and
+`icon-archive` (read as a cup) — are simply absent from the pack, so those
+buttons keep the ranch's icons until a better generation lands. That is
+the per-file fallback doing exactly the job it exists for: a wrong icon is
+worse than a borrowed one.
+
+`pytest` (1185) and `ruff check .` green.
+
+
+## F47. A recording that survives a locked screen
+
+Reported from a phone, and the worst kind of bug this app can have:
+
+> my screen turned off while recording on the app on chrome and the thing
+> stopped recording when my phone screen closed... that is a real problem
+> as I lost nearly 2 minutes of recording because of this
+
+...and then, on looking at the file:
+
+> the recording carried on but there was no voice during the 2 minutes.
+> and when I stopped the thing there is 1 minute of recording and 2
+> minutes of no noise
+
+That second message is the whole feature. The recorder did **not** stop.
+Android took the microphone away with the screen and `MediaRecorder` went
+on banking silence — no error, no `stop` event, a timer still counting up.
+Someone talked for two minutes into a microphone that was not there, and
+found out on playback. A recorder that dies loudly is a nuisance; one that
+keeps a straight face while recording nothing is a trap.
+
+Underneath it is a second property, the one that makes any of this
+dangerous: **until a recording is stopped and uploaded, its audio exists
+in exactly one place — the tab.** No file on disk, nothing on the server,
+nothing another tab could recover.
+
+So there are three jobs, in order of how much they are worth:
+
+1. keep the screen on, so the microphone is never taken in the first place;
+2. when it is taken anyway, end the recording *on purpose* and keep what
+   was captured — never carry on into silence;
+3. show the input level, so a microphone that dies is visible while
+   someone is still talking rather than discovered afterwards.
+
+### Keep the screen awake — `static/js/wake-lock.js`
+
+A small module around the [Screen Wake Lock
+API](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API):
+`request()` while recording, `release()` when the microphone is released.
+It needs a secure context, which is the same condition `getUserMedia`
+already imposes — wherever recording works at all, the lock can at least
+be asked for.
+
+The part that is easy to get wrong: **the browser drops the lock whenever
+the page is hidden, and never gives it back.** A page that asks once and
+assumes it holds the screen forever is wrong the first time the user
+glances at a notification. The module therefore remembers that the lock is
+*wanted*, listens for `visibilitychange`, and asks again on the way back —
+and asks for nothing while hidden, where the request would be refused
+anyway.
+
+Everything about it is best-effort by design. A browser without the API, a
+battery saver refusing the request, a rejected promise — all resolve
+`false` and change nothing except that the screen behaves as it always
+did. Nothing downstream is allowed to depend on the lock being held; the
+salvage below is what makes the feature safe, and the lock is what makes
+it pleasant.
+
+### Treat an interruption as the end of a recording, not a failure
+
+The rule is stated once, in `static/js/recorder-logic.js`, and it has no
+exceptions: **anything that interrupts a recording stops it on purpose.**
+Stopping is what makes `MediaRecorder` hand over its chunks; letting the
+browser kill the recorder instead is what loses them. Four interruptions,
+all of them observed rather than imagined:
+
+| reason | what it is |
+| --- | --- |
+| `hidden` | the page went to the background — screen lock, or an app switch |
+| `ended` | the microphone track ended: device gone, or taken by another app |
+| `muted` | the track went silent, so carrying on would bank silence |
+| `error` | `MediaRecorder` itself gave up |
+
+Each carries its own sentence, shown *after* the audio is safe, so the
+news arrives with the memo rather than instead of it: "Recording stopped
+when the page went to the background. Everything recorded up to then has
+been saved." An unrecognised reason salvages too, and borrows the generic
+wording — a new browser behaviour should cost a vague message, never the
+recording.
+
+This does mean switching apps mid-recording ends the memo. That is the
+deliberate trade: a memo that stops early is an inconvenience, and the
+next tap starts another one; a memo that records silence, or vanishes, is
+not recoverable at all.
+
+### Show the level — the thing that would have caught it live
+
+Interruptions only help if the browser reports one, and the case that
+started this reported nothing at all. So while a recording runs, the input
+is measured through an `AnalyserNode` and drawn as a small bar beside the
+timer. It costs one `requestAnimationFrame` loop and answers, continuously,
+the question no wording on a page can: *is it still hearing me?*
+
+The same measurement feeds a watchdog. A live microphone in a silent room
+is never mathematically silent — room tone and the preamp's own noise sit
+orders of magnitude above zero — while a microphone the phone has switched
+off is exactly zero. Twenty unbroken seconds of that is treated as `muted`
+and salvaged.
+
+Three deliberate limits on it:
+
+- **Twenty seconds, not five.** Some phones gate their noise suppressor all
+  the way to zero between words. The two mistakes are not equal: ending a
+  good recording early is a rude surprise, while missing a dead microphone
+  only falls through to the interruptions above, which catch the
+  screen-lock case anyway.
+- **It stands down while paused.** Nothing is being kept, so a silent pause
+  means nothing.
+- **It stands down without float precision.** `getByteTimeDomainData`
+  quantises a quiet room's noise floor to zero, which would make the
+  watchdog stop perfectly good recordings; where only 8-bit data exists the
+  bar still moves and only the watchdog goes quiet.
+
+The bar is `aria-hidden`: it duplicates nothing a screen reader needs, and
+when it matters the watchdog says the same thing in words.
+
+### The upload queue
+
+Salvaging is only half of it. The likeliest moment to *need* the salvage —
+a phone freezing the page behind a lock screen — is also the likeliest
+moment for the upload to be cut off mid-flight. So a finished recording
+goes into a queue rather than straight into a single in-flight request:
+
+- the head is uploaded; on success it is shifted off and the next one
+  starts, so a memo saved during an interruption never blocks the one
+  recorded after it;
+- **on failure it stays at the head.** Every way back into the page —
+  `visibilitychange` to visible, another recording finishing — drains the
+  queue again. A network failure is told apart from a refusal by the
+  server, so the message can promise another go ("keep this page open and
+  it will try again") instead of blaming the file;
+- while anything is queued, or a recording is running, `beforeunload`
+  warns. Closing the tab is now the only way left to lose audio, and it
+  takes a confirmation.
+
+### The clock, made a value
+
+`recorder-logic.js` also owns the elapsed-time clock the timer reads:
+`{ banked, startedAt }`, with `start`/`pause`/`resume` as pure functions of
+the old clock and the current time. It replaces a pair of mutable
+variables in `editor.js` that pause and resume shuffled between them, and
+it is where two small bugs were fixed on the way past — a system clock
+jumping backwards can no longer run the timer backwards, and an hour of
+recording now reads `1:00:00` instead of `60:00` (memos have no length
+cap, so an hour is reachable).
+
+### Tests
+
+The two decidable pieces are DOM-free UMD modules with plain-Node tests,
+per the repo's usual split:
+
+- `tests/js/recorder_logic_test.mjs` (29) — the clock across pause,
+  resume, restart and a backwards system clock; the `mm:ss` / `h:mm:ss`
+  readout; every interruption salvaging, including one nobody anticipated;
+  the watchdog holding its nerve through a noise floor and a reset run, and
+  the meter's dB curve putting speech in the middle of the bar.
+- `tests/js/wake_lock_test.mjs` (11) — driven through a hand-written fake
+  window, which is the only way to stage the case that matters: the
+  browser dropping the lock while hidden, and the page taking it back on
+  return. Also that a refusal resolves `false` rather than throwing, and
+  that an unsupported browser is simply unsupported.
+- `tests/test_recording_guard.py` (20) — the server-rendered contract: the
+  scripts are served on both editor pages and *before* `editor.js` (no
+  bundler, so page order is the whole dependency mechanism), the lock is
+  released where the stream is, every interruption is wired up, the
+  beforeunload guard covers unsaved audio, the queue only shifts on
+  success, the meter ships hidden and takes its colour from the theme, the
+  watchdog stands down while paused and without float precision — and,
+  asking `recorder-logic.js` itself for the list so it cannot drift, that
+  every sentence the recorder can say exists in `JS_STRINGS` and is
+  translated into French.
+
+Verified by hand in Chromium at 390px with a fake microphone, which is the
+only way to see the actual bug: record, hide the page, and watch the memo
+arrive anyway. Also checked there: the lock held and then let go, the
+blocked-upload-then-return retry, the bar moving with the fake device's
+tone and dropping to zero while paused, and the watchdog ending a recording
+into silence with its memo intact.
+
+`pytest` (1207) and `ruff check .` green.

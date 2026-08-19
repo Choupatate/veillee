@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="{{ current_language }}">
+{# data-schemes is read by theme-boot.js before first paint and by
+   theme.js for the toggle: the colour schemes *this pack* offers (F46). It
+   lives on <html> so the boot script can read it without waiting for the
+   body. #}
+<html lang="{{ current_language }}" data-schemes="{{ color_schemes | join(' ') }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,6 +15,10 @@
 <meta name="theme-color" content="#faf6ef" media="(prefers-color-scheme: light)">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{# F46: the theme pack's own palette, after main.css so it can re-declare
+   any of its variables. Absent for the default pack, whose colours main.css
+   already carries. #}
+{% if theme_stylesheet %}<link rel="stylesheet" href="{{ url_for('static', filename=theme_stylesheet) }}">{% endif %}
 <script src="{{ url_for('static', filename='js/safe-storage.js') }}"></script>
 <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
 {# The handful of strings JS files render at runtime (save-button states,
@@ -67,10 +75,10 @@
     <a class="site-nav__link" href="{{ url_for('pages.account_home') }}">{{ _("Account") }}</a>
     {% endif %}
     <a class="btn btn--new" href="{{ url_for('pages.new_story') }}">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-new-story.png') }}" alt="" width="20" height="20">{{ _("+ New story") }}
+      <img class="btn-icon" src="{{ theme_img('icon-new-story.png') }}" alt="" width="20" height="20">{{ _("+ New story") }}
     </a>
     <a class="btn btn--instant" href="{{ url_for('pages.new_instant') }}">
-      <img class="btn-icon" src="{{ url_for('static', filename='img/icon-instant.png') }}" alt="" width="20" height="20">{{ _("+ Instant") }}
+      <img class="btn-icon" src="{{ theme_img('icon-instant.png') }}" alt="" width="20" height="20">{{ _("+ Instant") }}
     </a>
   </div>
   {% endif %}

@@ -1,6 +1,10 @@
 (function () {
   var STORAGE_KEY = "storybook-theme";
-  var THEMES = ["dark", "light", "manuscript"];
+  // F46: the schemes this theme pack offers, in cycle order — theme-boot.js
+  // read them off <html> before first paint. A pack whose world has no aged
+  // paper in it declares two, and the toggle simply has one fewer stop.
+  var THEMES = (window.StorybookSchemes || []).filter(Boolean);
+  if (!THEMES.length) THEMES = ["dark", "light", "manuscript"];
   var toggle = document.getElementById("theme-toggle");
 
   function currentTheme() {
@@ -35,6 +39,8 @@
   if (!toggle) return;
 
   toggle.addEventListener("click", function () {
+    // indexOf is -1 when the current scheme came from the system rather
+    // than a choice, which makes the first press land on THEMES[0].
     var index = THEMES.indexOf(currentTheme());
     var next = THEMES[(index + 1) % THEMES.length];
     document.documentElement.setAttribute("data-theme", next);

@@ -5,7 +5,7 @@
 <div class="admin">
   <p class="admin__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <h1 class="admin__title">{{ _("Groups") }}</h1>
-  <img class="illo illo--page" src="{{ url_for('static', filename='img/group-circle.jpg') }}"
+  <img class="illo illo--page" src="{{ theme_img('group-circle.jpg') }}"
        alt="" loading="lazy" decoding="async" width="760" height="612">
   <p class="admin__hint">
     {{ _("A group is a handful of people a story can be kept to. Stories with no group are for everyone — that stays the default.") }}

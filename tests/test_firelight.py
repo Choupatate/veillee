@@ -181,7 +181,10 @@ def test_a_darkening_layer_carries_the_pale_themes():
     """Adding amber to cream changes its hue, not its brightness — without
     a layer that takes light away, the manuscript theme barely moves."""
     shadow = re.findall(r"\.firelight__shadow \{([^}]*)\}", MAIN_CSS)
-    assert any("rgba(26, 15, 4" in block for block in shadow)
+    # The colour itself is F46's `--ambience-shade`, so a theme pack can
+    # make the fire a star and its soot the void.
+    assert any("rgba(var(--ambience-shade)" in block for block in shadow)
+    assert "--ambience-shade:" in MAIN_CSS
 
 
 def test_the_wash_cannot_swallow_a_click():

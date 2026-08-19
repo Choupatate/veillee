@@ -6,7 +6,7 @@
   <p class="almanac__back"><a href="{{ url_for('pages.people_page') }}">&lsaquo; {{ _("People") }}</a></p>
   <h1 class="almanac__title">{{ _("Almanac") }}</h1>
   <hr class="story__flourish almanac__flourish" aria-hidden="true">
-  <img class="illo illo--page" src="{{ url_for('static', filename='img/almanac-book.jpg') }}"
+  <img class="illo illo--page" src="{{ theme_img('almanac-book.jpg') }}"
        alt="" loading="lazy" decoding="async" width="700" height="700">
   {% if not month_groups %}
   <p class="almanac__empty">

@@ -4,11 +4,11 @@
 {% block content %}
 {% if not stories %}
 <div class="empty-state">
-  <img class="illo empty-state__illo" src="{{ url_for('static', filename='img/login-campfire.jpg') }}"
+  <img class="illo empty-state__illo" src="{{ theme_img('login-campfire.jpg') }}"
        alt="" loading="lazy" decoding="async" width="856" height="735">
   <p>{{ _("No stories yet — this is where your family's memories will live.") }}</p>
   <a class="btn btn--primary" href="{{ url_for('pages.new_story') }}">
-    <img class="btn-icon" src="{{ url_for('static', filename='img/icon-new-story.png') }}" alt="" width="20" height="20">{{ _("+ New story") }}
+    <img class="btn-icon" src="{{ theme_img('icon-new-story.png') }}" alt="" width="20" height="20">{{ _("+ New story") }}
   </a>
 </div>
 {% else %}

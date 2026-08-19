@@ -3,8 +3,11 @@
 (app/static/js/tree-graph-logic.js), the shared localStorage wrapper
 (app/static/js/safe-storage.js), the shared fetch/JSON response
 helper (app/static/js/fetch-json.js), the in-app camera's frame math
-(app/static/js/camera-logic.js), and the editor's image-link conversion
-(app/static/js/media-links.js) as part of the bare `pytest` run.
+(app/static/js/camera-logic.js), the editor's image-link conversion
+(app/static/js/media-links.js), and the voice recorder's clock and
+interruption policy (app/static/js/recorder-logic.js), and the screen
+wake lock it holds (app/static/js/wake-lock.js) as part of the bare
+`pytest` run.
 Skipped, not failed, when node isn't on PATH — the app has no Node
 dependency and never should; this just piggybacks on it being present
 in CI."""
@@ -67,6 +70,24 @@ def test_camera_logic_pure_functions():
 def test_media_links_conversion():
     result = subprocess.run(
         [NODE, "tests/js/media_links_test.mjs"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node not available on PATH")
+def test_recorder_logic_pure_functions():
+    result = subprocess.run(
+        [NODE, "tests/js/recorder_logic_test.mjs"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node not available on PATH")
+def test_wake_lock():
+    result = subprocess.run(
+        [NODE, "tests/js/wake_lock_test.mjs"],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr

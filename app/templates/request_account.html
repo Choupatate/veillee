@@ -21,7 +21,7 @@
   {% else %}
   <p class="login__subtitle">{{ _("Ask whoever set this up for the invite code.") }}</p>
   {% endif %}
-  <img class="illo illo--page" src="{{ url_for('static', filename='img/invite-card.jpg') }}"
+  <img class="illo illo--page" src="{{ theme_img('invite-card.jpg') }}"
        alt="" loading="lazy" decoding="async" width="700" height="564">
   <form class="login__form" method="post" action="{{ url_for('pages.request_account') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

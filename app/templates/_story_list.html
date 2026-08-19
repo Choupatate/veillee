@@ -7,7 +7,7 @@
   <p class="{{ prefix }}__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <h1 class="{{ prefix }}__title">{{ page_title }}</h1>
   {% if not stories %}
-  <img class="illo {{ prefix }}__illo" src="{{ url_for('static', filename='img/empty-chest.jpg') }}"
+  <img class="illo {{ prefix }}__illo" src="{{ theme_img('empty-chest.jpg') }}"
        alt="" loading="lazy" decoding="async" width="653" height="729">
   <p class="{{ prefix }}__empty">{{ empty_text }}</p>
   {% else %}

@@ -6,7 +6,7 @@
 <div class="admin">
   <p class="admin__back"><a href="{{ url_for('pages.admin_accounts') }}">&lsaquo; {{ _("Accounts") }}</a></p>
   <h1 class="admin__title">{{ _("Invite someone") }}</h1>
-  <img class="illo illo--page" src="{{ url_for('static', filename='img/invite-card.jpg') }}"
+  <img class="illo illo--page" src="{{ theme_img('invite-card.jpg') }}"
        alt="" loading="lazy" decoding="async" width="700" height="564">
   <p class="admin__hint">
     {{ _("Pick who this is for and send them the link. They choose their own username and password — you never have to handle either.") }}

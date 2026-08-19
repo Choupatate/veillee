@@ -6,7 +6,7 @@
   <p class="growth__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
   <h1 class="growth__title">{{ _("Growing up") }}</h1>
   <hr class="story__flourish growth__flourish" aria-hidden="true">
-  <img class="illo illo--page illo--page-tall" src="{{ url_for('static', filename='img/growth-doorpost.jpg') }}"
+  <img class="illo illo--page illo--page-tall" src="{{ theme_img('growth-doorpost.jpg') }}"
        alt="" loading="lazy" decoding="async" width="567" height="760">
   {% if not birthdate %}
   <p class="growth__empty">
