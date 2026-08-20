@@ -110,7 +110,7 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_AUTHORS` | Optional. Comma-separated `Name:#hexcolor` pairs for several narrators (see below). Unset by default. |
 | `STORYBOOK_BIRTHDATE` | Optional. The child's birth date (`YYYY-MM-DD`). Shows the child's age at each memory (see below). Unset by default. |
 | `STORYBOOK_LANGUAGE` | Optional. The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. Defaults to `en`. |
-| `STORYBOOK_THEME` | Optional. The book's art direction — a folder name under `app/static/themes/` (`ranch`, the default, or `orbit`). See "Themes" below. |
+| `STORYBOOK_THEME` | Optional. The book's art direction — a folder name under `app/static/themes/` (`ranch`, the default, or `orbit`). The default for every reader; each can pick another from the nav. See "Themes" below. |
 | `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` (English) / `La Veillée` (French), depending on the visitor's language. |
 | `STORYBOOK_CHILD` | Optional. The slug of the person page the family tree's kinship labels are computed relative to (see below). Unset by default. |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
@@ -753,9 +753,18 @@ illustrations, its icons. Two ship with the app, chosen with
   sky blue and marine, the same two colours the other way round. Instrument
   cyan throughout, and a distant star where the ranch has a fire.
 
-This is one setting for the whole book, not a per-reader choice — the art
-direction is the book's identity, the way its title is. The colour-scheme
-toggle stays each reader's own, *within* whichever pack the book uses.
+`STORYBOOK_THEME` sets the book's own pack — what everyone sees unless
+they say otherwise. **Anyone can put a different one on their own screen
+from the picker in the nav**, next to the language flags: two colour dots
+per pack (their names show on wider screens), and a tap swaps the art
+without leaving the page you were on. That choice is a cookie, so it
+dresses that one browser and nobody else's, and it outlives logging out.
+Deleting the cookie, or clearing site data, puts the book's own pack back.
+
+If you decide the other pack *is* the book, set `STORYBOOK_THEME` to it
+and restart: that's the setting every reader who hasn't chosen will get.
+The colour-scheme toggle (dark/light/manuscript) stays separate and is
+each reader's own, *within* whichever pack they're looking at.
 
 **A pack also decides which colour schemes it offers.** The ranch has all
 three; orbit has two, because aged paper is the wrong world out there — its
@@ -766,16 +775,18 @@ fall back to their system preference.
 
 A pack is just a folder under `app/static/themes/<name>/`: a `theme.css`
 re-declaring whichever colour variables it wants to change, an optional
-`theme.json` (only for the list of colour schemes, so far), and an `img/`
-folder of pictures. **A pack only has to draw what it wants to change** —
+`theme.json` (its name, the two or three colours the picker shows for it,
+and the list of colour schemes it offers), and an `img/` folder of
+pictures. Drop a folder in and it appears in the picker. **A pack only has to draw what it wants to change** —
 anything missing falls back to the default pack's copy. That's what makes a
 new art direction practical: the palette is a complete, working theme on
 day one, and the ~35 illustrations and icons can arrive one at a time.
 
-That's exactly where `orbit` is today: its colours are finished, and it
-still borrows every picture from `ranch` while its own artwork gets drawn.
-`IMAGE-PROMPTS-ORBIT.md` is the catalogue of what each of those pictures
-has to show.
+That's exactly where `orbit` is today: its colours and its seventeen
+illustrations are finished, and it still borrows most of its icons from
+`ranch` while its own get drawn — so a few buttons are visibly western in
+an otherwise off-world book. `IMAGE-PROMPTS-ORBIT.md` is the catalogue of
+what each remaining picture has to show.
 
 To make your own, copy `app/static/themes/orbit/theme.css` as a starting
 point — it re-declares every variable a pack can, with comments on why each

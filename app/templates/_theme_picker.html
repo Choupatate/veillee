@@ -1,0 +1,38 @@
+{# Theme-pack picker (FEATURES.md F48).
+
+   Built like the language picker next to it and for the same reasons: one
+   tiny POST form per pack rather than a <select> + JS, so it works with
+   JavaScript off, is CSRF-protected like every other state change, and
+   gives each pack a real 44px tap target on a phone.
+
+   It changes this browser only — the cookie behind it never leaves the
+   screen it was clicked on. The book's own pack is STORYBOOK_THEME.
+
+   Absent entirely when only one pack is installed: a picker with one
+   choice is a button that does nothing.
+
+   The dots are the pack's declared swatch, so a pack is recognisable
+   before it is applied and this template never learns any pack's colours.
+   `next` carries the current path, so changing the art leaves you on the
+   page you were reading. #}
+{% if theme_packs | length > 1 %}
+<div class="pack-picker" role="group" aria-label="{{ _('Theme') }}">
+  {% for pack in theme_packs %}
+  <form class="pack-picker__form" method="post"
+        action="{{ url_for('auth.set_theme', name=pack.name) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+    <button type="submit" class="pack-picker__btn{% if pack.name == current_theme %} pack-picker__btn--active{% endif %}"
+            {% if pack.name == current_theme %}aria-current="true"{% endif %}
+            title="{{ pack.label }}">
+      <span class="pack-picker__swatch" aria-hidden="true">
+        {% for color in pack.swatch %}
+        <span class="pack-picker__dot" style="background: {{ color }}"></span>
+        {% endfor %}
+      </span>
+      <span class="pack-picker__name">{{ pack.label }}</span>
+    </button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}

@@ -95,9 +95,15 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   conventions `tests/test_themes.py` enforces: the same filename means the
   same picture in every pack (a pack is a skin, not a rename), and the
   default pack (`ranch`) is the only one allowed no holes. A pack's
-  optional `theme.json` declares which colour schemes it offers; that list
-  reaches the page as `<html data-schemes>` and is what `theme-boot.js`
-  and `theme.js` cycle, so neither hardcodes the scheme names.
+  optional `theme.json` declares its display name, the picker's swatch
+  colours, and which colour schemes it offers; that last list reaches the
+  page as `<html data-schemes>` and is what `theme-boot.js` and `theme.js`
+  cycle, so neither hardcodes the scheme names. Which pack a request
+  renders is resolved once per request by `pick_theme` into `g.theme`
+  (F48: `STORYBOOK_THEME` is the book's, a cookie is one reader's) — read
+  it through the `current_theme()` helper in `create_app`, never
+  `config["THEME"]` directly, or a reader's choice will be ignored on
+  whatever you add.
 
 Web layer — Flask, split by resource; each `routes_api_*`/`routes_*`
 sub-file registers its routes onto a blueprint object (`bp`) defined in

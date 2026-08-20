@@ -79,6 +79,9 @@ the exact `F<N>.` heading text to jump to it.
   stay awake while you talk, anything that interrupts a recording anyway
   ends it on purpose and keeps the audio, and a level meter makes a
   microphone that has quietly died visible while you are still talking
+- **F48** — Picking the art direction from the nav: the theme pack stopped
+  being a restart away, without becoming something one reader can change
+  for the whole family
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -6173,3 +6176,112 @@ tone and dropping to zero while paused, and the watchdog ending a recording
 into silence with its memo intact.
 
 `pytest` (1207) and `ruff check .` green.
+
+
+## F48. Picking the art direction from the nav
+
+> hum where do I change the theme in the interface?
+
+Nowhere, was the answer. F46 made the art direction a folder and left
+choosing it to `STORYBOOK_THEME` — an environment variable and a restart,
+which is a strange price for "let me see what the other one looks like".
+The colour-scheme toggle sat right there in the nav the whole time, which
+made it worse: two things called "theme", one of them a tap away and the
+other one a redeploy.
+
+### What it changes, and for whom
+
+The question that decides the whole feature is *whose* screen a pick
+changes. Three answers were on the table; this is the middle one:
+
+- **`STORYBOOK_THEME` stays the book's pack** — what every reader gets
+  unless they say otherwise, and still the only way to change what the
+  family sees.
+- **A reader can put another pack on their own screen**, from a picker in
+  the nav. It is a cookie, so it reaches exactly one browser and outlives
+  logging out.
+
+The alternative — writing the choice somewhere shared so any family member
+redecorates the book for everyone — was rejected for the obvious reason: a
+grandmother trying the other art direction should not repaint the
+grandchild's book. F46's docstring claimed the pack "is the book's own
+decision, not a per-reader toggle"; that claim is now half wrong and has
+been rewritten rather than left to mislead.
+
+### Where it resolves
+
+One function, `themes.pick_theme(chosen, configured)`, and one place it is
+called: a `before_request` that puts the answer in `g.theme`. Everything
+that used to read `config["THEME"]` — `theme_img`, the pack stylesheet,
+the scheme list — reads a `current_theme()` helper instead. Anything added
+later that reaches for the config directly will silently ignore the
+reader's choice, which is why `CLAUDE.md` now says so out loud.
+
+`pick_theme` forgives everything: a cookie naming a pack since deleted, a
+hand-edited one, a name with a `..` in it. All of them fall through to the
+book's pack and then to `ranch`, because a book that renders beats a book
+that argues. Startup still argues — `_parse_theme` refuses an unknown
+`STORYBOOK_THEME` outright — because that is where there is a person
+reading the error.
+
+### The picker
+
+Built as the language picker's twin, deliberately: it sits beside it, does
+the same kind of thing, and two neighbouring controls that behave alike
+should look alike. One tiny POST form per pack — works with JavaScript
+off, CSRF-protected like every other state change, a real 44px tap target
+each — with `next` carrying the current path so changing the art leaves
+you on the page you were reading. The current pack is marked with
+`aria-current` and a border rather than removed from the row, so nothing
+reflows under your thumb.
+
+Each pack shows two or three dots of its own palette, overlapping like
+fanned paint chips so they read as one object. The colours come from the
+pack's `theme.json`, never from the template — a picker that knew any
+pack's colours would be a third place to update when a pack changes its
+mind. On a phone the names are visually hidden (still in the accessibility
+tree) and the swatches are what you aim at, because the nav is already
+carrying a brand, two toggles, two flags and five links.
+
+Two details that fall out of the design rather than being decided:
+
+- **A one-pack install renders no picker at all.** A control offering one
+  choice is a button that does nothing.
+- **A new pack needs no code.** Drop a folder in with a `theme.json` and
+  it is in the picker, with its name and its swatch.
+
+Also, the `theme.json` schema grew from "the schemes, so far" to a real
+little manifest: `label`, `swatch`, `schemes`. Both shipped packs now have
+one — `ranch` had none until today, since it had nothing to declare.
+
+### One string had to be split
+
+The `◐` button's label was "Toggle color theme" and the new group's is
+"Theme". Two controls with the same name, one of which changes the
+palette and the other the entire art direction, is exactly the confusion
+that produced the question at the top of this section — so the toggle is
+now "Toggle light and dark" (*Basculer clair / sombre*).
+
+### Tests
+
+`tests/test_theme_picker.py` (23): the resolution order and every way a
+name can be wrong; that each shipped pack names itself and declares a
+swatch; that the picker is in the nav, marks the current pack, and
+disappears for a one-pack install; that a pick sets an HttpOnly SameSite
+cookie, really does change the stylesheet and the artwork served, drags
+the scheme list along with it, survives logging out, works before logging
+in, and is confined to the browser that made it; and that the route
+refuses an unknown pack, a GET, a missing CSRF token and an off-site
+`next`.
+
+One existing test had to be re-scoped rather than the code changed:
+`test_story_page_unknown_author_renders_neutral` asserted the author
+colour appeared nowhere in the page, and the ranch's swatch is that same
+amber. The colour reaches a story through `--author-color` on the
+`<article>` and nowhere else, so that is what it checks now.
+
+Verified by hand in Chromium at 390px and 1280px: the swatches, the 44px
+targets, the switch landing back on the same page, and orbit's own icons
+and starfield arriving with it.
+
+`pytest` (1230) and `ruff check .` green.
