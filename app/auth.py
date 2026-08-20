@@ -34,7 +34,7 @@ from flask import (
     url_for,
 )
 
-from . import accounts, i18n, storage, write_links
+from . import accounts, i18n, storage, themes, write_links
 from .i18n import _, _n
 
 bp = Blueprint("auth", __name__)
@@ -215,6 +215,36 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("auth.login"))
+
+
+@bp.route("/theme/<name>", methods=["POST"])
+def set_theme(name):
+    """Put a different theme pack on this browser (FEATURES.md F48).
+
+    A cookie, and only a cookie: the book's pack is `STORYBOOK_THEME` and
+    stays whatever the person running the server said it is. This changes
+    one screen — the one it was clicked on — which is why it needs no
+    permission beyond being able to reach the page, and why a family
+    member trying the other art direction can't redecorate the book for
+    everyone else.
+
+    Not `@login_required`, for the same reason as `set_language`: the
+    login page is drawn by the pack too. POST-only, CSRF-protected, and
+    the redirect goes through the same local-paths-only allowlist as the
+    login `next`.
+    """
+    if not themes.is_valid_theme(name):
+        abort(404)
+    response = redirect(_safe_next_url(request.form.get("next", "")))
+    response.set_cookie(
+        themes.COOKIE_NAME,
+        name,
+        max_age=themes.COOKIE_MAX_AGE,
+        httponly=True,  # nothing in the browser reads it; the server does
+        samesite="Lax",
+        secure=current_app.config["SESSION_COOKIE_SECURE"],
+    )
+    return response
 
 
 @bp.route("/language/<lang>", methods=["POST"])

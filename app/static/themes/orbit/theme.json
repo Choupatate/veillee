@@ -1,3 +1,5 @@
 {
+  "label": "Orbit",
+  "swatch": ["#04060d", "#5cc8f5", "#dbe9f8"],
   "schemes": ["dark", "light"]
 }

@@ -225,8 +225,13 @@ def test_story_page_unknown_author_renders_neutral(authored_auth_client, authore
     assert resp.status_code == 200
     html = resp.data.decode()
     assert "Grandma" in html
-    assert "#d9a441" not in html
-    assert "#7ba7d9" not in html
+    # The colour reaches the page as --author-color on the <article> and
+    # nowhere else, so that is what must be absent — the nav's theme-pack
+    # swatches legitimately paint the same hexes elsewhere (F48).
+    article = html.split("<article", 1)[1].split(">", 1)[0]
+    assert "--author-color" not in article
+    assert "#d9a441" not in article
+    assert "#7ba7d9" not in article
 
 
 def test_editor_shows_chips_when_configured_and_preselects_on_edit(

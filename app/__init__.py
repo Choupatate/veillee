@@ -187,13 +187,22 @@ def create_app(test_config=None):
             request.headers.get("Accept-Language"),
             app.config.get("DEFAULT_LANGUAGE"),
         )
+        # F48: the book's pack, unless this browser asked for another one.
+        g.theme = themes.pick_theme(
+            request.cookies.get(themes.COOKIE_NAME), app.config["THEME"]
+        )
 
     # F46: templates ask for a picture by name, never by folder, so a theme
     # pack can replace any of them — and inherit the default pack's for
     # everything it hasn't drawn yet.
+    def current_theme():
+        # `g` is unset for anything rendered outside a request (and before
+        # before_request has run), where the book's own pack is the answer.
+        return getattr(g, "theme", None) or app.config["THEME"]
+
     def theme_img(filename):
         return url_for(
-            "static", filename=themes.image_url_path(app.config["THEME"], filename)
+            "static", filename=themes.image_url_path(current_theme(), filename)
         )
 
     app.jinja_env.globals["theme_img"] = theme_img
@@ -240,10 +249,22 @@ def create_app(test_config=None):
         return {
             "app_title": app.config["TITLE"] or i18n._("Storybook"),
             # None for the default pack, whose colours are main.css's own.
-            "theme_stylesheet": themes.stylesheet_url_path(app.config["THEME"]),
+            "theme_stylesheet": themes.stylesheet_url_path(current_theme()),
             # Which colour schemes the pack offers, for the nav toggle and
             # for theme-boot.js's check of what was last stored (F46).
-            "color_schemes": themes.color_schemes(app.config["THEME"]),
+            "color_schemes": themes.color_schemes(current_theme()),
+            # F48: the nav picker. A list of dicts rather than names so the
+            # template never reaches into themes.py per pack, and a
+            # one-pack install renders no picker at all.
+            "current_theme": current_theme(),
+            "theme_packs": [
+                {
+                    "name": name,
+                    "label": themes.label(name),
+                    "swatch": themes.swatch(name),
+                }
+                for name in themes.available_themes()
+            ],
             "current_language": i18n.current_language(),
             "js_strings": i18n.js_strings(i18n.current_language()),
             # slug -> display name for audience groups (F40 Phase 2). A

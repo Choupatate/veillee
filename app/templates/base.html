@@ -46,7 +46,7 @@
 <nav class="site-nav">
   <div class="site-nav__row">
     <a class="site-nav__brand" href="{{ url_for('pages.timeline') }}">{{ app_title }}</a>
-    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="{{ _('Toggle color theme') }}">
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="{{ _('Toggle light and dark') }}">
       <span aria-hidden="true">&#9680;</span>
     </button>
     {# Inline rather than an <img> so the flame can take its colour from the
@@ -61,6 +61,7 @@
     </button>
   </div>
   {% include "_language_picker.html" %}
+  {% include "_theme_picker.html" %}
   {% if session.get('authed') %}
   <div class="site-nav__actions">
     <a class="site-nav__link" href="{{ url_for('pages.people_page') }}">{{ _("People") }}</a>
