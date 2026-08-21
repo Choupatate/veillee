@@ -1,0 +1,43 @@
+{# The theme menu (FEATURES.md F49) — one control in the nav for how the
+   book looks, instead of a cycler and a row of packs sitting side by side.
+
+   A <details> on purpose. With JavaScript off it is a plain disclosure:
+   tap the button, the panel opens, and the pack forms inside it are real
+   POST forms that work. With JavaScript on, theme.js takes the tap for the
+   fast path — one press still cycles light and dark — and the panel comes
+   up on a press-and-hold, a right-click, or the down arrow. The colour
+   schemes need localStorage to be remembered, so they only appear on the
+   `js` root; the packs, which are a cookie, are there either way.
+
+   The summary carries the whole hint in its aria-label, because a
+   disclosure whose activation does something else has to say so. #}
+<details class="theme-menu" id="theme-menu">
+  <summary class="theme-toggle theme-menu__summary" id="theme-toggle"
+           title="{{ _('Hold for theme options') }}"
+           aria-label="{{ _('Switch light and dark. Hold, or press the down arrow, for theme options.') }}">
+    <span aria-hidden="true">&#9680;</span>
+  </summary>
+  <div class="theme-menu__panel">
+    <div class="theme-menu__section theme-menu__schemes">
+      <h2 class="theme-menu__heading">{{ _("Colour scheme") }}</h2>
+      <div class="theme-menu__chips" role="group" aria-label="{{ _('Colour scheme') }}">
+        {% for scheme in color_schemes %}
+        <button type="button" class="theme-menu__chip" data-scheme="{{ scheme }}" aria-pressed="false">
+          {{ _(SCHEME_LABELS[scheme]) }}
+        </button>
+        {% endfor %}
+        {# The only way back out of a choice: with no stored scheme the page
+           follows the reader's system again, which nothing else undoes. #}
+        <button type="button" class="theme-menu__chip" data-scheme="" aria-pressed="false">
+          {{ _("System") }}
+        </button>
+      </div>
+    </div>
+    {% if theme_packs | length > 1 %}
+    <div class="theme-menu__section">
+      <h2 class="theme-menu__heading">{{ _("Theme") }}</h2>
+      {% include "_theme_picker.html" %}
+    </div>
+    {% endif %}
+  </div>
+</details>

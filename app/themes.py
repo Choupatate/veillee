@@ -34,6 +34,15 @@ from pathlib import Path
 
 THEMES_DIR = Path(__file__).resolve().parent / "static" / "themes"
 
+#: What each scheme is called in the menu (F49). English source strings,
+#: translated the way every other bit of chrome is — the scheme names
+#: themselves are internal and never shown.
+SCHEME_LABELS = {
+    "dark": "Dark",
+    "light": "Light",
+    "manuscript": "Manuscript",
+}
+
 #: The colour schemes main.css itself declares. A pack that says nothing
 #: offers all three; a pack whose world has no aged paper in it says so in
 #: its `theme.json` and the nav toggle stops offering one.

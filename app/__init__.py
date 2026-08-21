@@ -211,6 +211,7 @@ def create_app(test_config=None):
     app.jinja_env.globals["_"] = i18n._
     app.jinja_env.globals["_n"] = i18n._n
     app.jinja_env.globals["LANGUAGES"] = i18n.LANGUAGES
+    app.jinja_env.globals["SCHEME_LABELS"] = themes.SCHEME_LABELS
 
     # Templates call age_label(birthdate, date) with no language argument;
     # bind the current request's language here so every caller localizes.

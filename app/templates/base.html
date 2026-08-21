@@ -46,9 +46,7 @@
 <nav class="site-nav">
   <div class="site-nav__row">
     <a class="site-nav__brand" href="{{ url_for('pages.timeline') }}">{{ app_title }}</a>
-    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="{{ _('Toggle light and dark') }}">
-      <span aria-hidden="true">&#9680;</span>
-    </button>
+    {% include "_theme_menu.html" %}
     {# Inline rather than an <img> so the flame can take its colour from the
        button (`currentColor`) and its hollow core from the button's own
        background — which is how the lit/unlit states are told apart. #}
@@ -61,7 +59,6 @@
     </button>
   </div>
   {% include "_language_picker.html" %}
-  {% include "_theme_picker.html" %}
   {% if session.get('authed') %}
   <div class="site-nav__actions">
     <a class="site-nav__link" href="{{ url_for('pages.people_page') }}">{{ _("People") }}</a>
@@ -96,6 +93,7 @@
 <main id="content">
 {% block content %}{% endblock %}
 </main>
+<script src="{{ url_for('static', filename='js/theme-logic.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 <script src="{{ url_for('static', filename='js/firelight.js') }}"></script>
 {% block scripts %}{% endblock %}
