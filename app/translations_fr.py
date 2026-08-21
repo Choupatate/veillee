@@ -25,6 +25,77 @@ TRANSLATIONS_FR = {
     "Hold for theme options": "Maintenez pour les options d'apparence",
     "Colour scheme": "Palette",
     "How it looks": "L'apparence",
+    # --- making a theme (F50) ----------------------------------------------
+    "Themes": "Apparences",
+    "Yours": "Les vôtres",
+    "None yet.": "Aucune pour l'instant.",
+    "New theme": "Nouvelle apparence",
+    "Came with the app": "Fournies avec l'application",
+    "Can't be changed from here.": "Non modifiables ici.",
+    "Use it": "L'utiliser",
+    "Colours": "Couleurs",
+    "Pictures": "Images",
+    "Prompt": "Consigne",
+    "Copy": "Copier",
+    "Copied": "Copié",
+    "Upload": "Envoyer",
+    "Borrowed": "Empruntée",
+    "Put the borrowed one back": "Remettre celle empruntée",
+    "Change the description": "Modifier la description",
+    "Describe the world": "Décrivez l'univers",
+    "Colour schemes": "Palettes",
+    "Delete this theme": "Supprimer cette apparence",
+    "Delete this theme and all its pictures?":
+        "Supprimer cette apparence et toutes ses images ?",
+    "Picture for {name}": "Image pour {name}",
+    "{drawn} of {total} pictures": "{drawn} images sur {total}",
+    "A theme is how the book looks: its colours and its pictures. You can "
+    "make your own — describe the world you want, and the app writes you a "
+    "prompt for each of the book's pictures to paste into an image "
+    "generator.":
+        "Une apparence, c'est l'allure du livre : ses couleurs et ses "
+        "images. Vous pouvez créer la vôtre — décrivez l'univers voulu, et "
+        "l'application rédige pour chaque image du livre une consigne à "
+        "coller dans un générateur d'images.",
+    "A theme you make only needs its colours to work; every picture it "
+    "hasn't got yet is borrowed from the one the app came with.":
+        "Une apparence que vous créez n'a besoin que de ses couleurs pour "
+        "fonctionner ; chaque image qui lui manque est empruntée à celle "
+        "fournie avec l'application.",
+    "This goes at the top of every picture prompt, so it is what keeps "
+    "thirty-seven separate drawings looking like one book.":
+        "Ce texte ouvre chaque consigne : c'est lui qui fait que "
+        "trente-sept dessins séparés ressemblent à un seul livre.",
+    "Three colours each; the app works out the rest. Only tick the ones "
+    "your world actually has — the reader's toggle offers exactly these.":
+        "Trois couleurs par palette ; l'application déduit le reste. Ne "
+        "cochez que celles qui existent dans votre univers — le bouton du "
+        "lecteur propose exactement celles-là.",
+    "Copy a prompt, paste it into an image generator in another window, "
+    "then bring the picture back here. Ask for one picture at a time: the "
+    "wording repeats the rules every time because a generator forgets them "
+    "between images.":
+        "Copiez une consigne, collez-la dans un générateur d'images dans "
+        "une autre fenêtre, puis rapportez l'image ici. Demandez une image "
+        "à la fois : la consigne répète les règles à chaque fois, car un "
+        "générateur les oublie d'une image à l'autre.",
+    "{drawn} of {total} pictures drawn. The rest are borrowed from the "
+    "theme the app came with, so the book already works — fill these in "
+    "whenever you like, in any order.":
+        "{drawn} images dessinées sur {total}. Les autres sont empruntées "
+        "à l'apparence fournie avec l'application : le livre fonctionne "
+        "déjà — complétez-les quand vous voulez, dans l'ordre que vous "
+        "voulez.",
+    "e.g. A Japanese woodblock print world: indigo, rust and off-white "
+    "paper, strong outlines, flat colour, soft mist.":
+        "ex. Un univers d'estampes japonaises : indigo, rouille et papier "
+        "écru, traits marqués, aplats de couleur, brume douce.",
+    "Saved.": "Enregistré.",
+    "Theme deleted.": "Apparence supprimée.",
+    "That theme could not be deleted.":
+        "Cette apparence n'a pas pu être supprimée.",
+    "Choose a picture first.": "Choisissez d'abord une image.",
+    "Make a theme": "Créer une apparence",
     "Light and dark": "Clair et sombre",
     "The half-moon button in the nav switches between them. Hold it down "
     "for the full set — including going back to whatever your phone or "

@@ -32,7 +32,7 @@ from flask import (
     url_for,
 )
 
-from . import accounts, epub, groups, i18n, life_events, people, prompts, storage
+from . import accounts, epub, groups, i18n, life_events, people, prompts, storage, themes
 from .auth import admin_required_in_accounts_mode, login_required
 from .rendering import render_markdown
 
@@ -474,12 +474,13 @@ def export():
                 continue
             relative = path.relative_to(stories_dir)
             # The first path segment is the story id for anything under a
-            # story folder; people/, groups.json and the other root-level
-            # files aren't stories and are never audience-scoped.
+            # story folder; people/, themes/ (F50), groups.json and the
+            # other root-level files aren't stories and are never
+            # audience-scoped.
             top = relative.parts[0]
             if (
                 allowed_ids is not None
-                and top not in ("people", groups.GROUPS_FILENAME)
+                and top not in ("people", themes.USER_THEMES_DIRNAME, groups.GROUPS_FILENAME)
                 and (stories_dir / top).is_dir()
                 and top not in allowed_ids
             ):
@@ -635,7 +636,7 @@ def _other_people_refs(exclude_slug=None):
     ]
 
 
-# Registers routes_people.py's, routes_accounts.py's and routes_groups.py's
-# routes onto `bp` (see module docstring) — must come after every helper
+# Registers routes_people.py's, routes_accounts.py's, routes_groups.py's and
+# routes_themes.py's routes onto `bp` (see module docstring) — must come after every helper
 # they import above.
-from . import routes_accounts, routes_groups, routes_people  # noqa: E402,F401
+from . import routes_accounts, routes_groups, routes_people, routes_themes  # noqa: E402,F401

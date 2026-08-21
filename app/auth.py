@@ -233,7 +233,8 @@ def set_theme(name):
     the redirect goes through the same local-paths-only allowlist as the
     login `next`.
     """
-    if not themes.is_valid_theme(name):
+    user_dir = themes.user_themes_dir(current_app.config["STORIES_DIR"])
+    if not themes.is_valid_theme(name, user_dir):
         abort(404)
     response = redirect(_safe_next_url(request.form.get("next", "")))
     response.set_cookie(

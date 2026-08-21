@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% set editing = pack is not none %}
+{% block title %}{{ _("Colours") if editing else _("New theme") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+{% macro field(scheme, key, fallback) %}
+  {% set value = (form and form.get(scheme ~ '-' ~ key)) or (pack and pack.palette and pack.palette.get(scheme, {}).get(key)) or fallback %}
+  <label class="theme-form__colour">
+    <span class="theme-form__colour-name">{{ _(key|capitalize) }}</span>
+    {# The picker carries no name: the text field is what is submitted, so
+       this form works with JavaScript off, where someone types a hex. #}
+    <input type="color" class="theme-form__swatch" value="{{ value }}"
+           data-syncs="{{ scheme }}-{{ key }}" aria-hidden="true" tabindex="-1">
+    <input type="text" id="{{ scheme }}-{{ key }}" name="{{ scheme }}-{{ key }}"
+           class="theme-form__hex" value="{{ value }}" inputmode="text"
+           pattern="#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?" spellcheck="false">
+  </label>
+{% endmacro %}
+{% block content %}
+<div class="admin">
+  <p class="admin__back"><a href="{{ url_for('pages.themes_page') }}">&lsaquo; {{ _("Themes") }}</a></p>
+  <h1 class="admin__title">{{ _("Colours") if editing else _("New theme") }}</h1>
+
+  <form class="theme-form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Name") }}</span>
+      <input type="text" name="label" maxlength="32" required
+             value="{{ (form and form.get('label')) or (pack and pack.label) or '' }}">
+    </label>
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Describe the world") }}</span>
+      <textarea name="description" rows="4" maxlength="2000"
+                placeholder="{{ _('e.g. A Japanese woodblock print world: indigo, rust and off-white paper, strong outlines, flat colour, soft mist.') }}">{{ (form and form.get('description')) or (pack and pack.description) or '' }}</textarea>
+      <span class="theme-form__note">{{ _("This goes at the top of every picture prompt, so it is what keeps thirty-seven separate drawings looking like one book.") }}</span>
+    </label>
+
+    <fieldset class="theme-form__schemes">
+      <legend>{{ _("Colour schemes") }}</legend>
+      <p class="theme-form__note">{{ _("Three colours each; the app works out the rest. Only tick the ones your world actually has — the reader's toggle offers exactly these.") }}</p>
+      {% for scheme, defaults in [
+           ('dark', {'bg': '#141210', 'text': '#e8e2d9', 'accent': '#d9a441'}),
+           ('light', {'bg': '#faf6ef', 'text': '#2a2520', 'accent': '#a9701c'}),
+           ('manuscript', {'bg': '#efe6d2', 'text': '#3a3122', 'accent': '#8a5a1c'})] %}
+      {% set on = (form and scheme in form.getlist('schemes')) or (not form and (not pack or scheme in (pack.schemes or ['dark', 'light']))) %}
+      <div class="theme-form__scheme">
+        <label class="theme-form__scheme-on">
+          <input type="checkbox" name="schemes" value="{{ scheme }}" {% if on %}checked{% endif %}>
+          {{ _(SCHEME_LABELS[scheme]) }}
+        </label>
+        <div class="theme-form__colours">
+          {{ field(scheme, 'bg', defaults.bg) }}
+          {{ field(scheme, 'text', defaults.text) }}
+          {{ field(scheme, 'accent', defaults.accent) }}
+        </div>
+      </div>
+      {% endfor %}
+    </fieldset>
+
+    <div class="theme-form__actions">
+      <button type="submit" class="btn btn--primary">{{ _("Save") }}</button>
+      {% if editing %}
+      <a class="btn" href="{{ url_for('pages.theme_assets', theme=pack.name) }}">{{ _("Pictures") }}</a>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if editing %}
+  <form class="theme-form__delete" method="post" action="{{ url_for('pages.delete_theme', theme=pack.name) }}"
+        data-confirm="{{ _('Delete this theme and all its pictures?') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn--danger">{{ _("Delete this theme") }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/theme-form.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Themes") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+{% block content %}
+<div class="admin">
+  <p class="admin__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
+  <h1 class="admin__title">{{ _("Themes") }}</h1>
+  <p class="admin__hint">
+    {{ _("A theme is how the book looks: its colours and its pictures. You can make your own — describe the world you want, and the app writes you a prompt for each of the book's pictures to paste into an image generator.") }}
+    {{ _("A theme you make only needs its colours to work; every picture it hasn't got yet is borrowed from the one the app came with.") }}
+  </p>
+
+  <h2 class="admin__subtitle">{{ _("Yours") }}</h2>
+  {% if not packs %}
+  <p class="admin__empty">{{ _("None yet.") }}</p>
+  {% else %}
+  <ul class="admin__list">
+    {% for pack in packs %}
+    <li class="admin__row">
+      <span class="admin__row-name">{{ pack.label }}</span>
+      <span class="admin__row-hint">
+        {{ _("{drawn} of {total} pictures", drawn=pack.drawn, total=pack.total) }}
+      </span>
+      <form class="admin__row-form" method="post" action="{{ url_for('auth.set_theme', name=pack.name) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ url_for('pages.themes_page') }}">
+        <button type="submit" class="btn">{{ _("Use it") }}</button>
+      </form>
+      <a class="btn admin__row-action" href="{{ url_for('pages.theme_assets', theme=pack.name) }}">{{ _("Pictures") }}</a>
+      <a class="btn admin__row-action" href="{{ url_for('pages.edit_theme', theme=pack.name) }}">{{ _("Colours") }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <p><a class="btn btn--primary" href="{{ url_for('pages.new_theme') }}">{{ _("New theme") }}</a></p>
+
+  <h2 class="admin__subtitle">{{ _("Came with the app") }}</h2>
+  <ul class="admin__list">
+    {% for pack in builtin %}
+    <li class="admin__row">
+      <span class="admin__row-name">
+        <span class="pack-picker__swatch" aria-hidden="true">
+          {% for color in pack.swatch %}<span class="pack-picker__dot" style="background: {{ color }}"></span>{% endfor %}
+        </span>
+        {{ pack.label }}
+      </span>
+      <span class="admin__row-hint">{{ _("Can't be changed from here.") }}</span>
+      <form class="admin__row-form" method="post" action="{{ url_for('auth.set_theme', name=pack.name) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ url_for('pages.themes_page') }}">
+        <button type="submit" class="btn">{{ _("Use it") }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

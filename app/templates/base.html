@@ -19,6 +19,7 @@
    any of its variables. Absent for the default pack, whose colours main.css
    already carries. #}
 {% if theme_stylesheet %}<link rel="stylesheet" href="{{ url_for('static', filename=theme_stylesheet) }}">{% endif %}
+{% if theme_stylesheet_url %}<link rel="stylesheet" href="{{ theme_stylesheet_url }}">{% endif %}
 <script src="{{ url_for('static', filename='js/safe-storage.js') }}"></script>
 <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
 {# The handful of strings JS files render at runtime (save-button states,
