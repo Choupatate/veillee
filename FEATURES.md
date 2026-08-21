@@ -84,6 +84,9 @@ the exact `F<N>.` heading text to jump to it.
   for the whole family
 - **F49** — Everything about how the book looks behind one button: a tap
   still cycles light and dark, a press-and-hold opens the rest
+- **F50** — Making a theme from inside the book: describe a world, get a
+  prompt for each of its thirty-seven pictures, and bring them back one at
+  a time
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -6392,3 +6395,158 @@ with JavaScript disabled, where the panel opens on a tap, the chips are
 absent and the packs still work.
 
 `pytest` (1244) and `ruff check .` green.
+
+
+## F50. Making a theme from inside the book
+
+F46 made the art direction a folder and F48 let a reader pick one. The
+question that finishes the arc:
+
+> would it be an idea to give the possibility to import themes? [...] for
+> each image to be imported you need to tell the user what should this
+> image look like. [...] the user would be able to have 2 windows open (one
+> with its AI and the one with the creation interface)
+
+That two-window workflow is the feature. Everything else here exists to
+serve it.
+
+### Where a made pack lives, and why it matters
+
+**In the data folder: `<stories>/themes/<name>/`.** Not in
+`app/static/themes/` beside the shipped ones, and this is the decision the
+rest of the design hangs off. Artwork someone generated, chose and uploaded
+is *their content*, not part of the program: an app update, a container
+rebuild or a re-clone must not delete it, and it has to travel in the
+backup zip like every story and photo. A pack is a `theme.json` and a
+folder of pictures, so a family who stops using this app still has both.
+
+`themes.py` therefore resolves from two roots, **built-in first**. That
+order is load-bearing: every pack falls back to `ranch` for anything it
+hasn't drawn, so a made pack called `ranch` would quietly break the
+fallback for everyone. A folder with that name is ignored rather than
+obeyed.
+
+Two consequences worth stating:
+
+- a made pack's pictures cannot be `/static` files, so they are served by a
+  route out of the data folder, validated the way `story_media` is;
+- it is **public**, like `/static`, because the login page is dressed by
+  the pack too and a login screen with broken pictures would be the first
+  thing a family saw. It can only ever reach `<stories>/themes/<pack>/img/`
+  and only files the catalogue names.
+
+### The palette is data, never CSS
+
+A made pack has no `theme.css`. A textarea whose contents become a
+stylesheet on every page is the one place in this app where someone else's
+text would become code, and a same-origin stylesheet is not something a CSP
+can save you from. So a pack's colours are validated hex in its
+`theme.json`, and `palette.py` renders them into the same blocks
+`orbit/theme.css` declares by hand — a `:root` default, the
+`prefers-color-scheme` answer, and one `[data-theme=...]` block per scheme
+so the nav toggle wins over both.
+
+And the form had to be small enough that someone actually fills it in.
+`theme.css` re-declares sixteen variables per scheme; asking for that twice
+is asking for no theme at all. So **a scheme is three colours** — a
+background, a text colour, an accent — and the rest is derived: dimmed text
+is text mixed back toward the background, a border is the background nudged
+toward the text, the highlight is the accent at low alpha, the label drawn
+*on* the accent is whichever of the reader's own two colours can be read
+against it (measured, not assumed). `color-scheme` follows the background's
+luminance rather than the scheme's name, because someone's "manuscript" may
+be candlelit and the browser draws its own scrollbars from that.
+
+A palette that comes back from a backup, or is edited by hand, can say
+anything at all — so a scheme whose colours aren't colours is skipped
+rather than raised on. The cost is one scheme that looks like main.css; the
+alternative is a stylesheet route that 500s a whole book.
+
+### The catalogue, and why filenames can't be the brief
+
+Thirty-seven pictures, described by the **job each one does** rather than
+by what the ranch happens to draw for it. `login-campfire.jpg` is not "a
+campfire": it is the welcome on the login page, the thing that says *this
+is a private place, come and sit down* — which in a book kept in orbit is a
+fire in a viewport and in a woodblock world is a paper lantern. The
+filename can never be the brief, because a pack is a skin and not a rename
+(CLAUDE.md), so every entry carries `where` (what page you are dressing)
+and `subject` (what the picture has to show for that page to make sense).
+
+`prompt_for` glues an entry to the world someone described and adds the
+rules this project learned by undoing them by hand across F17, F22, F42 and
+F46: no lettering, no corner watermark, no paper border, one subject with
+room around it — and for icons, bold enough to read at 20px and **outlined
+in a dark colour**, without which nothing survives on both a light and a
+dark page (F46's follow-up measured exactly that). They are restated on
+every single prompt because a generator forgets between images, not because
+the reader needs reminding.
+
+A test asserts the catalogue is *exactly* the default pack's files. A name
+in one and not the other is either a picture that can never be replaced or
+a prompt for a picture nothing draws.
+
+### Taking the pictures in
+
+Upload processing per kind, all of it Pillow, none of it writing the bytes
+it was given:
+
+- **plates** — re-encoded JPEG, capped at the size the app draws them;
+- **tiles** — resized to exactly the square they tile at, the one place a
+  picture is fitted rather than merely capped;
+- **icons and ornaments** — background keyed out by flooding from the four
+  corners (so the hole in a ring survives), closed with a Max/Min filter
+  pair, trimmed to the drawing, centred and reduced to 160px. An upload
+  that is already transparent is taken at its word.
+
+This is `scripts/process_orbit_icons.py` grown up: the same technique the
+orbit pack's icons went through by hand, now the thing that makes an
+upload usable straight out of a generator.
+
+**The filename allowlist is the catalogue.** The uploaded file's own name
+is never used — the *route* names which of the 37 pictures this is, and
+anything else is refused. It is the strongest form of this codebase's
+"never build a path from user input" rule: the input isn't used to build
+the path at all, only to choose from a fixed list.
+
+### Who can do it
+
+`admin_required_in_accounts_mode`, which already existed and is exactly the
+rule asked for: the admin when accounts are on, the one password-holder
+when they are not. A write-link visitor never gets a session that passes
+`login_required`, so a guest cannot reach any of it by construction. The
+way in — "Make a theme" at the foot of F49's menu — is shown under the same
+condition, so nobody is offered a door that 404s.
+
+### The bug the browser found
+
+The sheet showed each picture with `theme_img()`, which renders whatever
+the *reader* is wearing. An admin filling in a new theme while still
+wearing orbit was being shown orbit's pictures as though they were their
+own. The sheet now resolves each row against the pack being edited, with
+the same fallback the book applies, and a test wears one theme while
+editing another to keep it that way.
+
+### Tests
+
+- `tests/test_theme_making.py` (34) — the data layer: a made pack in the
+  data folder, a shipped name never shadowed, hostile names and hostile
+  colours refused before anything is written, three colours becoming a
+  whole stylesheet in the shape a shipped pack is written in, a broken
+  palette costing a scheme rather than the book, uploads cut out, capped,
+  re-encoded and refused when they aren't in the catalogue, deletion that
+  leaves a folder someone put something else in, and a made theme
+  surviving a round trip through the backup zip.
+- `tests/test_theme_making_routes.py` (24) — who can get in (a family
+  member gets 404s, not 403s, and isn't shown the door), the whole
+  make-and-fill flow, the upload's own filename never being used as a
+  path, the media route serving nothing but a pack's own pictures, and a
+  made pack dressing the book while still borrowing the rest.
+
+Driven end to end by hand in Chromium at 390px: hold the toggle → Make a
+theme → describe a world → three colours a scheme → a sheet of 37 prompts →
+upload a plate and an icon → "2 of 37 pictures drawn" → wear it → the
+made pack's icon on the editor and its campfire on the login page **while
+logged out**, which is the public-route requirement doing its job.
+
+`pytest` (1302) and `ruff check .` green.

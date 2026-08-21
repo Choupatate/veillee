@@ -188,8 +188,11 @@ def create_app(test_config=None):
             app.config.get("DEFAULT_LANGUAGE"),
         )
         # F48: the book's pack, unless this browser asked for another one.
+        # F50: which may be one the family made, living in the data folder.
         g.theme = themes.pick_theme(
-            request.cookies.get(themes.COOKIE_NAME), app.config["THEME"]
+            request.cookies.get(themes.COOKIE_NAME),
+            app.config["THEME"],
+            themes.user_themes_dir(app.config["STORIES_DIR"]),
         )
 
     # F46: templates ask for a picture by name, never by folder, so a theme
@@ -200,10 +203,17 @@ def create_app(test_config=None):
         # before_request has run), where the book's own pack is the answer.
         return getattr(g, "theme", None) or app.config["THEME"]
 
+    def user_themes_dir():
+        return themes.user_themes_dir(app.config["STORIES_DIR"])
+
     def theme_img(filename):
-        return url_for(
-            "static", filename=themes.image_url_path(current_theme(), filename)
-        )
+        # F50: a made pack's pictures are files in the data folder, not
+        # static assets, so where the picture comes from decides how its
+        # URL is built. The fallback is already applied by `image_ref`.
+        kind, pack, name = themes.image_ref(current_theme(), filename, user_themes_dir())
+        if kind == "user":
+            return url_for("pages.theme_media", theme=pack, filename=name)
+        return url_for("static", filename=f"themes/{pack}/img/{name}")
 
     app.jinja_env.globals["theme_img"] = theme_img
     app.jinja_env.globals["is_sealed"] = storage.is_sealed
@@ -251,9 +261,16 @@ def create_app(test_config=None):
             "app_title": app.config["TITLE"] or i18n._("Storybook"),
             # None for the default pack, whose colours are main.css's own.
             "theme_stylesheet": themes.stylesheet_url_path(current_theme()),
+            # F50: a made pack has no stylesheet on disk — its colours are
+            # data, rendered by a route.
+            "theme_stylesheet_url": (
+                url_for("pages.theme_css", theme=current_theme())
+                if themes.is_user_theme(current_theme(), user_themes_dir())
+                else None
+            ),
             # Which colour schemes the pack offers, for the nav toggle and
             # for theme-boot.js's check of what was last stored (F46).
-            "color_schemes": themes.color_schemes(current_theme()),
+            "color_schemes": themes.color_schemes(current_theme(), user_themes_dir()),
             # F48: the nav picker. A list of dicts rather than names so the
             # template never reaches into themes.py per pack, and a
             # one-pack install renders no picker at all.
@@ -261,10 +278,10 @@ def create_app(test_config=None):
             "theme_packs": [
                 {
                     "name": name,
-                    "label": themes.label(name),
-                    "swatch": themes.swatch(name),
+                    "label": themes.label(name, user_themes_dir()),
+                    "swatch": themes.swatch(name, user_themes_dir()),
                 }
-                for name in themes.available_themes()
+                for name in themes.available_themes(user_themes_dir())
             ],
             "current_language": i18n.current_language(),
             "js_strings": i18n.js_strings(i18n.current_language()),

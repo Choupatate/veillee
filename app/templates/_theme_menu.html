@@ -39,5 +39,10 @@
       {% include "_theme_picker.html" %}
     </div>
     {% endif %}
+    {# F50: the way in to making one. Same gate as the routes behind it —
+       the admin in accounts mode, the password-holder without. #}
+    {% if session.get('authed') and (not config.ACCOUNTS_ENABLED or session.get('role') == 'admin') %}
+    <a class="theme-menu__make" href="{{ url_for('pages.themes_page') }}">{{ _("Make a theme") }}</a>
+    {% endif %}
   </div>
 </details>

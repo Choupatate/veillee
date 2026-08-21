@@ -791,9 +791,40 @@ illustrations are finished, and it still borrows most of its icons from
 an otherwise off-world book. `IMAGE-PROMPTS-ORBIT.md` is the catalogue of
 what each remaining picture has to show.
 
-To make your own, copy `app/static/themes/orbit/theme.css` as a starting
-point — it re-declares every variable a pack can, with comments on why each
-one is there.
+#### Making one from inside the app
+
+Hold the `◐` button and pick **Make a theme** (admins only — in accounts
+mode it takes the admin role, and with a single shared password it's
+whoever has the password). Then:
+
+1. **Name it and describe the world** in a sentence or two — *"a Japanese
+   woodblock print world: indigo, rust and off-white paper, strong
+   outlines, flat colour, soft mist"*. That description is what keeps
+   thirty-seven separate drawings looking like one book.
+2. **Pick three colours per scheme** — a background, a text colour, an
+   accent — and tick only the schemes your world actually has. The app
+   derives the other dozen variables from those three.
+3. **Fill in the pictures at your own pace.** The Pictures page lists all
+   37 with a ready-to-paste prompt for each: what the picture is *for* in
+   this book, plus the rules that keep what comes back usable (no
+   lettering, no watermark, no border; icons outlined so they survive on
+   both a light and a dark page). Copy one, paste it into an image
+   generator in another window, bring the picture back, upload it. Every
+   picture you haven't done is borrowed from `ranch`, so the theme works
+   from the moment its colours are saved.
+
+Uploads are re-encoded, resized and — for icons — cut out of their
+background automatically, so what a generator hands you is usually usable
+as-is.
+
+**A theme you make lives in your data folder** (`stories/themes/<name>/`),
+not in the app: an update can't delete it, and it travels in the backup zip
+with everything else. It's a `theme.json` of colours plus a folder of
+pictures — readable, and still yours if you ever stop using this app.
+
+To make one by hand instead, copy `app/static/themes/orbit/theme.css` as a
+starting point — it re-declares every variable a pack can, with comments on
+why each one is there.
 
 ### In-app help
 

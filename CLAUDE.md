@@ -104,6 +104,20 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   it through the `current_theme()` helper in `create_app`, never
   `config["THEME"]` directly, or a reader's choice will be ignored on
   whatever you add.
+- `app/theme_packs.py` / `app/theme_catalog.py` / `app/palette.py` — making
+  a pack from inside the app (F50). Packs now come from **two** roots:
+  shipped ones under `app/static/themes/`, made ones under
+  `<stories>/themes/` — in the data folder, so artwork a family drew
+  survives an app update and travels in the backup zip. `themes.py`
+  checks the built-in root first, so a made pack can never shadow `ranch`
+  and break the fallback. Three rules to keep if you touch this: the only
+  filenames that can ever be written into a pack are the 37 in
+  `theme_catalog.CATALOG` (the allowlist *is* the catalogue), a palette is
+  validated hex rendered into CSS by `palette.py` and never user-authored
+  CSS, and uploads are re-encoded through Pillow like every other image
+  here. The catalogue describes each picture by the *job* it does, never by
+  what the ranch draws for it — that is what lets another world supply its
+  own equivalent.
 
 Web layer — Flask, split by resource; each `routes_api_*`/`routes_*`
 sub-file registers its routes onto a blueprint object (`bp`) defined in

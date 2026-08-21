@@ -789,6 +789,15 @@ def import_backup(stories_dir, zip_file) -> int:
     newer truth, and a person's `index.md` carries edges (parents,
     partners) that a half-old copy would contradict.
 
+    **Made themes come back, additively (F50).** A theme pack under
+    `themes/<name>/` is made content — someone described a world and
+    generated thirty-seven pictures for it — so it is restored like a
+    person rather than skipped like operational state. A pack whose folder
+    is already here is left alone, and only the two shapes this app writes
+    (`theme.json`, and pictures the catalogue names) are extracted, so a
+    zip cannot use a theme folder as a way to drop arbitrary files into the
+    stories directory.
+
     **Credentials never come back.** `CREDENTIAL_FILENAMES` are dropped from
     a person's folder on the way in. A zip is a portable file: restoring one
     from another book would otherwise silently install its accounts —
@@ -798,10 +807,17 @@ def import_backup(stories_dir, zip_file) -> int:
     """
     stories_dir = Path(stories_dir)
     people_root = people_dir(stories_dir)
+    # Imported here rather than at module scope: storage.py is the data
+    # layer every other module leans on, and theme_catalog leans back on
+    # nothing, but keeping the import local keeps that arrow one-way.
+    from .theme_catalog import BY_FILENAME
+    from .themes import USER_THEMES_DIRNAME
+
     with zipfile.ZipFile(zip_file) as zf:
         members = []
         story_ids = set()
         person_members = []
+        theme_members = []
         for info in zf.infolist():
             name = info.filename
             if name.endswith("/"):
@@ -821,6 +837,17 @@ def import_backup(stories_dir, zip_file) -> int:
                     continue
                 person_members.append(info)
                 continue
+            if top == USER_THEMES_DIRNAME:
+                # themes/<pack>/theme.json, or themes/<pack>/img/<picture>.
+                if len(parts) < 3 or not is_valid_story_id(parts[1]):
+                    continue
+                if (stories_dir / USER_THEMES_DIRNAME / parts[1]).exists():
+                    continue
+                if parts[2:] == ("theme.json",) or (
+                    len(parts) == 4 and parts[2] == "img" and parts[3] in BY_FILENAME
+                ):
+                    theme_members.append(info)
+                continue
             if not is_valid_story_id(top):
                 continue
             story_ids.add(top)
@@ -833,7 +860,7 @@ def import_backup(stories_dir, zip_file) -> int:
         if colliding:
             raise ImportCollision(colliding)
 
-        for info in members + person_members:
+        for info in members + person_members + theme_members:
             zf.extract(info, stories_dir)
 
     return len(story_ids)
