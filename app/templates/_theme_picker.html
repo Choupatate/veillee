@@ -8,14 +8,13 @@
    It changes this browser only — the cookie behind it never leaves the
    screen it was clicked on. The book's own pack is STORYBOOK_THEME.
 
-   Absent entirely when only one pack is installed: a picker with one
-   choice is a button that does nothing.
+   Lives inside the theme menu (F49), which is what decides whether there
+   are enough packs to be worth showing at all.
 
    The dots are the pack's declared swatch, so a pack is recognisable
    before it is applied and this template never learns any pack's colours.
    `next` carries the current path, so changing the art leaves you on the
    page you were reading. #}
-{% if theme_packs | length > 1 %}
 <div class="pack-picker" role="group" aria-label="{{ _('Theme') }}">
   {% for pack in theme_packs %}
   <form class="pack-picker__form" method="post"
@@ -35,4 +34,3 @@
   </form>
   {% endfor %}
 </div>
-{% endif %}

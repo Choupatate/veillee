@@ -82,6 +82,8 @@ the exact `F<N>.` heading text to jump to it.
 - **F48** — Picking the art direction from the nav: the theme pack stopped
   being a restart away, without becoming something one reader can change
   for the whole family
+- **F49** — Everything about how the book looks behind one button: a tap
+  still cycles light and dark, a press-and-hold opens the rest
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -6285,3 +6287,108 @@ targets, the switch landing back on the same page, and orbit's own icons
 and starfield arriving with it.
 
 `pytest` (1230) and `ruff check .` green.
+
+
+## F49. One button for how the book looks
+
+F48 put the pack picker in the nav and it worked, but it left two
+neighbours doing related things — a cycler and a row of swatches — plus
+the flame, the flags, the brand and five links, on a phone. The suggestion
+that fixed it:
+
+> to switch themes maybe it would be better to have a long touch or long
+> press on the color toggle button rather than the 2 themes. even thinking
+> maybe the long press should disclose the theme configuration
+
+So the swatches moved *under* the `◐` button. A tap still cycles light and
+dark — that is the fast path, and losing it would be a bad trade — and
+holding the button opens a panel with the colour schemes and the packs.
+
+### It is a `<details>`, and that is the whole trick
+
+The obvious build is a button and a `hidden` div, which is also the build
+that stops existing when JavaScript does. Instead the control is a real
+`<details>`/`<summary>`, so there are two honest behaviours rather than
+one behaviour and a broken state:
+
+- **No JavaScript:** an ordinary disclosure. Tap, the panel opens, and the
+  pack forms inside it are the same POST forms F48 shipped. Switching the
+  book's art direction works with scripting off entirely.
+- **JavaScript:** `theme.js` takes the tap for the fast path (the summary
+  never toggles itself) and opens the panel on a hold, a right-click, or
+  the down arrow instead.
+
+The colour-scheme chips are the one part that genuinely needs JavaScript —
+they are remembered in `localStorage` — so they are the one part hidden
+until the `js` class is on the root. A chip that couldn't remember what it
+was showing would be worse than no chip.
+
+### What a press means
+
+Three inputs, one pure function (`theme-logic.js`, tested under Node), and
+the order they are tested in *is* the rule:
+
+| | |
+| --- | --- |
+| held | open the menu — and, critically, the click that a long press leaves behind must not also cycle. Someone holding the button to look at their options would otherwise have their colours changed underneath the menu they asked for. |
+| menu open | the toggle is the way out of it |
+| otherwise | cycle, which is why the menu is behind a hold in the first place |
+
+Around that: 450ms to count as a hold, `pointerdown`/`pointerup` so mouse
+and touch are one code path, `contextmenu` intercepted (press-and-hold
+with a mouse is a right-click, and on a phone the callout would otherwise
+land on top of the menu it was meant to open), Escape and an outside click
+to close, and `-webkit-touch-callout: none` plus `user-select: none` so
+iOS doesn't select the glyph under the finger instead.
+
+### The honest cost
+
+**A hold is undiscoverable.** Three mitigations, and none of them is a
+complete answer:
+
+- the button carries a small notch in its ring — enough to say there is
+  more here, not enough to read as a second button;
+- its `aria-label` says what a press does *and* how to open the menu,
+  because a disclosure whose activation doesn't disclose has to explain
+  itself, and a screen-reader user who hears "collapsed" and then gets a
+  colour change deserves better than a surprise;
+- the Help page (F33's family-facing glossary) gained a "How it looks"
+  section covering all three controls, the flame included.
+
+Keyboard users get the down arrow, which also moves focus into the panel.
+Right-click covers a mouse. Both are documented in the label rather than
+left to be guessed.
+
+### Two things that came along
+
+- **"System" is now reachable.** The cycler could put you *into* a chosen
+  scheme but never back out of one; the panel's last chip forgets the
+  stored value so the page follows `prefers-color-scheme` again, exactly
+  as a first visit does. It also restores the two `theme-color` metas,
+  which are captured before anything overwrites them.
+- **The cycle now starts from what you chose,** not from what you are
+  looking at. It reads the stored value rather than the computed one, so
+  the first tap after "System" lands on the first stop instead of the one
+  after whatever the OS happened to be showing.
+
+### Tests
+
+- `tests/js/theme_logic_test.mjs` (9) — the cycle across both packs'
+  scheme lists, a scheme the current pack doesn't offer, and every
+  combination of the press table, including the one it exists for.
+- `tests/test_theme_menu.py` (13) — the disclosure markup, the label
+  mentioning the hold, the picker having actually moved inside, the chips
+  following the pack (no manuscript in orbit), the schemes hidden without
+  `js` while the pack forms are not, the summary's marker suppressed in
+  every engine, the callout suppressed, and the chosen chip not told apart
+  by colour alone (F45's rule).
+
+Verified by hand in Chromium at 390px with touch: tap cycling all three
+and wrapping, a hold opening the panel *without* cycling on the way in,
+picking a scheme, "System" clearing `localStorage`, tap-to-close,
+ArrowDown-to-open with focus landing on the first chip, Escape, an outside
+click, switching pack from inside the panel — and the whole thing again
+with JavaScript disabled, where the panel opens on a tap, the chips are
+absent and the packs still work.
+
+`pytest` (1244) and `ruff check .` green.

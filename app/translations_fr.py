@@ -18,7 +18,32 @@ TRANSLATIONS_FR = {
 
     # --- navigation and chrome ---------------------------------------------
     "Skip to content": "Aller au contenu",
-    "Toggle light and dark": "Basculer clair / sombre",
+    "Switch light and dark. Hold, or press the down arrow, for theme "
+    "options.":
+        "Basculer clair / sombre. Maintenez appuyé, ou appuyez sur la "
+        "flèche du bas, pour les options d'apparence.",
+    "Hold for theme options": "Maintenez pour les options d'apparence",
+    "Colour scheme": "Palette",
+    "How it looks": "L'apparence",
+    "Light and dark": "Clair et sombre",
+    "The half-moon button in the nav switches between them. Hold it down "
+    "for the full set — including going back to whatever your phone or "
+    "computer does on its own.":
+        "Le bouton demi-lune de la barre de navigation bascule de l'un à "
+        "l'autre. Maintenez-le appuyé pour tout le choix — y compris le "
+        "retour au réglage de votre téléphone ou de votre ordinateur.",
+    "Under that same hold: the book's whole look, pictures and all. It "
+    "changes your screen only, not anyone else's.":
+        "Sous ce même appui long : toute l'apparence du livre, images "
+        "comprises. Cela ne change que votre écran, pas celui des autres.",
+    "The flame button turns the slow flicker on the page on and off. It is "
+    "off for good once you turn it off, on this screen.":
+        "Le bouton flamme active ou désactive le lent vacillement de la "
+        "page. Une fois désactivé, il le reste sur cet écran.",
+    "Dark": "Sombre",
+    "Light": "Clair",
+    "Manuscript": "Manuscrit",
+    "System": "Système",
     "Theme": "Thème",
     "Firelight": "Lueur du feu",
     "Language": "Langue",

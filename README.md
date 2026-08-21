@@ -754,17 +754,20 @@ illustrations, its icons. Two ship with the app, chosen with
   cyan throughout, and a distant star where the ranch has a fire.
 
 `STORYBOOK_THEME` sets the book's own pack — what everyone sees unless
-they say otherwise. **Anyone can put a different one on their own screen
-from the picker in the nav**, next to the language flags: two colour dots
-per pack (their names show on wider screens), and a tap swaps the art
-without leaving the page you were on. That choice is a cookie, so it
-dresses that one browser and nobody else's, and it outlives logging out.
-Deleting the cookie, or clearing site data, puts the book's own pack back.
+they say otherwise. **Anyone can put a different one on their own screen**,
+from the `◐` button in the nav: a plain tap still cycles light and dark,
+and **holding it down** opens a small panel with the colour schemes and
+the installed packs. (Right-click, or the down arrow on a keyboard, opens
+it too; with JavaScript off it is an ordinary disclosure that opens on a
+tap.) That choice is a cookie, so it dresses that one browser and nobody
+else's, and it outlives logging out. Deleting the cookie, or clearing site
+data, puts the book's own pack back.
+
+The same panel is the only way to *un*-choose a colour scheme: **System**
+forgets your pick and follows your phone or computer again.
 
 If you decide the other pack *is* the book, set `STORYBOOK_THEME` to it
 and restart: that's the setting every reader who hasn't chosen will get.
-The colour-scheme toggle (dark/light/manuscript) stays separate and is
-each reader's own, *within* whichever pack they're looking at.
 
 **A pack also decides which colour schemes it offers.** The ranch has all
 three; orbit has two, because aged paper is the wrong world out there — its
