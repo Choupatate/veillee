@@ -6758,3 +6758,62 @@ Settings — and it says plainly that an existing install is untouched.
 answers, the child appearing in the cast with their birth date, the timeline
 under its new name, `/setup` then stepping aside to `/settings`, and the
 form prefilled with what had just been saved.
+
+---
+
+## F50 follow-up: the pictures a theme could not actually change
+
+> I do not see the different images within the text for all the themes,
+> how come?
+
+Three separate faults, found by reading what the browser fetched rather
+than what the code intended.
+
+**Two pictures were never reachable by a made pack at all.** main.css draws
+the divider between stories and the family tree's brand stamp through CSS
+variables — `--flourish-image` and `--brand-mark` — not through an `<img>`,
+so `theme_img()` never sees them. A pack with a hand-written `theme.css`
+(orbit) redeclares them; a made pack has no such file, and F50 never
+emitted them. Uploading `rope-divider.png` did nothing at all, silently.
+`render_stylesheet` now declares both when the pack has drawn them.
+
+**And then they still didn't appear**, which is the interesting part. A
+relative `url()` inside a custom property is resolved against the
+stylesheet that *uses* the property, not the one that declares it — so
+`url("img/rope-divider.png")`, declared in `/themes/<name>/theme.css` and
+used in `/static/css/main.css`, was fetched from
+`/static/css/img/rope-divider.png`. A 404 in the network log, the default
+pack's ornament still on screen, and nothing anywhere to explain it. The
+generated URLs are absolute now, and a test asserts they always will be,
+with the reason attached — it looks like a pointless detail otherwise.
+
+**Two catalogue entries asked for pictures nothing draws.** The family tree
+tiles its background, so `tree-map.jpg` and `tree-map-dark.jpg` — the
+un-tiled pair the tiling replaced — are referenced by no template, no
+stylesheet and no script. The sheet was asking someone to generate two
+pictures that would never be shown; it now asks for 35. They stay on disk
+(deleting committed artwork is a separate decision) behind a named
+constant, and a new test walks every catalogue entry and fails on any
+filename that appears in no template, stylesheet or script.
+
+A fourth thing turned up while checking: `brand-star.png` was described as
+"the mark beside the book's name". It isn't — it is stamped on the anchor
+person's card in the family tree, at 28 pixels. Someone would have drawn
+the wrong picture, and drawn it too detailed.
+
+Also removed: F50 mapped `--surface-texture` to the tree-map tile, which
+would have tiled the family tree's chart across every page of the book.
+A made pack has no page texture, which is the honest answer — the ranch's
+is an SVG filter and orbit's is a starfield in its own stylesheet, and
+neither is a catalogue asset.
+
+`pytest` (1348) and `ruff check .` green. Verified in Chromium by watching
+the network: before, `404 /static/css/img/rope-divider.png`; after,
+`200 /themes/ornaments/img/rope-divider.png`, with the used value on the
+element pointing at the pack's own file.
+
+Two of my own checks were wrong on the way here and are worth recording:
+the first probe fetched the URL relative to the *page* rather than letting
+CSS resolve it, and the second ran in a fresh browser context with no theme
+cookie, so it was measuring the default pack both times and would have
+reported success.

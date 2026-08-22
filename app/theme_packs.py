@@ -222,21 +222,40 @@ def save_pack(user_dir, name, *, label, description, scheme_colors) -> str:
     return name
 
 
+#: Pictures main.css reaches through a CSS variable rather than through an
+#: `<img>`, so a template's `theme_img()` never sees them. A pack that
+#: ships its own `theme.css` (orbit) redeclares these by hand; a made pack
+#: has no such file, so its stylesheet has to declare them or its own
+#: divider and brand mark are drawn and never shown.
+CSS_ASSETS = {
+    "rope-divider.png": "--flourish-image",
+    "brand-star.png": "--brand-mark",
+}
+
+
 def render_stylesheet(user_dir, name) -> str:
     """The pack's CSS, generated from its palette every time it is asked
     for rather than written to disk: one source of truth, and no stale
-    stylesheet to explain if a save is interrupted."""
+    stylesheet to explain if a save is interrupted.
+
+    The `url()`s are absolute, and that is not fussiness. These variables
+    are *declared* here but *used* in main.css, and a relative URL inside a
+    custom property is resolved against the stylesheet that uses it — so
+    `img/x.png` was fetched from `/static/css/img/x.png` and 404ed, leaving
+    the default pack's ornament on screen and no error anywhere to explain
+    why. An absolute path cannot be misresolved.
+    """
     manifest = read_pack(user_dir, name)
-    textures = {}
     drawn = drawn_assets(user_dir, name)
-    for scheme in manifest.get("schemes") or []:
-        tile = "tree-map-tile.jpg" if scheme != "dark" else "tree-map-tile-dark.jpg"
-        if tile in drawn:
-            textures[scheme] = f'url("img/{tile}")'
+    extra = {
+        variable: f'url("/themes/{name}/img/{filename}")'
+        for filename, variable in CSS_ASSETS.items()
+        if filename in drawn
+    }
     return palette_mod.render_css(
         manifest.get("palette") or {},
         manifest.get("schemes") or [],
-        textures=textures,
+        extra=extra,
         name=manifest.get("label") or name,
     )
 

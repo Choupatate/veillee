@@ -101,18 +101,14 @@ CATALOG = (
     Asset("tumbleweed.jpg", PLATE, "a quiet stretch with no new stories",
           "the sign of a long quiet: something drifting alone across an "
           "empty place. Gently funny, never a reproach.", 900, 488),
-    Asset("tree-map.jpg", TILE, "behind the family tree, on a pale page",
+    Asset("tree-map-tile.jpg", TILE, "behind the family tree, on a pale page",
           "the ground the family is drawn on: a faint chart or map, "
           "light-toned and busy with nothing in particular, since names sit "
-          "on top of it and must stay readable.", 900, 900),
-    Asset("tree-map-dark.jpg", TILE, "behind the family tree, on a dark page",
-          "the same ground as tree-map.jpg, remade dark: the identical "
-          "chart at night, still faint, names still readable on top.", 900, 900),
-    Asset("tree-map-tile.jpg", TILE, "the tiling version of tree-map.jpg",
-          "the same pale chart, but seamless — every edge must meet its "
-          "opposite so it repeats without a visible seam.", 1024, 1024),
-    Asset("tree-map-tile-dark.jpg", TILE, "the tiling version of tree-map-dark.jpg",
-          "the same dark chart, seamless in the same way.", 1024, 1024),
+          "on top of it and must stay readable. Seamless — every edge must "
+          "meet its opposite so it repeats without a visible seam.", 1024, 1024),
+    Asset("tree-map-tile-dark.jpg", TILE, "behind the family tree, on a dark page",
+          "the same chart remade dark, seamless in the same way: still "
+          "faint, names still readable on top of it.", 1024, 1024),
     Asset("rope-divider.png", ORNAMENT, "the line between sections",
           "a long horizontal ornament that divides two parts of a page — a "
           "cord, a band, a run of small marks. Much wider than it is tall, "
@@ -120,9 +116,10 @@ CATALOG = (
     Asset("lasso-ring.png", ORNAMENT, "the spinner, while something saves",
           "a closed loop, drawn so it still reads as a loop while it spins. "
           "Simple: it turns at small size.", 320, 320),
-    Asset("brand-star.png", ORNAMENT, "the mark beside the book's name",
-          "one small emblem for the whole book — the simplest shape in the "
-          "set, recognisable at the size of a full stop.", 240, 240),
+    Asset("brand-star.png", ORNAMENT, "stamped on the anchor card in the family tree",
+          "one small emblem for the whole book, drawn at the size of a "
+          "thumbnail on the corner of a card — the simplest shape in the "
+          "set, still recognisable at 28 pixels.", 240, 240),
     Asset("icon-new-story.png", ICON, "the + New story button",
           "writing something down: a writing tool over a surface.", 160, 160),
     Asset("icon-instant.png", ICON, "the + Instant button",
@@ -160,6 +157,14 @@ CATALOG = (
 )
 
 BY_FILENAME = {asset.filename: asset for asset in CATALOG}
+
+#: In the default pack, drawn for nothing. The family tree tiles its
+#: background, so the two un-tiled maps beside them are what the tiling
+#: replaced and nothing has referenced since. They stay on disk — deleting
+#: committed artwork is a separate decision — but they are deliberately not
+#: in the catalogue above: a sheet that asks someone to generate a picture
+#: nothing draws is asking them to waste an afternoon.
+UNUSED_IN_DEFAULT_PACK = frozenset({"tree-map.jpg", "tree-map-dark.jpg"})
 
 
 def aspect_words(asset: Asset) -> str:
