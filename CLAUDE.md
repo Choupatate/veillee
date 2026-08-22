@@ -26,8 +26,17 @@ Read these before making non-trivial changes, in this order:
   adding or placing any ranch illustration, and add finished assets to
   F17's table.
 - `IMAGE-PROMPTS-ORBIT.md` — the same thing for the *orbit* pack (F46),
-  whose artwork is still to be drawn. A house style belongs to one art
-  direction: never mix the two files' style rules.
+  most of whose icons are still to be drawn. A house style belongs to one
+  art direction: never mix the two files' style rules.
+
+  Both files are **hand-written prompts for one specific pack**, and are
+  the record of what was learned drawing it. `app/theme_catalog.py` (F50)
+  is the generic version the app generates for a pack a family makes: same
+  37 assets, described by the job each does rather than by what the ranch
+  or orbit draws for it. A rule learned in either markdown file — no
+  lettering, no corner watermark, a dark outline on icons, an object and
+  not a scene — belongs in the catalogue too, or the next person to make a
+  theme gets to rediscover it.
 
 When you finish a feature or fix worth documenting, add a section to
 `FEATURES.md` following the existing style rather than leaving it
@@ -157,6 +166,10 @@ Frontend:
   ancestor walks, chain validation), unit-tested directly under Node via
   `tests/js/tree_logic_test.mjs`. Keep new pure tree logic here rather than
   inline in `tree.js`, so it stays testable without a browser.
+- `app/static/js/theme-logic.js` — the scheme cycle and the press rules
+  behind F49's theme menu (a tap cycles, a hold opens it, and the click a
+  long press leaves behind must not also cycle). Pure, so those three
+  lines of decision are tested under Node rather than by hand.
 - `app/static/js/recorder-logic.js` + `wake-lock.js` — the voice
   recorder's survival kit (F47). Audio in a `MediaRecorder` exists only in
   the tab until it is stopped and uploaded, so a phone locking its screen
