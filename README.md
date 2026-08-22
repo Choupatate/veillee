@@ -8,13 +8,16 @@ Everything is stored as plain **markdown files and images on disk** — no datab
 If you delete the app entirely and keep the `stories/` folder, every story is still
 fully readable with nothing more than a file browser and a text editor.
 
-Three colour schemes are available from the toggle in the top-left corner: dark
-(the default), light, and manuscript — a warm, aged-paper look with a subtly
-grained texture (a self-contained inline SVG filter, no image assets or network
-requests) where the timeline, story, and editor each render as a page resting on
-a desk. The editor follows whichever one you pick: the writing surface is the
-theme's own paper, in the same serif the finished story page uses. The book's
-whole *art direction* is swappable too — see "Themes" below.
+A colour toggle sits in the top-left corner. Tapping it cycles the schemes
+the current theme offers — for the one the app ships with, that's dark (the
+default), light, and manuscript, a warm aged-paper look with a subtly grained
+texture (a self-contained inline SVG filter, no image assets or network
+requests) where the timeline, story, and editor each render as a page resting
+on a desk. The editor follows whichever one you pick: the writing surface is
+the theme's own paper, in the same serif the finished story page uses.
+*Holding* the same button opens a small panel with those schemes listed by
+name, a "System" option that follows your phone or computer again, and the
+book's whole *art direction*, which is swappable too — see "Themes" below.
 
 Next to the theme toggle, a **flame button** turns *firelight* off and on — a
 wash of warm light over the page whose brightness drifts up and down as if a
@@ -110,7 +113,7 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_AUTHORS` | Optional. Comma-separated `Name:#hexcolor` pairs for several narrators (see below). Unset by default. |
 | `STORYBOOK_BIRTHDATE` | Optional. The child's birth date (`YYYY-MM-DD`). Shows the child's age at each memory (see below). Unset by default. |
 | `STORYBOOK_LANGUAGE` | Optional. The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. Defaults to `en`. |
-| `STORYBOOK_THEME` | Optional. The book's art direction — a folder name under `app/static/themes/` (`ranch`, the default, or `orbit`). The default for every reader; each can pick another from the nav. See "Themes" below. |
+| `STORYBOOK_THEME` | Optional. The book's art direction — the name of a pack, either one that ships with the app (`ranch`, the default, or `orbit`) or one your family made, which lives in the stories folder. The default for every reader; each can pick another from the nav. See "Themes" below. |
 | `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` (English) / `La Veillée` (French), depending on the visitor's language. |
 | `STORYBOOK_CHILD` | Optional. The slug of the person page the family tree's kinship labels are computed relative to (see below). Unset by default. |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
@@ -917,7 +920,10 @@ rather than risk silently overwriting newer edits.
 
 People are the exception to that strictness, because they are not memories:
 anyone in the zip whose folder is already here is skipped (the living one is
-the newer truth) and the rest are restored alongside the stories. Their
+the newer truth) and the rest are restored alongside the stories. A theme
+your family made comes back the same way, for the same reason — someone
+described a world and generated pictures for it, so it is content, not
+state; one already here is left alone rather than overwritten. Their
 **logins are never restored** — a zip is a portable file, and restoring one
 taken from another book would otherwise install its accounts, admins
 included, into yours. After a disaster recovery an admin re-issues
@@ -1003,11 +1009,14 @@ kept, only the re-encoded copy.
 
 ## Ideas for later
 
-Out of scope for v1, deliberately: multi-user accounts, comments/reactions,
-search, tags, RSS, email, video, encryption at rest, i18n, offline support
-(no service worker — see "Home-screen install" above), and story deletion.
-If any of these become worth doing, they belong here first, not as a
-surprise addition.
+Out of scope, deliberately: comments/reactions, RSS, email, video,
+encryption at rest, offline support (no service worker — see "Home-screen
+install" above), and story deletion. If any of these become worth doing,
+they belong here first, not as a surprise addition.
 
-(PDF/print export, a photo lightbox, and home-screen install were originally
-listed here too; they shipped as the book view, F7, and F9 — see above.)
+Several things that were on this list have since shipped, and are described
+above rather than here: PDF/print export (the book view), the photo
+lightbox (F7), home-screen install (F9), multi-user accounts (F19, still
+optional and off by default), search and tags, and a translated interface
+(F38). The list is what the app has decided against, not what it hasn't got
+round to.

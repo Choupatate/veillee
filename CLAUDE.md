@@ -61,11 +61,13 @@ undocumented.
   phone. Check narrow viewports, not just desktop, for any UI change.
 - **Book, not blog.** No feeds, reactions, comment sections, or engagement
   mechanics. Restraint and typography over features.
-- Deliberately out of scope (see README's "Ideas for later"): multi-user
-  accounts, comments/reactions, search, tags, RSS, email, video, encryption
-  at rest, i18n, offline support/service worker, story deletion. Don't add
-  these speculatively — if one becomes worth doing, it belongs in a
-  discussion first, not a surprise PR.
+- Deliberately out of scope (see README's "Ideas for later"):
+  comments/reactions, RSS, email, video, encryption at rest, offline
+  support/service worker, story deletion. Don't add these speculatively —
+  if one becomes worth doing, it belongs in a discussion first, not a
+  surprise PR. **This list shrinks**: accounts (F19), search and tags, and
+  a translated interface (F38) were all on it once and have shipped, so
+  check the code before believing anything here is absent.
 
 ## Architecture
 
@@ -92,6 +94,22 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   `people.py` Person the same way `life_events.py` is, storing their own
   JSON sidecar files (`account.json`/`write_links.json`) next to a
   person's `index.md`.
+- `app/groups.py` / `app/invites.py` — audience scoping (F40) and account
+  invitations (F19). **Read `groups.py` before touching anything that
+  lists stories.** A story can name an audience, and `can_see` is what
+  keeps it from everyone else; page routes must reach the list through
+  `routes_pages._visible_stories()` rather than `storage.list_stories`,
+  and `tests/test_groups.py` walks the route files to make sure none of
+  them does. Kinship to a group is recomputed per request from
+  `groups.json`, never trusted from the client.
+- `app/i18n.py` / `app/translations_fr.py` — the interface in English and
+  French (F38), hand-rolled: one dictionary keyed by the English source
+  string, no gettext toolchain and no build step. `JS_STRINGS` is the
+  subset the browser gets as a JSON blob. A test walks every template and
+  fails on an interface string with no translation, so adding a `_("...")`
+  means adding a French line in the same commit.
+- `app/throttle.py` — the per-IP login lockout (10 failures / 15 minutes),
+  in memory and deliberately not persisted.
 - `app/dates.py`, `app/prompts.py`, `app/rendering.py`, `app/epub.py` — age-
   label computation, the writing-prompts list, markdown-to-HTML rendering,
   and EPUB export, respectively.
@@ -141,9 +159,11 @@ code actually lives in — see each file's module docstring for specifics):
   accounts when `STORYBOOK_ACCOUNTS=1`). `login_required` decorator gates
   every page and API route except `/manifest.webmanifest` (must stay
   public for home-screen install) and `/login` itself.
-- `app/routes_pages.py` (+ `routes_accounts.py`, `routes_people.py`) — HTML
-  page routes (Blueprint `pages`): timeline/story/book/firsts/growth/
-  almanac pages, account management, the family tree and person pages.
+- `app/routes_pages.py` (+ `routes_accounts.py`, `routes_people.py`,
+  `routes_groups.py`, `routes_themes.py`) — HTML page routes (Blueprint
+  `pages`): timeline/story/book/firsts/growth/almanac pages, account
+  management, the family tree and person pages, audience groups, and the
+  theme-making pages (F50, behind `admin_required_in_accounts_mode`).
 - `app/routes_api.py` (+ `routes_api_people.py`) — JSON API routes
   (Blueprint `api`, under `/api`), consumed by the editor and tree JS.
   Every mutating endpoint validates its inputs explicitly (see the
@@ -234,9 +254,9 @@ the app refuses to start without one once `STORYBOOK_PASSWORD` is set. See
 ## Testing
 
 ```bash
-pytest              # full suite: Python tests + two JS test files run via subprocess
-node tests/js/tree_logic_test.mjs     # pure-function tree logic tests directly
-node tests/js/safe_storage_test.mjs   # localStorage wrapper tests directly
+pytest              # full suite: Python tests + every tests/js/*.mjs file,
+                    # each run via subprocess by test_tree_logic_js.py
+node tests/js/tree_logic_test.mjs     # or run one directly, without pytest
 ```
 
 - Python tests live in `tests/*.py`, one file per feature area; `conftest.py`
