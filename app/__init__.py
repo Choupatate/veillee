@@ -9,7 +9,7 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from . import themes
+from . import settings, themes
 from .throttle import DEFAULT_LIMIT, DEFAULT_WINDOW_SECONDS, FailureThrottle
 
 MAX_CONTENT_LENGTH = 128 * 1024 * 1024
@@ -185,13 +185,17 @@ def create_app(test_config=None):
         g.lang = i18n.pick_language(
             request.cookies.get(i18n.COOKIE_NAME),
             request.headers.get("Accept-Language"),
-            app.config.get("DEFAULT_LANGUAGE"),
+            settings.book("DEFAULT_LANGUAGE"),
         )
+        # F51: what the family has set from inside the book, over the top
+        # of what the server was started with. Once per request, so a save
+        # takes effect immediately and no render reads the file twice.
+        g.book = settings.effective(app.config, app.config["STORIES_DIR"])
         # F48: the book's pack, unless this browser asked for another one.
         # F50: which may be one the family made, living in the data folder.
         g.theme = themes.pick_theme(
             request.cookies.get(themes.COOKIE_NAME),
-            app.config["THEME"],
+            settings.book("THEME"),
             themes.user_themes_dir(app.config["STORIES_DIR"]),
         )
 
@@ -201,7 +205,7 @@ def create_app(test_config=None):
     def current_theme():
         # `g` is unset for anything rendered outside a request (and before
         # before_request has run), where the book's own pack is the answer.
-        return getattr(g, "theme", None) or app.config["THEME"]
+        return getattr(g, "theme", None) or settings.book("THEME") or app.config["THEME"]
 
     def user_themes_dir():
         return themes.user_themes_dir(app.config["STORIES_DIR"])
@@ -258,7 +262,7 @@ def create_app(test_config=None):
         # e.g. "Le livre de Milo", isn't ours to translate); absent that,
         # the app's own default name follows the reader's language too.
         return {
-            "app_title": app.config["TITLE"] or i18n._("Storybook"),
+            "app_title": settings.book("TITLE") or i18n._("Storybook"),
             # None for the default pack, whose colours are main.css's own.
             "theme_stylesheet": themes.stylesheet_url_path(current_theme()),
             # F50: a made pack has no stylesheet on disk — its colours are

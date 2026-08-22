@@ -108,6 +108,17 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   subset the browser gets as a JSON blob. A test walks every template and
   fails on an interface string with no translation, so adding a `_("...")`
   means adding a French line in the same commit.
+- `app/settings.py` — the book's own settings (F51): title, birth date,
+  the tree's child, narrators, language and theme, in `settings.json` in
+  the stories folder. **Read every config value a family can change
+  through `settings.book("KEY")`, never `current_app.config["KEY"]`** —
+  the former is resolved per request from the file with the environment
+  behind it, so a change takes effect without a restart. The environment
+  is the default and the app's value wins. `is_configured()` decides
+  whether the setup wizard runs, and treats **a book with stories in it as
+  already set up** whether or not the file exists: an install upgrading
+  into this feature must never be asked to configure a book it has been
+  writing in for a year.
 - `app/throttle.py` — the per-IP login lockout (10 failures / 15 minutes),
   in memory and deliberately not persisted.
 - `app/dates.py`, `app/prompts.py`, `app/rendering.py`, `app/epub.py` — age-
@@ -160,10 +171,12 @@ code actually lives in — see each file's module docstring for specifics):
   every page and API route except `/manifest.webmanifest` (must stay
   public for home-screen install) and `/login` itself.
 - `app/routes_pages.py` (+ `routes_accounts.py`, `routes_people.py`,
-  `routes_groups.py`, `routes_themes.py`) — HTML page routes (Blueprint
-  `pages`): timeline/story/book/firsts/growth/almanac pages, account
-  management, the family tree and person pages, audience groups, and the
-  theme-making pages (F50, behind `admin_required_in_accounts_mode`).
+  `routes_groups.py`, `routes_settings.py`, `routes_themes.py`) — HTML
+  page routes (Blueprint `pages`): timeline/story/book/firsts/growth/
+  almanac pages, account management, the family tree and person pages,
+  audience groups, the first-run wizard and Settings (F51), and the
+  theme-making pages (F50) — the last two behind
+  `admin_required_in_accounts_mode`.
 - `app/routes_api.py` (+ `routes_api_people.py`) — JSON API routes
   (Blueprint `api`, under `/api`), consumed by the editor and tree JS.
   Every mutating endpoint validates its inputs explicitly (see the

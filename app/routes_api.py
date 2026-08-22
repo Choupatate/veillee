@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, current_app, jsonify, request, session
 
-from . import groups, people, storage
+from . import groups, people, settings, storage
 from .auth import admin_required_in_accounts_mode, login_required
 
 bp = Blueprint("api", __name__, url_prefix="/api")
@@ -56,7 +56,7 @@ def _validate_author(data):
     """
     if current_app.config.get("ACCOUNTS_ENABLED"):
         return None, None
-    configured = current_app.config.get("AUTHORS") or []
+    configured = settings.book("AUTHORS") or []
     if not configured:
         return None, None
     author = data.get("author")

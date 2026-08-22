@@ -26,6 +26,26 @@ same colour, while the firelight is on, and small and grey once it's off. It's
 on by default, off for anyone whose system asks for reduced motion, and the
 choice is remembered per browser.
 
+### What you actually have to set up
+
+Two things, once: a **password** and a **secret key**, in a `.env` file
+(or as environment variables in Docker). That is the whole technical
+setup.
+
+Everything else about the book happens **in the browser**. The first time
+you log in, the app asks you four questions — what the book is called, who
+it's for, when they were born, who writes in it — and then gets out of the
+way. After that, the family runs it from the pages themselves: adding
+people, drawing the family tree, making accounts and inviting relatives,
+grouping who can read what, making a theme, taking backups. There is no
+config file to come back to, and nothing here needs a restart.
+
+Already running an older version? **Nothing changes and nothing is asked
+of you.** A book with stories in it counts as already set up; your existing
+environment variables keep working exactly as they did, and the new
+Settings page simply shows them, should you ever want to change one without
+editing a file.
+
 See `PLAN.md` for the full design specification this app was built from, and
 `REVIEW.md` for the production-readiness review it was subsequently audited
 against.
@@ -101,7 +121,17 @@ Container Manager's project at this repo folder. Adjust the host path in
 
 ### Configuration
 
-All configuration is via environment variables — see `.env.example`:
+**Most of this is optional, and the second table is settable in the app.**
+The first table describes the *machine* — where files live, what the
+password is, whether a proxy sits in front — and those can only come from
+the environment, since the app needs them before it can serve a page.
+
+The second describes the *book*, and can be set from **Settings** in the
+nav (or the first-run questions) by whoever administers it. Setting one
+there overrides the variable and takes effect immediately; the variables
+stay supported, and are what a fresh install starts from.
+
+See `.env.example`:
 
 | Variable | Purpose |
 |---|---|
@@ -110,14 +140,19 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_SECRET_KEY` | Flask session-signing secret. Required whenever `STORYBOOK_PASSWORD` is set — the app refuses to start otherwise. |
 | `STORYBOOK_COOKIE_SECURE` | Set to `1` when serving over HTTPS to mark the session cookie `Secure` and send an HSTS header. Default off, for local/LAN HTTP use. |
 | `STORYBOOK_TRUSTED_PROXIES` | How many reverse proxies sit in front of the app (default `0`). Set to `1` behind nginx/Caddy/a NAS reverse proxy so the login lockout sees each visitor's real IP. See "Opening it to the internet". |
-| `STORYBOOK_AUTHORS` | Optional. Comma-separated `Name:#hexcolor` pairs for several narrators (see below). Unset by default. |
-| `STORYBOOK_BIRTHDATE` | Optional. The child's birth date (`YYYY-MM-DD`). Shows the child's age at each memory (see below). Unset by default. |
-| `STORYBOOK_LANGUAGE` | Optional. The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. Defaults to `en`. |
-| `STORYBOOK_THEME` | Optional. The book's art direction — the name of a pack, either one that ships with the app (`ranch`, the default, or `orbit`) or one your family made, which lives in the stories folder. The default for every reader; each can pick another from the nav. See "Themes" below. |
-| `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` (English) / `La Veillée` (French), depending on the visitor's language. |
-| `STORYBOOK_CHILD` | Optional. The slug of the person page the family tree's kinship labels are computed relative to (see below). Unset by default. |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
 | `STORYBOOK_OPEN_REQUESTS` | Optional. Set to `1` to let someone request an account without knowing the invite code, waiting for an admin instead (see below). Requires `STORYBOOK_ACCOUNTS=1`. Unset by default. |
+
+And the book's own, all optional, all changeable later from **Settings**:
+
+| Variable | In Settings as | Purpose |
+|---|---|---|
+| `STORYBOOK_TITLE` | Name of the book | The display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` / `La Veillée`, following the reader's language. |
+| `STORYBOOK_BIRTHDATE` | Birth date | The child's birth date (`YYYY-MM-DD`). Shows their age at each memory, and turns on the Growing up page. |
+| `STORYBOOK_CHILD` | The book is about | The person the family tree's kinship words ("aunt", "cousin") are worked out relative to. |
+| `STORYBOOK_AUTHORS` | Narrators | `Name:#hexcolor` pairs for several narrators. In Settings, one `Name #hexcolor` per line. |
+| `STORYBOOK_LANGUAGE` | Language | The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. |
+| `STORYBOOK_THEME` | Theme | The book's art direction — a pack that ships with the app (`ranch`, `orbit`) or one your family made. Each reader can still pick another for their own screen. See "Themes". |
 
 ### Family accounts (optional, off by default)
 

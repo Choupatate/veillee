@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Settings") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+{% set value = form.get if form else current.get %}
+{% block content %}
+<div class="admin">
+  <p class="admin__back"><a href="{{ url_for('pages.timeline') }}">&lsaquo; {{ _("Timeline") }}</a></p>
+  <h1 class="admin__title">{{ _("Settings") }}</h1>
+  <p class="admin__hint">
+    {{ _("Everything about the book itself. Changes apply straight away — nothing here needs a restart.") }}
+    {{ _("These are kept in settings.json in your stories folder, so they travel with your backup.") }}
+  </p>
+
+  <form class="theme-form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Name of the book") }}</span>
+      <input type="text" name="title" maxlength="60" value="{{ value('title') or '' }}">
+    </label>
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Birth date") }}</span>
+      <input type="date" name="birthdate" value="{{ value('birthdate') or '' }}">
+      <span class="theme-form__note">{{ _("Shows the child's age at each memory, and turns on the Growing up page.") }}</span>
+    </label>
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("The book is about") }}</span>
+      <select name="child">
+        <option value="">{{ _("Nobody in particular") }}</option>
+        {% for person in people %}
+        <option value="{{ person.slug }}" {% if value('child') == person.slug %}selected{% endif %}>{{ person.name }}</option>
+        {% endfor %}
+      </select>
+      <span class="theme-form__note">{{ _("Family-tree words like “aunt” and “cousin” are worked out relative to this person.") }}</span>
+    </label>
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Narrators") }}</span>
+      <textarea name="authors" rows="4" placeholder="Papa #d9a441">{{ value('authors') or '' }}</textarea>
+      <span class="theme-form__note">{{ _("One name and colour per line.") }}</span>
+    </label>
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Language") }}</span>
+      <select name="language">
+        <option value="">{{ _("Follow each reader's browser") }}</option>
+        {% for code, meta in languages.items() %}
+        <option value="{{ code }}" {% if value('language') == code %}selected{% endif %}>{{ meta.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Theme") }}</span>
+      <select name="theme">
+        <option value="">{{ _("The one the app came with") }}</option>
+        {% for pack in themes %}
+        <option value="{{ pack.name }}" {% if value('theme') == pack.name %}selected{% endif %}>{{ pack.label }}</option>
+        {% endfor %}
+      </select>
+      <span class="theme-form__note">
+        {{ _("The book's own look. Each reader can still choose another for their own screen.") }}
+        <a href="{{ url_for('pages.themes_page') }}">{{ _("Make a theme") }}</a>
+      </span>
+    </label>
+
+    <div class="theme-form__actions">
+      <button type="submit" class="btn btn--primary">{{ _("Save") }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

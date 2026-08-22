@@ -87,6 +87,9 @@ the exact `F<N>.` heading text to jump to it.
 - **F50** — Making a theme from inside the book: describe a world, get a
   prompt for each of its thirty-seven pictures, and bring them back one at
   a time
+- **F51** — Setting the book up from inside it: four questions on a fresh
+  install, a Settings page forever after, and nothing asked of a book that
+  already exists
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -6617,3 +6620,106 @@ the usual floor). It is saved either way." It is someone's book; a
 deliberate choice is allowed, but it should be a choice and not a surprise.
 
 `pytest` (1315) and `ruff check .` green.
+
+
+## F51. Setting the book up from inside the book
+
+A product observation rather than a bug report:
+
+> everything can be set up directly from the web interface for the first
+> setup [...] we're targeting people that are not experts and that are
+> basically interested in something simple to set up. So maybe the README
+> is not assessing this.
+
+Checking it first was the right move, because it wasn't true. **None** of
+the thirteen `STORYBOOK_*` variables could be changed from the app; there
+was no settings page and no first run. What *was* already browser-run was
+the content and the people — accounts (the first request auto-approves as
+admin), invites, roles, the cast, the tree, groups, themes, backups — which
+is a lot, and is where the impression came from.
+
+The gap was specific: six values that describe **the family** were living
+in a dotfile. What the book is called. Whose childhood it is. Who writes in
+it. Asking a parent to edit `.env` and restart a container to rename their
+own book is asking the wrong person.
+
+### The split, and which side each thing is on
+
+- **The machine stays in the environment**: `STORYBOOK_PASSWORD`,
+  `SECRET_KEY`, `STORIES_DIR`, `COOKIE_SECURE`, `TRUSTED_PROXIES`,
+  `ACCOUNTS`, `OPEN_REQUESTS`. The app needs these before it can serve a
+  page, and two of them decide whether it serves one at all.
+- **The book moves into `settings.json`**, in the stories folder beside
+  `groups.json`: title, birth date, the tree's child, narrators, language,
+  theme. In the data folder, so it is inside the backup and readable long
+  after this app is gone.
+
+**The environment is the default; the app wins.** A variable is what a
+fresh install starts from, and anything set inside the book overrides it
+from the very next request — no restart. The person pressing Save is making
+the more recent decision, and a setting that silently reverted to a
+variable they have never seen would be indefensible. A key present but
+*empty* means "no value", not "fall back": someone clearing the title wants
+the app's own name back, not the environment's leftover.
+
+Mechanically it is one accessor. `settings.book("BIRTHDATE")` replaced
+nineteen `current_app.config[...]` reads across four route files, resolved
+once per request into `g` by `before_request`. Anything added later that
+reaches for the config directly will silently ignore what the family set,
+which is why `CLAUDE.md` now says so.
+
+### The wizard, and the thing it must not do
+
+A fresh book sends whoever can configure it to `/setup` — four questions,
+none required, all changeable later, with a "Not now" that counts as an
+answer (a wizard you can dismiss but not finish becomes a banner that
+follows a family around forever). Answering it writes the settings and,
+if the book is *for* someone, creates them as the first person in the cast
+with their birthday already on it, and points the family tree at them.
+
+Then the user asked the question that mattered most:
+
+> please make sure that the thing does not require a setup if I already
+> have something existing [...] I believe that it would be a bit
+> problematic if I'm to reset up
+
+It did not, and my reasoning had not covered it. An install predating this
+feature has no `settings.json`, so it was "unconfigured" — a family who had
+been writing for a year would have been met by a setup wizard for a book
+that plainly already exists. And worse than the insult: the form showed
+empty fields, so pressing Save would have written empties over the title
+and birth date their environment variables were supplying.
+
+Both fixed, and both pinned by tests:
+
+- **A book with stories in it is already set up**, settings file or not.
+  Stories rather than people, deliberately: in accounts mode the first
+  account creates a Person before a single story exists, so people would
+  make every new book look like an old one.
+- **Both forms prefill from what is in force**, environment included, so a
+  save can only ever write back what the book was already doing.
+
+`tests/test_setup.py` (17) leads with that case rather than with the happy
+path: a book with stories is never redirected, the wizard steps aside on
+one, an upgraded book keeps working from its environment with no file
+written, Settings prefills from it, and saving that prefilled form keeps
+what was there.
+
+The test fixtures gained one line — `stories_dir` now marks itself set up —
+because every existing test is about a configured book. Two tests had to
+say what they meant instead of what they assumed: one counted directory
+entries where it meant story folders, and one built its own app on a bare
+tmp_path.
+
+### The README, which is what was actually asked about
+
+It now opens with what there is to do: two values in a file, and everything
+else in the browser. The configuration section is two tables — the machine,
+and the book, the second one annotated with where each value lives in
+Settings — and it says plainly that an existing install is untouched.
+
+`pytest` (1332) and `ruff check .` green. Driven by hand in Chromium at
+390px: a fresh install landing on the wizard straight after login, four
+answers, the child appearing in the cast with their birth date, the timeline
+under its new name, `/setup` then stepping aside to `/settings`, and the
+form prefilled with what had just been saved.
