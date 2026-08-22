@@ -173,11 +173,15 @@ def aspect_words(asset: Asset) -> str:
 #: Said on every prompt because a generator forgets between images. Each
 #: line is a mistake this project actually had to undo by hand.
 PLATE_RULES = (
-    "No lettering, numbers, words or signature anywhere in the image.",
+    "No lettering, numbers, words or signature anywhere in the image. If "
+    "this style would normally carry signs or writing, suggest them as "
+    "abstract glowing marks only — nothing readable.",
     "No watermark, logo or sparkle in any corner.",
     "No paper border, mount or frame around the picture — the app draws "
     "its own.",
-    "One subject, centred, with room around it.",
+    "The same picture is shown on both the dark and the pale version of "
+    "the page, so its own background should be a mid tone from the "
+    "palette — not pure black, not white.",
 )
 
 ICON_RULES = (
@@ -187,8 +191,8 @@ ICON_RULES = (
     "Outline every shape in a dark colour, about a tenth of the icon's "
     "width — without it an icon vanishes on either the light or the dark "
     "page, whichever it matches.",
-    "Two or three colours at most, flat, no gradients.",
-    "Plain mid-grey background, no shadow — the background is cut away.",
+    "Two or three colours at most, flat, no gradients, no glow and no "
+    "shadow — the background is cut away, and a glow is cut away with it.",
 )
 
 TILE_RULES = (
@@ -198,6 +202,62 @@ TILE_RULES = (
     "have to stay readable.",
     "No lettering, no watermark, no border.",
 )
+
+
+#: The line that keeps thirty-seven pictures a *set* rather than a gallery.
+#: A style described as a place — "a neon-lit night city", "a misty forest"
+#: — pulls a generator toward drawing that place, and what comes back is a
+#: wallpaper with the subject somewhere in it. These are small pictures on
+#: a page, and each one is an object, not a view.
+COMPOSITION = (
+    "Composition: one single object, centred, on a plain and almost empty "
+    "background of one flat colour. This is an object drawn in that world, "
+    "not a view of the world: no street, no landscape, no room, no crowd, "
+    "no blurred depth behind it."
+)
+
+ICON_COMPOSITION = (
+    "Composition: one flat symbol, centred, filling most of the square, on "
+    "a plain mid-grey background."
+)
+
+
+def palette_line(palette: dict | None) -> str:
+    """The pack's own colours, named in every prompt.
+
+    The app already knows exactly which hexes this theme is built from, and
+    a generator left to pick its own "cyan" picks a different one each
+    time. Naming them is most of what makes a set of thirty-seven separate
+    drawings look like one book.
+    """
+    if not isinstance(palette, dict):
+        return ""
+    schemes = [s for s in ("dark", "light", "manuscript")
+               if isinstance(palette.get(s), dict)]
+    if not schemes:
+        return ""
+
+    # One background only. The first scheme's three colours are the pack's
+    # own; the other schemes contribute their accents and nothing else,
+    # because a prompt naming two backgrounds is a prompt naming none.
+    first = palette[schemes[0]]
+    named = []
+    for key, role in (("bg", "deep background"), ("text", "line and light"),
+                      ("accent", "accent")):
+        value = (first.get(key) or "").strip().lower()
+        if value:
+            named.append(f"{value} ({role})")
+    for scheme in schemes[1:]:
+        value = (palette[scheme].get("accent") or "").strip().lower()
+        if value and not any(value in entry for entry in named):
+            named.append(f"{value} (a second accent)")
+    if not named:
+        return ""
+    return (
+        "Palette: keep to these colours and their tints and shades — "
+        + ", ".join(named[:5])
+        + ". Nothing outside them."
+    )
 
 
 def rules_for(asset: Asset) -> tuple:
@@ -210,14 +270,26 @@ def rules_for(asset: Asset) -> tuple:
     return PLATE_RULES
 
 
-def prompt_for(asset: Asset, description: str) -> str:
-    """One copy-and-paste prompt: the world someone described, the job this
-    picture does in it, and the rules that keep what comes back usable."""
+def prompt_for(asset: Asset, description: str, palette: dict | None = None) -> str:
+    """One copy-and-paste prompt.
+
+    Five parts, in the order a generator weights them: the world someone
+    described, the colours it is actually built from, what this particular
+    picture has to show, how it must be framed, and the short list of
+    things that make what comes back unusable here.
+    """
     world = (description or "").strip() or "A simple, warm, hand-drawn style."
-    lines = [
-        f"Draw one picture in this style: {world}",
+    lines = [f"Draw one picture for a storybook, in this style: {world}"]
+
+    colours = palette_line(palette)
+    if colours:
+        lines += ["", colours]
+
+    lines += [
         "",
         f"Subject: {asset.subject}",
+        "",
+        ICON_COMPOSITION if asset.kind in (ICON, ORNAMENT) else COMPOSITION,
         "",
     ]
     lines += [f"- {rule}" for rule in rules_for(asset)]

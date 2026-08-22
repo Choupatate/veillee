@@ -10,6 +10,11 @@
   </p>
   <p class="admin__hint">
     {{ _("Copy a prompt, paste it into an image generator in another window, then bring the picture back here. Ask for one picture at a time: the wording repeats the rules every time because a generator forgets them between images.") }}
+  </p>
+  <p class="admin__hint">
+    {# Cheaper to learn on one picture than on thirty-seven. #}
+    <strong>{{ _("Do the first one, look at it, and only then do the rest.") }}</strong>
+    {{ _("If it comes back as a scene rather than a single object, or in colours you didn't choose, the description is what to change — not the picture.") }}
     <a href="{{ url_for('pages.edit_theme', theme=theme) }}">{{ _("Change the description") }}</a>
   </p>
 

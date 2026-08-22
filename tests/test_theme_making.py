@@ -338,3 +338,129 @@ def test_a_restored_theme_never_overwrites_one_of_the_same_name(stories_dir, use
     buf.seek(0)
     storage.import_backup(stories_dir, buf)
     assert (user_dir / made / "theme.json").read_text() == before
+
+
+# --- what a strongly-styled world needs from a prompt (F50 follow-up) ---------
+
+
+CYBERPUNK = {
+    "dark": {"bg": "#050508", "text": "#e8faff", "accent": "#fcee0a"},
+    "light": {"bg": "#d8e6f0", "text": "#0a1420", "accent": "#00a8b5"},
+}
+
+
+def test_a_prompt_names_the_packs_own_colours():
+    """A generator left to pick its own "cyan" picks a different one every
+    time, which is most of why a set of thirty-seven drifts apart."""
+    prompt = theme_catalog.prompt_for(
+        theme_catalog.BY_FILENAME["empty-chest.jpg"], "Neon and chrome.", CYBERPUNK
+    )
+    assert "#050508" in prompt
+    assert "#fcee0a" in prompt
+    assert "Nothing outside them" in prompt
+
+
+def test_a_prompt_names_one_background_not_one_per_scheme():
+    """Two backgrounds in one prompt is no background at all."""
+    line = theme_catalog.palette_line(CYBERPUNK)
+    assert line.count("background") == 1
+    # The other scheme still contributes its accent.
+    assert "#00a8b5" in line
+
+
+def test_a_pack_with_no_palette_yet_still_gets_a_usable_prompt():
+    for palette_arg in (None, {}, {"dark": "not a palette"}):
+        prompt = theme_catalog.prompt_for(theme_catalog.CATALOG[0], "x", palette_arg)
+        assert "Palette:" not in prompt
+        assert "Subject:" in prompt
+
+
+def test_a_plate_prompt_forbids_a_scene():
+    """The failure a style described as a place produces: thirty-seven
+    views of that place with the subject lost inside each one."""
+    prompt = theme_catalog.prompt_for(
+        theme_catalog.BY_FILENAME["empty-chest.jpg"], "A neon city at night.", CYBERPUNK
+    )
+    assert "not a view of the world" in prompt
+    for absent in ("street", "landscape", "crowd"):
+        assert absent in prompt
+
+
+def test_a_style_built_on_signage_is_given_a_legal_way_to_keep_it():
+    """"No lettering" against a genre made of neon signs is a rule that
+    gets ignored; this gives the generator somewhere to go instead."""
+    prompt = theme_catalog.prompt_for(
+        theme_catalog.BY_FILENAME["help-lantern.jpg"], "Neon signs everywhere.", CYBERPUNK
+    )
+    assert "abstract glowing marks" in prompt
+    assert "nothing readable" in prompt
+
+
+def test_a_plate_is_told_it_hangs_on_both_schemes():
+    prompt = theme_catalog.prompt_for(theme_catalog.CATALOG[0], "x", CYBERPUNK)
+    assert "both the dark and the pale version" in prompt
+
+
+def test_an_icon_prompt_forbids_the_glow_that_defeats_the_cutout():
+    """A glow is a gradient, and a gradient is what stops the flood fill —
+    it comes back as a halo or a box around the icon."""
+    prompt = theme_catalog.prompt_for(theme_catalog.BY_FILENAME["icon-save.png"], "Neon.")
+    assert "no glow" in prompt
+    assert "mid-grey background" in prompt
+
+
+# --- derivations that survive a saturated palette -----------------------------
+
+
+def test_a_neon_text_colour_still_leaves_a_readable_dimmed_one():
+    """Mixing a saturated text colour toward the background is what a
+    plain mix does and what makes it unreadable; the contrast floor is the
+    constraint that matters."""
+    derived = palette.derive({"bg": "#0d0221", "text": "#ff2a6d", "accent": "#05d9e8"})
+    ratio = palette.contrast(
+        palette.parse_hex(derived["--color-text-dim"]), palette.parse_hex("#0d0221")
+    )
+    assert ratio >= palette.DIM_FLOOR - 0.1
+
+
+def test_a_border_is_pushed_until_it_is_visible():
+    derived = palette.derive({"bg": "#0d0221", "text": "#ff2a6d", "accent": "#05d9e8"})
+    ratio = palette.contrast(
+        palette.parse_hex(derived["--color-border"]), palette.parse_hex("#0d0221")
+    )
+    assert ratio >= palette.EDGE_FLOOR - 0.1
+
+
+def test_an_ordinary_palette_is_left_where_it_was():
+    """The floors are a rescue for saturated colours, not a redesign of
+    the books that were already fine."""
+    derived = palette.derive(DARK)
+    assert derived["--color-text-dim"] == palette.to_hex(
+        palette.mix(palette.parse_hex(DARK["text"]), palette.parse_hex(DARK["bg"]), 0.42)
+    )
+
+
+def test_two_colours_nobody_could_tell_apart_are_reported_not_silently_kept():
+    """No derivation can rescue a text colour that is invisible on its own
+    background, so the app says so instead of pretending."""
+    warnings = theme_packs.palette_warnings(
+        {"dark": {"bg": "#2b2f1f", "text": "#4a5236", "accent": "#a8b56b"}}
+    )
+    assert len(warnings) == 1
+    assert "hard to read" in warnings[0]
+    assert "saved either way" in warnings[0]
+
+
+def test_a_readable_palette_is_not_nagged_about():
+    assert theme_packs.palette_warnings({"dark": DARK, "light": LIGHT}) == []
+
+
+def test_the_warning_does_not_stop_the_save(auth_client):
+    resp = auth_client.post("/themes/new", data={
+        "label": "Olive", "description": "", "schemes": ["dark"],
+        "dark-bg": "#2b2f1f", "dark-text": "#4a5236", "dark-accent": "#a8b56b",
+    }, follow_redirects=True)
+    assert resp.status_code == 200
+    assert "hard to read" in resp.data.decode()
+    user_dir = themes.user_themes_dir(auth_client.application.config["STORIES_DIR"])
+    assert "olive" in themes.available_themes(user_dir)

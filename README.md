@@ -800,7 +800,12 @@ whoever has the password). Then:
 1. **Name it and describe the world** in a sentence or two — *"a Japanese
    woodblock print world: indigo, rust and off-white paper, strong
    outlines, flat colour, soft mist"*. That description is what keeps
-   thirty-seven separate drawings looking like one book.
+   thirty-seven separate drawings looking like one book. **Describe a way
+   of drawing, not a place**: what it's drawn with, how it's lit, what the
+   lines are like. A world named as a setting — *"a neon city at night"* —
+   makes a generator draw the setting instead of the thing you asked for,
+   thirty-seven times. Your palette's hex codes are added to every prompt
+   automatically, so you don't need to name colours here.
 2. **Pick three colours per scheme** — a background, a text colour, an
    accent — and tick only the schemes your world actually has. The app
    derives the other dozen variables from those three.
@@ -815,7 +820,9 @@ whoever has the password). Then:
 
 Uploads are re-encoded, resized and — for icons — cut out of their
 background automatically, so what a generator hands you is usually usable
-as-is.
+as-is. **Do the first picture, look at it, then do the rest**: if it comes
+back as a scene rather than a single object, or in colours you didn't
+choose, the description is what to change.
 
 **A theme you make lives in your data folder** (`stories/themes/<name>/`),
 not in the app: an update can't delete it, and it travels in the backup zip

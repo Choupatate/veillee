@@ -6550,3 +6550,70 @@ made pack's icon on the editor and its campfire on the login page **while
 logged out**, which is the public-route requirement doing its job.
 
 `pytest` (1302) and `ruff check .` green.
+
+### Follow-up: what the first real theme taught
+
+> to be honest I've tried a cyberpunk 2077 theme but it didn't work well.
+> [...] the generated pictures were bad
+
+Cyberpunk is the hardest thing anyone could have tried first, and it broke
+the prompts in three separate ways — each of which was a hole in the
+wording, not in the generator.
+
+**A style named as a place gets you the place.** "A neon-lit night city"
+makes a generator draw a night city with the subject somewhere inside it,
+thirty-seven times. The old wording's whole defence was one bullet: *one
+subject, centred, with room around it*, which is no match for a setting.
+Now every plate prompt carries a `Composition:` line of its own that says
+what the picture *is*: "one single object, centred, on a plain and almost
+empty background... This is an object drawn in that world, not a view of
+the world: no street, no landscape, no room, no crowd, no blurred depth
+behind it." Stated as its own paragraph rather than a bullet, because
+that is the sentence doing the work.
+
+**The app knew the palette and wasn't saying it.** The pack's colours were
+already in `theme.json`, and every prompt went out without them — so a
+generator picked its own cyan thirty-seven times. Prompts now name the
+hexes: the first scheme's three, plus the other schemes' accents, capped at
+five. Deliberately **one** background: a prompt naming two names none.
+
+**"No lettering" fights a genre made of neon signs**, and a rule with no
+alternative is a rule that gets ignored. It now offers somewhere to go:
+"if this style would normally carry signs or writing, suggest them as
+abstract glowing marks only — nothing readable."
+
+Two smaller ones from the same session: plates are now told they hang on
+*both* the dark and pale page, so their own ground should be a mid tone
+rather than pure black or white; and icon prompts forbid glow explicitly,
+since a glow is a gradient and a gradient is exactly what stops the corner
+flood-fill — it comes back as a halo or a grey box.
+
+The pages gained the two sentences that would have prevented the whole
+thing: the description field now says **describe a way of drawing, not a
+place** — what it is drawn with, how it is lit, what the lines are like —
+and the sheet says **do the first one, look at it, and only then do the
+rest**, adding that a scene or a wrong colour means the description is what
+to change, not the picture.
+
+### Follow-up: derivations that survive a saturated palette
+
+Measuring cyberpunk palettes through `palette.py` turned up a real defect
+next door. Dimmed text is derived by mixing the text colour toward the
+background, which is right for the off-white-on-near-black most books use
+and wrong for a saturated one: neon magenta on dark purple came out at
+**2.5:1**, and the border at 1.2:1 — invisible.
+
+So the mix is now a starting point and the contrast is the constraint.
+`_mix_to_floor` walks back toward the text colour until the result clears
+4.5:1; `_mix_up_to_floor` pushes an edge further in until it clears 1.5:1.
+An ordinary palette lands on exactly the value it did before — a test
+pins that — and the neon one now clears both.
+
+What no derivation can rescue is a text colour that is unreadable on its
+own background to begin with, since everything else is mixed *from* those
+two. That is now measured on save and **reported rather than enforced**:
+"the text colour is hard to read on that background (1.7 to 1, where 4.5 is
+the usual floor). It is saved either way." It is someone's book; a
+deliberate choice is allowed, but it should be a choice and not a surprise.
+
+`pytest` (1315) and `ruff check .` green.

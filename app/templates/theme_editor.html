@@ -34,6 +34,12 @@
       <textarea name="description" rows="4" maxlength="2000"
                 placeholder="{{ _('e.g. A Japanese woodblock print world: indigo, rust and off-white paper, strong outlines, flat colour, soft mist.') }}">{{ (form and form.get('description')) or (pack and pack.description) or '' }}</textarea>
       <span class="theme-form__note">{{ _("This goes at the top of every picture prompt, so it is what keeps thirty-seven separate drawings looking like one book.") }}</span>
+      <span class="theme-form__note">
+        {# The lesson of the first theme anyone tried to make: naming a
+           *place* gets you thirty-seven views of that place, with the
+           subject lost somewhere inside each one. #}
+        {{ _("Describe a way of drawing, not a place: what it is drawn with, how it is lit, what the lines are like. A world named as a setting — “a neon city at night”, “a misty forest” — makes a generator draw the setting instead of the thing being asked for. The colours are added for you.") }}
+      </span>
     </label>
 
     <fieldset class="theme-form__schemes">

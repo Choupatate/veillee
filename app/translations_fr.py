@@ -96,6 +96,23 @@ TRANSLATIONS_FR = {
         "Cette apparence n'a pas pu être supprimée.",
     "Choose a picture first.": "Choisissez d'abord une image.",
     "Make a theme": "Créer une apparence",
+    "Describe a way of drawing, not a place: what it is drawn with, how it "
+    "is lit, what the lines are like. A world named as a setting — “a neon "
+    "city at night”, “a misty forest” — makes a generator draw the setting "
+    "instead of the thing being asked for. The colours are added for you.":
+        "Décrivez une manière de dessiner, pas un lieu : avec quoi c'est "
+        "dessiné, comment c'est éclairé, à quoi ressemblent les traits. Un "
+        "univers nommé comme un décor — « une ville néon la nuit », « une "
+        "forêt brumeuse » — pousse le générateur à dessiner le décor plutôt "
+        "que ce qui est demandé. Les couleurs sont ajoutées pour vous.",
+    "Do the first one, look at it, and only then do the rest.":
+        "Faites la première, regardez-la, et seulement ensuite faites les "
+        "autres.",
+    "If it comes back as a scene rather than a single object, or in colours "
+    "you didn't choose, the description is what to change — not the picture.":
+        "Si elle revient sous forme de scène plutôt que d'objet seul, ou "
+        "dans des couleurs que vous n'avez pas choisies, c'est la "
+        "description qu'il faut changer — pas l'image.",
     "Light and dark": "Clair et sombre",
     "The half-moon button in the nav switches between them. Hold it down "
     "for the full set — including going back to whatever your phone or "
