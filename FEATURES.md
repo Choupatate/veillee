@@ -6711,6 +6711,41 @@ say what they meant instead of what they assumed: one counted directory
 entries where it meant story folders, and one built its own app on a bare
 tmp_path.
 
+### Follow-up: can anyone trigger it again and lose the book?
+
+Asked after the fact, and worth answering with tests rather than
+reassurance, since "a wizard that resets everything" is the shape of a
+genuinely bad bug. `tests/test_setup_access.py` (12) is that answer.
+
+The reach of both pages, probed as each role that exists:
+
+| who | `/setup` and `/settings` |
+| --- | --- |
+| a stranger | 302 to the login page, both verbs |
+| a family member (accounts mode) | 404, both verbs — and the nav never offers the link |
+| a write-link guest | 302 to login: a delegate session never sets `authed`, so `login_required` turns it away before any role is considered |
+| the admin / password-holder | allowed, which is the point |
+
+And the two properties underneath:
+
+- **The wizard cannot be re-armed from inside the app.** A book with
+  stories is set up for good, and *no route in this app deletes a story* —
+  a test asserts the complete list of deleting routes is F12's voice memo
+  and F50's theme, both of which leave the book's stories where they are.
+  Archiving every story doesn't do it either; archived stories are still
+  files on disk. Losing the settings file doesn't do it: the stories are
+  the other flag.
+- **Neither page can destroy anything, even for the person allowed to use
+  them.** They write one small JSON file, and the wizard adds at most one
+  person to the cast. A test takes the story and people sets before and
+  after clearing every field and compares them.
+
+One honest residual, and it is operational rather than a hole: if the
+stories volume fails to mount, the app sees an empty directory, believes
+it is a new book, and offers the wizard. Nothing is lost — the real book is
+on the volume that didn't mount — but it is the one way to meet this page
+unexpectedly, and the fix is the mount, not the app.
+
 ### The README, which is what was actually asked about
 
 It now opens with what there is to do: two values in a file, and everything
@@ -6718,7 +6753,7 @@ else in the browser. The configuration section is two tables — the machine,
 and the book, the second one annotated with where each value lives in
 Settings — and it says plainly that an existing install is untouched.
 
-`pytest` (1332) and `ruff check .` green. Driven by hand in Chromium at
+`pytest` (1344) and `ruff check .` green. Driven by hand in Chromium at
 390px: a fresh install landing on the wizard straight after login, four
 answers, the child appearing in the cast with their birth date, the timeline
 under its new name, `/setup` then stepping aside to `/settings`, and the
