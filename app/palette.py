@@ -79,6 +79,43 @@ def is_dark(bg) -> float:
     return relative_luminance(parse_hex(bg)) < 0.4
 
 
+#: What a dimmed label still has to clear against its background. Below
+#: this it isn't dimmed, it's gone.
+DIM_FLOOR = 4.5
+#: A border is not text; it only has to be visible as an edge.
+EDGE_FLOOR = 1.5
+
+
+def _mix_to_floor(base, target, amount, *, against, floor, step=0.04):
+    """Mix `target` into `base`, backing off until the result clears
+    `floor` against `against`.
+
+    The plain mix is right for the colours most books are built from — an
+    off-white on a near-black, a dark brown on cream. It is wrong for a
+    saturated one: mixing neon magenta toward a dark purple background
+    produces 2.5:1, which is a label nobody can read. So the mix is a
+    starting point and the contrast is the constraint.
+    """
+    amount = max(0.0, min(1.0, amount))
+    while amount > 0:
+        candidate = mix(base, target, amount)
+        if contrast(candidate, against) >= floor:
+            return candidate
+        amount -= step
+    return base
+
+
+def _mix_up_to_floor(base, target, amount, *, against, floor, limit=0.6, step=0.04):
+    """The other direction: mix further in until the result is at least
+    `floor` — for an edge that would otherwise be invisible."""
+    amount = max(0.0, min(1.0, amount))
+    candidate = mix(base, target, amount)
+    while contrast(candidate, against) < floor and amount < limit:
+        amount += step
+        candidate = mix(base, target, amount)
+    return candidate
+
+
 def _rgb_triple(rgb) -> str:
     """`150, 205, 255` — main.css's ambience variables are bare channels so
     the CSS can wrap them in rgba() with its own alpha."""
@@ -107,15 +144,21 @@ def derive(seed: dict, texture: str | None = None) -> dict:
         "--color-bg": to_hex(bg),
         "--color-bg-raised": to_hex(mix(bg, text, 0.07)),
         "--color-text": to_hex(text),
-        "--color-text-dim": to_hex(mix(text, bg, 0.42)),
+        "--color-text-dim": to_hex(
+            _mix_to_floor(text, bg, 0.42, against=bg, floor=DIM_FLOOR)
+        ),
         "--color-accent": to_hex(accent),
         "--color-accent-text": to_hex(accent_text),
         "--color-highlight-bg": "rgba(%s, 0.18)" % _rgb_triple(accent),
-        "--color-border": to_hex(mix(bg, text, 0.18)),
+        "--color-border": to_hex(
+            _mix_up_to_floor(bg, text, 0.18, against=bg, floor=EDGE_FLOOR)
+        ),
         # The mount an illustration sits on: barely off the page, with an
         # edge just visible enough to read as a frame.
         "--illo-mount": to_hex(mix(bg, text, 0.04)),
-        "--illo-mount-edge": to_hex(mix(bg, text, 0.18)),
+        "--illo-mount-edge": to_hex(
+            _mix_up_to_floor(bg, text, 0.18, against=bg, floor=EDGE_FLOOR)
+        ),
         # F44's firelight, which is a wash of the accent: pale backgrounds
         # swallow it, so they get more of it.
         "--ambience-glow": _rgb_triple(mix(accent, (255, 255, 255), 0.35)),

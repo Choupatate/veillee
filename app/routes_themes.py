@@ -131,6 +131,8 @@ def new_theme():
         except theme_packs.PackError as error:
             flash(str(error), "error")
             return render_template("theme_editor.html", pack=None, form=request.form)
+        for warning in theme_packs.palette_warnings(_form_palette()):
+            flash(warning, "error")
         return redirect(url_for("pages.theme_assets", theme=name))
     return render_template("theme_editor.html", pack=None, form=None)
 
@@ -155,6 +157,8 @@ def edit_theme(theme):
                 form=request.form,
             )
         flash(_("Saved."), "success")
+        for warning in theme_packs.palette_warnings(_form_palette()):
+            flash(warning, "error")
         return redirect(url_for("pages.theme_assets", theme=theme))
     return render_template(
         "theme_editor.html",
@@ -177,7 +181,9 @@ def theme_assets(theme):
         {
             "asset": asset,
             "drawn": asset.filename in drawn,
-            "prompt": theme_catalog.prompt_for(asset, description),
+            "prompt": theme_catalog.prompt_for(
+                asset, description, manifest.get("palette")
+            ),
             # This pack's picture, not the one the page happens to be
             # dressed in: an admin editing one theme while wearing another
             # would otherwise be shown the wrong book entirely.

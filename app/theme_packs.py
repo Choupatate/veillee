@@ -159,6 +159,39 @@ def _swatch_from(clean_palette, schemes) -> list:
     return dots
 
 
+#: What body text has to clear against its own background to be readable
+#: (WCAG AA). Reported, never enforced: it is someone's book, and a
+#: deliberate choice is allowed — but a choice nobody can read should be a
+#: choice, not a surprise.
+TEXT_FLOOR = 4.5
+
+
+def palette_warnings(scheme_colors) -> list[str]:
+    """Anything measurably wrong with a palette, in words.
+
+    Only the text-on-background pair is checked, because it is the one no
+    derivation downstream can rescue: everything else here is mixed *from*
+    those two, so if they can't be told apart, nothing made from them can
+    be either.
+    """
+    out = []
+    for scheme, seed in (scheme_colors or {}).items():
+        try:
+            ratio = palette_mod.contrast(
+                palette_mod.parse_hex(seed["text"]), palette_mod.parse_hex(seed["bg"])
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+        if ratio < TEXT_FLOOR:
+            out.append(
+                f"In the {scheme} scheme the text colour is hard to read on "
+                f"that background ({ratio:.1f} to 1, where 4.5 is the usual "
+                "floor). It is saved either way — but try a lighter or "
+                "darker text colour."
+            )
+    return out
+
+
 def save_pack(user_dir, name, *, label, description, scheme_colors) -> str:
     """Create or update a pack's `theme.json`. Returns the pack's name.
 
