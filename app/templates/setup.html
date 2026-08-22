@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Set up your book") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+{% set value = form.get if form else current.get %}
+{% block content %}
+<div class="admin setup">
+  <h1 class="admin__title">{{ _("Set up your book") }}</h1>
+  <img class="illo illo--page" src="{{ theme_img('empty-chest.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="653" height="729">
+  <p class="admin__hint">
+    {{ _("Four questions, none of them required, all of them changeable later. Nothing here is technical — the technical part is already done.") }}
+  </p>
+
+  <form class="theme-form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("What is the book called?") }}</span>
+      <input type="text" name="title" maxlength="60"
+             placeholder="{{ _('e.g. Milo\'s book') }}"
+             value="{{ value('title') or '' }}">
+    </label>
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Who is it for?") }}</span>
+      <input type="text" name="child_name" maxlength="60"
+             placeholder="{{ _('Their first name') }}"
+             value="{{ (form and form.get('child_name')) or '' }}">
+      <span class="theme-form__note">{{ _("They become the first person in the book's cast, and the family tree is drawn around them.") }}</span>
+    </label>
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("When were they born?") }}</span>
+      <input type="date" name="birthdate" value="{{ value('birthdate') or '' }}">
+      <span class="theme-form__note">{{ _("Every story then shows how old they were on the day it happened. Leave it blank and no ages are shown at all.") }}</span>
+    </label>
+
+    {% if not config.ACCOUNTS_ENABLED %}
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Who writes in it?") }}</span>
+      <textarea name="authors" rows="3"
+                placeholder="Papa #d9a441">{{ value('authors') or '' }}</textarea>
+      <span class="theme-form__note">{{ _("One name and colour per line. With more than one, each story says who wrote it, in their own colour. Leave it blank if only one person writes.") }}</span>
+    </label>
+    {% endif %}
+
+    <label class="theme-form__row">
+      <span class="theme-form__label">{{ _("Language") }}</span>
+      <select name="language">
+        <option value="">{{ _("Follow each reader's browser") }}</option>
+        {% for code, meta in languages.items() %}
+        <option value="{{ code }}" {% if value('language') == code %}selected{% endif %}>{{ meta.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <div class="theme-form__actions">
+      <button type="submit" class="btn btn--primary">{{ _("Start writing") }}</button>
+      <button type="submit" name="skip" value="1" class="btn">{{ _("Not now") }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

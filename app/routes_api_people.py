@@ -6,9 +6,9 @@ import for why these live in a separate file without a separate
 blueprint.
 """
 
-from flask import current_app, jsonify, request, url_for
+from flask import jsonify, request, url_for
 
-from . import i18n, kinship, people, storage
+from . import i18n, kinship, people, settings, storage
 from .auth import login_required
 from .routes_api import (
     _error,
@@ -425,7 +425,7 @@ def api_tree():
     people_dir = _people_dir()
     all_people = people.list_people(people_dir)
     graph = kinship.build_graph(all_people)
-    anchor = kinship.resolve_anchor(current_app.config.get("CHILD_SLUG"), graph)
+    anchor = kinship.resolve_anchor(settings.book("CHILD_SLUG"), graph)
 
     entries = []
     for p in all_people:

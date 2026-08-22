@@ -8,13 +8,16 @@ Everything is stored as plain **markdown files and images on disk** — no datab
 If you delete the app entirely and keep the `stories/` folder, every story is still
 fully readable with nothing more than a file browser and a text editor.
 
-Three colour schemes are available from the toggle in the top-left corner: dark
-(the default), light, and manuscript — a warm, aged-paper look with a subtly
-grained texture (a self-contained inline SVG filter, no image assets or network
-requests) where the timeline, story, and editor each render as a page resting on
-a desk. The editor follows whichever one you pick: the writing surface is the
-theme's own paper, in the same serif the finished story page uses. The book's
-whole *art direction* is swappable too — see "Themes" below.
+A colour toggle sits in the top-left corner. Tapping it cycles the schemes
+the current theme offers — for the one the app ships with, that's dark (the
+default), light, and manuscript, a warm aged-paper look with a subtly grained
+texture (a self-contained inline SVG filter, no image assets or network
+requests) where the timeline, story, and editor each render as a page resting
+on a desk. The editor follows whichever one you pick: the writing surface is
+the theme's own paper, in the same serif the finished story page uses.
+*Holding* the same button opens a small panel with those schemes listed by
+name, a "System" option that follows your phone or computer again, and the
+book's whole *art direction*, which is swappable too — see "Themes" below.
 
 Next to the theme toggle, a **flame button** turns *firelight* off and on — a
 wash of warm light over the page whose brightness drifts up and down as if a
@@ -22,6 +25,26 @@ fire were burning in the room. The flame is lit and amber, in a ring of the
 same colour, while the firelight is on, and small and grey once it's off. It's
 on by default, off for anyone whose system asks for reduced motion, and the
 choice is remembered per browser.
+
+### What you actually have to set up
+
+Two things, once: a **password** and a **secret key**, in a `.env` file
+(or as environment variables in Docker). That is the whole technical
+setup.
+
+Everything else about the book happens **in the browser**. The first time
+you log in, the app asks you four questions — what the book is called, who
+it's for, when they were born, who writes in it — and then gets out of the
+way. After that, the family runs it from the pages themselves: adding
+people, drawing the family tree, making accounts and inviting relatives,
+grouping who can read what, making a theme, taking backups. There is no
+config file to come back to, and nothing here needs a restart.
+
+Already running an older version? **Nothing changes and nothing is asked
+of you.** A book with stories in it counts as already set up; your existing
+environment variables keep working exactly as they did, and the new
+Settings page simply shows them, should you ever want to change one without
+editing a file.
 
 See `PLAN.md` for the full design specification this app was built from, and
 `REVIEW.md` for the production-readiness review it was subsequently audited
@@ -98,7 +121,17 @@ Container Manager's project at this repo folder. Adjust the host path in
 
 ### Configuration
 
-All configuration is via environment variables — see `.env.example`:
+**Most of this is optional, and the second table is settable in the app.**
+The first table describes the *machine* — where files live, what the
+password is, whether a proxy sits in front — and those can only come from
+the environment, since the app needs them before it can serve a page.
+
+The second describes the *book*, and can be set from **Settings** in the
+nav (or the first-run questions) by whoever administers it. Setting one
+there overrides the variable and takes effect immediately; the variables
+stay supported, and are what a fresh install starts from.
+
+See `.env.example`:
 
 | Variable | Purpose |
 |---|---|
@@ -107,14 +140,19 @@ All configuration is via environment variables — see `.env.example`:
 | `STORYBOOK_SECRET_KEY` | Flask session-signing secret. Required whenever `STORYBOOK_PASSWORD` is set — the app refuses to start otherwise. |
 | `STORYBOOK_COOKIE_SECURE` | Set to `1` when serving over HTTPS to mark the session cookie `Secure` and send an HSTS header. Default off, for local/LAN HTTP use. |
 | `STORYBOOK_TRUSTED_PROXIES` | How many reverse proxies sit in front of the app (default `0`). Set to `1` behind nginx/Caddy/a NAS reverse proxy so the login lockout sees each visitor's real IP. See "Opening it to the internet". |
-| `STORYBOOK_AUTHORS` | Optional. Comma-separated `Name:#hexcolor` pairs for several narrators (see below). Unset by default. |
-| `STORYBOOK_BIRTHDATE` | Optional. The child's birth date (`YYYY-MM-DD`). Shows the child's age at each memory (see below). Unset by default. |
-| `STORYBOOK_LANGUAGE` | Optional. The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. Defaults to `en`. |
-| `STORYBOOK_THEME` | Optional. The book's art direction — a folder name under `app/static/themes/` (`ranch`, the default, or `orbit`). The default for every reader; each can pick another from the nav. See "Themes" below. |
-| `STORYBOOK_TITLE` | Optional. The app's display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` (English) / `La Veillée` (French), depending on the visitor's language. |
-| `STORYBOOK_CHILD` | Optional. The slug of the person page the family tree's kinship labels are computed relative to (see below). Unset by default. |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
 | `STORYBOOK_OPEN_REQUESTS` | Optional. Set to `1` to let someone request an account without knowing the invite code, waiting for an admin instead (see below). Requires `STORYBOOK_ACCOUNTS=1`. Unset by default. |
+
+And the book's own, all optional, all changeable later from **Settings**:
+
+| Variable | In Settings as | Purpose |
+|---|---|---|
+| `STORYBOOK_TITLE` | Name of the book | The display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` / `La Veillée`, following the reader's language. |
+| `STORYBOOK_BIRTHDATE` | Birth date | The child's birth date (`YYYY-MM-DD`). Shows their age at each memory, and turns on the Growing up page. |
+| `STORYBOOK_CHILD` | The book is about | The person the family tree's kinship words ("aunt", "cousin") are worked out relative to. |
+| `STORYBOOK_AUTHORS` | Narrators | `Name:#hexcolor` pairs for several narrators. In Settings, one `Name #hexcolor` per line. |
+| `STORYBOOK_LANGUAGE` | Language | The book's own language (`en` or `fr`) for a visitor who hasn't picked one and whose browser expresses no preference. Each reader's own choice always wins. |
+| `STORYBOOK_THEME` | Theme | The book's art direction — a pack that ships with the app (`ranch`, `orbit`) or one your family made. Each reader can still pick another for their own screen. See "Themes". |
 
 ### Family accounts (optional, off by default)
 
@@ -917,7 +955,10 @@ rather than risk silently overwriting newer edits.
 
 People are the exception to that strictness, because they are not memories:
 anyone in the zip whose folder is already here is skipped (the living one is
-the newer truth) and the rest are restored alongside the stories. Their
+the newer truth) and the rest are restored alongside the stories. A theme
+your family made comes back the same way, for the same reason — someone
+described a world and generated pictures for it, so it is content, not
+state; one already here is left alone rather than overwritten. Their
 **logins are never restored** — a zip is a portable file, and restoring one
 taken from another book would otherwise install its accounts, admins
 included, into yours. After a disaster recovery an admin re-issues
@@ -1003,11 +1044,14 @@ kept, only the re-encoded copy.
 
 ## Ideas for later
 
-Out of scope for v1, deliberately: multi-user accounts, comments/reactions,
-search, tags, RSS, email, video, encryption at rest, i18n, offline support
-(no service worker — see "Home-screen install" above), and story deletion.
-If any of these become worth doing, they belong here first, not as a
-surprise addition.
+Out of scope, deliberately: comments/reactions, RSS, email, video,
+encryption at rest, offline support (no service worker — see "Home-screen
+install" above), and story deletion. If any of these become worth doing,
+they belong here first, not as a surprise addition.
 
-(PDF/print export, a photo lightbox, and home-screen install were originally
-listed here too; they shipped as the book view, F7, and F9 — see above.)
+Several things that were on this list have since shipped, and are described
+above rather than here: PDF/print export (the book view), the photo
+lightbox (F7), home-screen install (F9), multi-user accounts (F19, still
+optional and off by default), search and tags, and a translated interface
+(F38). The list is what the app has decided against, not what it hasn't got
+round to.

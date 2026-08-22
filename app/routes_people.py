@@ -7,9 +7,9 @@ file without a separate blueprint.
 
 from datetime import date
 
-from flask import abort, current_app, render_template
+from flask import abort, render_template
 
-from . import i18n, kinship, life_events, people, storage
+from . import i18n, kinship, life_events, people, settings, storage
 from .auth import login_required
 from .rendering import render_markdown
 from .routes_pages import (
@@ -80,7 +80,7 @@ def person_page(slug):
     all_people = people.list_people(_people_dir())
     people_by_slug = {person.slug: person for person in all_people}
     graph = kinship.build_graph(all_people)
-    anchor = kinship.resolve_anchor(current_app.config.get("CHILD_SLUG"), graph)
+    anchor = kinship.resolve_anchor(settings.book("CHILD_SLUG"), graph)
 
     kinship_line = None
     friend_of_line = None
@@ -134,7 +134,7 @@ def tree_page():
     graph = kinship.build_graph(all_people)
 
     has_family_links = _has_family_links(graph)
-    anchor = kinship.resolve_anchor(current_app.config.get("CHILD_SLUG"), graph)
+    anchor = kinship.resolve_anchor(settings.book("CHILD_SLUG"), graph)
 
     others = []
     generations = []

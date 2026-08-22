@@ -48,7 +48,10 @@ def test_import_backup_rejects_on_collision_writes_nothing(tmp_path, stories_dir
         storage.import_backup(stories_dir, zip_buf)
     assert story_id in exc_info.value.colliding_ids
 
-    assert len(list(stories_dir.iterdir())) == 1
+    # Nothing was written: the one story folder that was here is still the
+    # only one. (Counted as story folders rather than directory entries —
+    # a book also carries settings.json and may carry themes/ or people/.)
+    assert len(list(storage.list_stories(stories_dir))) == 1
     existing = storage.get_story(stories_dir, story_id)
     assert existing.body.strip() == "existing body"
 

@@ -1,6 +1,6 @@
 """Tests for FEATURES.md F9: home-screen install (manifest, no service worker)."""
 
-from app import create_app
+from app import create_app, settings
 
 
 def test_manifest_returns_valid_json_with_default_title(client):
@@ -40,6 +40,7 @@ def test_head_contains_manifest_and_icon_links(auth_client):
 
 
 def test_nav_brand_and_title_use_configured_app_title(tmp_path, monkeypatch):
+    settings.save(tmp_path, {})  # a book already past the setup wizard (F51)
     monkeypatch.setenv("STORYBOOK_STORIES_DIR", str(tmp_path))
     monkeypatch.setenv("STORYBOOK_TITLE", "Le livre de Milo")
     monkeypatch.setenv("STORYBOOK_PASSWORD", "test-password")

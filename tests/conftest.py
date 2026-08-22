@@ -3,7 +3,7 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from app import create_app, storage
+from app import create_app, settings, storage
 
 BASE_TEST_CONFIG = {
     "TESTING": True,
@@ -17,6 +17,10 @@ BASE_TEST_CONFIG = {
 def stories_dir(tmp_path):
     d = tmp_path / "stories"
     d.mkdir()
+    # F51: a book that has already been through the setup wizard, which is
+    # what every test here is about. The wizard's own tests use a stories
+    # directory with no settings file, which is what "not set up" means.
+    settings.save(d, {})
     return d
 
 

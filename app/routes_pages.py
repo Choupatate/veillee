@@ -32,7 +32,7 @@ from flask import (
     url_for,
 )
 
-from . import accounts, epub, groups, i18n, life_events, people, prompts, storage, themes
+from . import accounts, epub, groups, i18n, life_events, people, prompts, settings, storage, themes
 from .auth import admin_required_in_accounts_mode, login_required
 from .rendering import render_markdown
 
@@ -221,7 +221,7 @@ def _authors_and_colors():
                     {"name": person.name, "color": person.author_color or DEFAULT_AUTHOR_COLOR}
                 )
     else:
-        authors = current_app.config.get("AUTHORS") or []
+        authors = settings.book("AUTHORS") or []
     author_colors = {a["name"]: a["color"] for a in authors}
     return authors, author_colors
 
@@ -233,6 +233,14 @@ def _author_color(authors, author_colors, name):
 @bp.route("/")
 @login_required
 def timeline():
+    # F51: a book nobody has set up yet sends whoever can set it up to the
+    # wizard, once. Here rather than in a before_request so there is no way
+    # to loop, and so a family member who *can't* configure anything simply
+    # sees the timeline they came for.
+    if not settings.is_configured(current_app.config["STORIES_DIR"]) and (
+        not current_app.config["ACCOUNTS_ENABLED"] or session.get("role") == "admin"
+    ):
+        return redirect(url_for("pages.setup_page"))
     all_stories = _visible_stories()
     stories = [s for s in all_stories if not s.draft and not s.archived]
     draft_count = sum(1 for s in all_stories if s.draft and not s.archived)
@@ -244,7 +252,7 @@ def timeline():
     authors, author_colors = _authors_and_colors()
     all_people = people.list_people(_people_dir())
     people_by_slug = {p.slug: p for p in all_people}
-    birthdate = current_app.config.get("BIRTHDATE")
+    birthdate = settings.book("BIRTHDATE")
     quiet_months = storage.months_since_last_story(all_stories, today)
     if quiet_months is None or quiet_months < storage.QUIET_SPELL_MONTHS:
         quiet_months = None
@@ -272,7 +280,7 @@ def timeline():
 @login_required
 def growth():
     all_stories = _visible_stories()
-    birthdate = current_app.config.get("BIRTHDATE")
+    birthdate = settings.book("BIRTHDATE")
     photos = storage.growth_photos(all_stories, birthdate) if birthdate else []
     return render_template("growth.html", photos=photos, birthdate=birthdate)
 
@@ -314,7 +322,7 @@ def random_page():
 def manifest():
     """Web app manifest for home-screen install (FEATURES.md F9). No login
     required — the manifest and icons must be fetchable before install."""
-    title = current_app.config["TITLE"] or i18n._("Storybook")
+    title = settings.book("TITLE") or i18n._("Storybook")
     data = {
         "name": title,
         "short_name": title,
@@ -349,7 +357,7 @@ def book():
     stories_dir = current_app.config["STORIES_DIR"]
     readable = storage.readable_stories(_visible_stories())
     authors, author_colors = _authors_and_colors()
-    birthdate = current_app.config.get("BIRTHDATE")
+    birthdate = settings.book("BIRTHDATE")
     entries = []
     prev_year = None
     for s in readable:
@@ -382,7 +390,7 @@ def book_epub():
     unlike the browser-print PDF flow at /book)."""
     stories_dir = current_app.config["STORIES_DIR"]
     readable = storage.readable_stories(_visible_stories())
-    authors = current_app.config.get("AUTHORS") or []
+    authors = settings.book("AUTHORS") or []
     entries = []
     for s in readable:
         full = storage.get_story(stories_dir, s.id)
@@ -395,7 +403,7 @@ def book_epub():
         path = stories_dir / story_id / filename
         return path.read_bytes() if path.is_file() else None
 
-    title = current_app.config["TITLE"] or i18n._("Storybook")
+    title = settings.book("TITLE") or i18n._("Storybook")
     buf = epub.build_epub(
         title,
         readable[0].date.year if readable else None,
@@ -536,7 +544,7 @@ def story(story_id):
     return render_template(
         "story.html", story=s, body_html=body_html, authors=authors, author_color=author_color,
         prev_story=prev_story, next_story=next_story, memos=memos,
-        birthdate=current_app.config.get("BIRTHDATE"), people_by_slug=people_by_slug,
+        birthdate=settings.book("BIRTHDATE"), people_by_slug=people_by_slug,
     )
 
 
@@ -578,7 +586,7 @@ def story_media(story_id, filename):
 @bp.route("/new")
 @login_required
 def new_story():
-    authors = current_app.config.get("AUTHORS") or []
+    authors = settings.book("AUTHORS") or []
     prompt_list = prompts.load_prompts(current_app.config["STORIES_DIR"])
     initial_prompt = random.choice(prompt_list) if prompt_list else None
     return render_template(
@@ -591,7 +599,7 @@ def new_story():
 @bp.route("/new-instant")
 @login_required
 def new_instant():
-    authors = current_app.config.get("AUTHORS") or []
+    authors = settings.book("AUTHORS") or []
     return render_template(
         "instant.html", today=date.today(), authors=authors,
         all_groups=_available_groups(),
@@ -602,7 +610,7 @@ def new_instant():
 @login_required
 def edit_story(story_id):
     s = _get_story_or_404(current_app.config["STORIES_DIR"], story_id)
-    authors = current_app.config.get("AUTHORS") or []
+    authors = settings.book("AUTHORS") or []
     memos = storage.list_memos(current_app.config["STORIES_DIR"] / story_id)
     return render_template(
         "editor.html", story=s, today=date.today(), authors=authors, memos=memos,
@@ -639,4 +647,10 @@ def _other_people_refs(exclude_slug=None):
 # Registers routes_people.py's, routes_accounts.py's, routes_groups.py's and
 # routes_themes.py's routes onto `bp` (see module docstring) — must come after every helper
 # they import above.
-from . import routes_accounts, routes_groups, routes_people, routes_themes  # noqa: E402,F401
+from . import (  # noqa: E402,F401
+    routes_accounts,
+    routes_groups,
+    routes_people,
+    routes_settings,
+    routes_themes,
+)

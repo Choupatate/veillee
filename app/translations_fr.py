@@ -96,6 +96,66 @@ TRANSLATIONS_FR = {
         "Cette apparence n'a pas pu être supprimée.",
     "Choose a picture first.": "Choisissez d'abord une image.",
     "Make a theme": "Créer une apparence",
+    # --- setting the book up (F51) -----------------------------------------
+    "Settings": "Réglages",
+    "e.g. Milo's book": "ex. Le livre de Milo",
+    "Set up your book": "Configurez votre livre",
+    "Four questions, none of them required, all of them changeable later. "
+    "Nothing here is technical — the technical part is already done.":
+        "Quatre questions, aucune obligatoire, toutes modifiables plus "
+        "tard. Rien ici n'est technique — la partie technique est déjà "
+        "faite.",
+    "What is the book called?": "Comment s'appelle le livre ?",
+    "Who is it for?": "Pour qui est-il ?",
+    "Their first name": "Son prénom",
+    "They become the first person in the book's cast, and the family tree "
+    "is drawn around them.":
+        "Cette personne devient la première du livre, et l'arbre "
+        "généalogique se dessine autour d'elle.",
+    "When were they born?": "Quand est-il ou elle né(e) ?",
+    "Every story then shows how old they were on the day it happened. "
+    "Leave it blank and no ages are shown at all.":
+        "Chaque histoire indiquera alors son âge le jour où elle s'est "
+        "passée. Laissez vide et aucun âge ne sera affiché.",
+    "Who writes in it?": "Qui écrit dedans ?",
+    "One name and colour per line. With more than one, each story says who "
+    "wrote it, in their own colour. Leave it blank if only one person "
+    "writes.":
+        "Un nom et une couleur par ligne. À plusieurs, chaque histoire "
+        "indique qui l'a écrite, dans sa couleur. Laissez vide si une "
+        "seule personne écrit.",
+    "One name and colour per line.": "Un nom et une couleur par ligne.",
+    "Follow each reader's browser": "Suivre le navigateur de chaque lecteur",
+    "Start writing": "Commencer à écrire",
+    "Not now": "Pas maintenant",
+    "Your book is ready. Write the first story.":
+        "Votre livre est prêt. Écrivez la première histoire.",
+    "Everything about the book itself. Changes apply straight away — "
+    "nothing here needs a restart.":
+        "Tout ce qui concerne le livre lui-même. Les changements "
+        "s'appliquent aussitôt — rien ici ne demande un redémarrage.",
+    "These are kept in settings.json in your stories folder, so they travel "
+    "with your backup.":
+        "Ils sont conservés dans settings.json, dans votre dossier "
+        "d'histoires : ils voyagent donc avec votre sauvegarde.",
+    "Name of the book": "Nom du livre",
+    "Birth date": "Date de naissance",
+    "Shows the child's age at each memory, and turns on the Growing up "
+    "page.":
+        "Affiche l'âge de l'enfant à chaque souvenir, et active la page "
+        "« Il grandit ».",
+    "The book is about": "Le livre parle de",
+    "Nobody in particular": "Personne en particulier",
+    "Family-tree words like “aunt” and “cousin” are worked out relative to "
+    "this person.":
+        "Les mots de parenté comme « tante » et « cousin » sont calculés "
+        "par rapport à cette personne.",
+    "Narrators": "Narrateurs",
+    "The one the app came with": "Celle fournie avec l'application",
+    "The book's own look. Each reader can still choose another for their "
+    "own screen.":
+        "L'allure du livre. Chaque lecteur peut toujours en choisir une "
+        "autre pour son propre écran.",
     "Describe a way of drawing, not a place: what it is drawn with, how it "
     "is lit, what the lines are like. A world named as a setting — “a neon "
     "city at night”, “a misty forest” — makes a generator draw the setting "
