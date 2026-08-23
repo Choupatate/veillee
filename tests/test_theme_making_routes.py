@@ -301,3 +301,65 @@ def test_the_sheet_shows_the_pack_being_edited_not_the_one_being_worn(auth_clien
     rows = sheet.split('class="asset-sheet__shot"')[1:]
     assert any(f"/themes/{name}/img/icon-save.png" in row for row in rows)
     assert not any("/static/themes/orbit/img/" in row for row in rows)
+
+
+# --- F52: the live preview ----------------------------------------------------
+
+
+def test_the_new_theme_form_carries_the_preview(auth_client):
+    """The preview is on the page someone reaches before they have a
+    theme at all — that is the moment the colours are hardest to
+    picture."""
+    body = auth_client.get("/themes/new").get_data(as_text=True)
+    assert 'id="theme-preview"' in body
+    assert 'id="theme-preview-pane"' in body
+    assert 'id="theme-preview-checks"' in body
+
+
+def test_the_preview_starts_hidden_so_it_never_shows_a_stale_palette(auth_client):
+    """With JavaScript off there is nothing honest to draw: the fields'
+    values would be painted by main.css's own palette, not the one being
+    typed. So the element ships hidden and theme-preview.js reveals it."""
+    body = auth_client.get("/themes/new").get_data(as_text=True)
+    opening = body[body.index('<div class="theme-preview"'):]
+    assert " hidden" in opening[:opening.index(">")]
+
+
+def test_the_preview_is_wired_after_the_maths_it_depends_on(auth_client):
+    """palette-logic.js defines window.PaletteLogic; theme-preview.js
+    returns early without it. Both are plain <script> tags with no module
+    graph to sort them, so the order in the template is the dependency."""
+    body = auth_client.get("/themes/new").get_data(as_text=True)
+    assert body.index("palette-logic.js") < body.index("theme-preview.js")
+
+
+def test_editing_an_existing_theme_previews_that_theme(auth_client):
+    """Same control on the edit page, and the miniature's brand line is
+    the pack's own name rather than the book's."""
+    _make(auth_client, name="woodblock", label="Woodblock")
+    body = auth_client.get("/themes/woodblock/edit").get_data(as_text=True)
+    assert 'id="theme-preview"' in body
+    assert "Woodblock" in body
+
+
+def test_the_preview_names_no_colour_of_its_own(auth_client):
+    """Every colour in the miniature has to come from the derived palette
+    that theme-preview.js sets on the pane. A literal hex inside the
+    preview markup is a colour that would not follow the palette — which
+    is exactly the lie this feature exists to stop telling."""
+    body = auth_client.get("/themes/new").get_data(as_text=True)
+    start = body.index('<div class="theme-preview"')
+    end = body.index("</div>", body.index('id="theme-preview-warning"'))
+    markup = body[start:end]
+    assert "#" not in markup.replace("&#9680;", ""), (
+        "the preview markup should carry no literal colours"
+    )
+
+
+def test_a_guest_cannot_reach_the_form_the_preview_lives_on(client, monkeypatch):
+    """The preview adds a page-level control, not a new door: the gate in
+    front of it is unchanged."""
+    monkeypatch.setitem(client.application.config, "ACCOUNTS_ENABLED", True)
+    _bootstrap_admin(client)
+    _request_account(client, "mamie")
+    assert client.get("/themes/new").status_code in (302, 404)

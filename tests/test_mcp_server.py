@@ -348,3 +348,91 @@ def test_journal_context_todays_birthdays_and_anniversaries():
     m.create_person(name="Mamie", born=today.replace(year=today.year - 70).isoformat())
     ctx = m.get_journal_context()
     assert any(b["name"] == "Mamie" for b in ctx["todays_birthdays"])
+
+
+# --- F51: the settings a family sets in the app reach the assistant too -------
+
+
+def test_the_author_allowlist_follows_the_narrators_set_in_the_app(_stories_env):
+    """Reading STORYBOOK_AUTHORS only was not a stricter check, it was no
+    check: `create_story` skips validation entirely when the allowlist is
+    empty, so a family who moved their narrators into the app got an
+    assistant that would write a story under any name at all."""
+    from app import settings
+
+    settings.save(_stories_env, {"authors": [
+        {"name": "Papa", "color": "#d9a441"},
+        {"name": "Maman", "color": "#8f2f2a"},
+    ]})
+    assert m._configured_author_names() == {"Papa", "Maman"}
+
+    with pytest.raises(ValueError, match="Unknown author"):
+        m.create_story(title="A story", date="2026-01-02", body="x",
+                       author="Somebody Else")
+    story_id = m.create_story(title="A story", date="2026-01-02", body="x",
+                              author="Papa")
+    assert story_id
+
+
+def test_the_book_overview_reports_the_title_and_birthdate_set_in_the_app(
+    _stories_env
+):
+    from app import settings
+
+    settings.save(_stories_env, {"title": "Milo's book", "birthdate": "2021-07-14"})
+    assert m._configured_title() == "Milo's book"
+    assert m._configured_birthdate().isoformat() == "2021-07-14"
+
+
+def test_an_install_that_never_opened_the_settings_page_still_reads_the_environment(
+    _stories_env, monkeypatch
+):
+    """The upgrade case, which is most installs: no settings file, and the
+    environment is all there is."""
+    monkeypatch.setenv("STORYBOOK_AUTHORS", "Papa:#d9a441,Mamie:#5f8f6a")
+    monkeypatch.setenv("STORYBOOK_TITLE", "From the environment")
+    monkeypatch.setenv("STORYBOOK_BIRTHDATE", "2020-01-02")
+    assert m._configured_author_names() == {"Papa", "Mamie"}
+    assert m._configured_title() == "From the environment"
+    assert m._configured_birthdate().isoformat() == "2020-01-02"
+
+
+def test_the_app_wins_over_the_environment_here_as_it_does_on_the_web(
+    _stories_env, monkeypatch
+):
+    """Same precedence as `settings.effective`, or an assistant and a
+    browser would disagree about the same book."""
+    from app import settings
+
+    monkeypatch.setenv("STORYBOOK_AUTHORS", "Papa:#d9a441,Mamie:#5f8f6a")
+    monkeypatch.setenv("STORYBOOK_TITLE", "From the environment")
+    settings.save(_stories_env, {
+        "title": "From the app",
+        "authors": [{"name": "Papa", "color": "#d9a441"}],
+    })
+    assert m._configured_author_names() == {"Papa"}
+    assert m._configured_title() == "From the app"
+
+
+def test_a_narrator_added_in_the_app_is_usable_on_the_very_next_call(_stories_env):
+    """The MCP process outlives any single change, so the settings are read
+    per call rather than cached at import — the same reason the web app
+    reads them per request."""
+    from app import settings
+
+    settings.save(_stories_env, {"authors": [{"name": "Papa", "color": "#d9a441"}]})
+    assert m._configured_author_names() == {"Papa"}
+    settings.save(_stories_env, {"authors": [
+        {"name": "Papa", "color": "#d9a441"},
+        {"name": "Mamie", "color": "#5f8f6a"},
+    ]})
+    assert m._configured_author_names() == {"Papa", "Mamie"}
+
+
+def test_a_hand_edited_narrator_list_does_not_reach_the_assistant(_stories_env):
+    """`effective` filters entries by shape, so the MCP server inherits
+    that guarantee rather than repeating it."""
+    from app import settings
+
+    settings.save(_stories_env, {"authors": ["Papa", {"name": "Maman", "color": "#8f2f2a"}]})
+    assert m._configured_author_names() == {"Maman"}

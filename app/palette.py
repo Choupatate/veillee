@@ -185,9 +185,14 @@ def _block(selector: str, variables: dict, indent: str = "  ") -> str:
     return "\n".join(lines)
 
 
-def render_css(palette: dict, schemes, textures=None, name: str = "") -> str:
+def render_css(palette: dict, schemes, extra=None, name: str = "") -> str:
     """A made pack's whole stylesheet, in the shape `orbit/theme.css` is
     written by hand.
+
+    `extra` is variables that belong to the pack rather than to one
+    scheme — the divider and the brand mark, which main.css reaches through
+    a variable and a template's `theme_img()` therefore never sees. They go
+    in the `:root` block, where every scheme inherits them.
 
     Four kinds of block, and the order is what makes them work:
     `:root` carries the pack's default scheme; a `prefers-color-scheme`
@@ -196,7 +201,7 @@ def render_css(palette: dict, schemes, textures=None, name: str = "") -> str:
     both. A scheme missing from `palette` is simply not emitted — the nav
     only offers what `theme.json` declares anyway.
     """
-    textures = textures or {}
+    extra = extra or {}
     # A palette that came back from a backup, or was edited by hand, can say
     # anything at all. A scheme whose colours aren't colours is skipped
     # rather than raised on: the cost is a scheme that looks like main.css,
@@ -212,7 +217,7 @@ def render_css(palette: dict, schemes, textures=None, name: str = "") -> str:
         f"/* {name or 'A made theme'} — generated from theme.json (F50)."
         "\n * Edited through the app, not by hand: any change here is lost"
         "\n * the next time the palette is saved. */",
-        _block(":root", derive(palette[default], textures.get(default))),
+        _block(":root", {**derive(palette[default]), **extra}),
     ]
 
     # Whichever offered scheme is the pale one answers the system
@@ -220,7 +225,7 @@ def render_css(palette: dict, schemes, textures=None, name: str = "") -> str:
     # rather than pretending.
     pale = next((s for s in usable if not is_dark(palette[s]["bg"])), None)
     if pale:
-        inner = _block(":root:not([data-theme])", derive(palette[pale], textures.get(pale)))
+        inner = _block(":root:not([data-theme])", derive(palette[pale]))
         out.append(
             "@media (prefers-color-scheme: light) {\n"
             + "\n".join("  " + line for line in inner.split("\n"))
@@ -228,7 +233,5 @@ def render_css(palette: dict, schemes, textures=None, name: str = "") -> str:
         )
 
     for scheme in usable:
-        out.append(
-            _block(f':root[data-theme="{scheme}"]', derive(palette[scheme], textures.get(scheme)))
-        )
+        out.append(_block(f':root[data-theme="{scheme}"]', derive(palette[scheme])))
     return "\n\n".join(out) + "\n"

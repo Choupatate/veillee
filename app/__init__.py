@@ -182,15 +182,22 @@ def create_app(test_config=None):
         """One language per request (F38): the reader's own choice from
         the picker, else their browser's preference, else the book's own
         default (STORYBOOK_LANGUAGE), else English."""
+        # F51: what the family has set from inside the book, over the top
+        # of what the server was started with. Once per request, so a save
+        # takes effect immediately and no render reads the file twice.
+        #
+        # **This has to come first.** `settings.book()` falls back to the
+        # raw config while `g.book` is unset, which is right outside a
+        # request and silently wrong here: computing the language above
+        # this line read DEFAULT_LANGUAGE from the environment, so the
+        # Language field in Settings did nothing at all while the title
+        # and theme from the same file worked.
+        g.book = settings.effective(app.config, app.config["STORIES_DIR"])
         g.lang = i18n.pick_language(
             request.cookies.get(i18n.COOKIE_NAME),
             request.headers.get("Accept-Language"),
             settings.book("DEFAULT_LANGUAGE"),
         )
-        # F51: what the family has set from inside the book, over the top
-        # of what the server was started with. Once per request, so a save
-        # takes effect immediately and no render reads the file twice.
-        g.book = settings.effective(app.config, app.config["STORIES_DIR"])
         # F48: the book's pack, unless this browser asked for another one.
         # F50: which may be one the family made, living in the data folder.
         g.theme = themes.pick_theme(

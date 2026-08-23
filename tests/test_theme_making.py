@@ -10,6 +10,7 @@ picture is decoded and re-encoded rather than written through.
 
 import io
 import json
+from pathlib import Path
 import zipfile
 from datetime import date
 
@@ -183,14 +184,41 @@ def test_the_label_on_the_accent_is_the_one_that_can_be_read():
 # --- the pictures -------------------------------------------------------------
 
 
-def test_the_catalogue_is_exactly_the_default_packs_pictures():
-    """A name in one and not the other is a picture that can never be
-    replaced, or a prompt for a picture nothing draws."""
+def test_the_catalogue_asks_for_nothing_the_default_pack_lacks():
+    """A catalogue name with no file behind it is a prompt for a picture
+    that can never be shown, and no fallback to show meanwhile."""
     shipped = {
         p.name for p in (themes.THEMES_DIR / themes.DEFAULT_THEME / "img").iterdir()
         if p.is_file()
     }
-    assert {a.filename for a in theme_catalog.CATALOG} == shipped
+    assert {a.filename for a in theme_catalog.CATALOG} <= shipped
+
+
+def test_every_picture_the_pack_has_is_either_asked_for_or_known_unused():
+    """The other direction: a file nobody asks for can never be replaced by
+    a theme, so it has to be a deliberate omission rather than a slip."""
+    shipped = {
+        p.name for p in (themes.THEMES_DIR / themes.DEFAULT_THEME / "img").iterdir()
+        if p.is_file()
+    }
+    asked = {a.filename for a in theme_catalog.CATALOG}
+    assert shipped - asked == theme_catalog.UNUSED_IN_DEFAULT_PACK
+
+
+def test_nothing_in_the_catalogue_is_drawn_by_nothing():
+    """Every picture asked for is reachable from a template, a stylesheet
+    or the JS that builds the tree — the check that would have caught two
+    prompts for pictures the app stopped using."""
+    import pathlib
+
+    haystack = "\n".join(
+        p.read_text()
+        for folder, pattern in (("app/templates", "*.html"), ("app/static/js", "*.js"),
+                                ("app/static/css", "*.css"), ("app", "theme_packs.py"))
+        for p in pathlib.Path(folder).rglob(pattern)
+    )
+    for asset in theme_catalog.CATALOG:
+        assert asset.filename in haystack, f"{asset.filename} is asked for but never drawn"
 
 
 def test_every_asset_says_where_it_goes_and_what_it_shows():
@@ -464,3 +492,32 @@ def test_the_warning_does_not_stop_the_save(auth_client):
     assert "hard to read" in resp.data.decode()
     user_dir = themes.user_themes_dir(auth_client.application.config["STORIES_DIR"])
     assert "olive" in themes.available_themes(user_dir)
+
+
+def test_a_packs_own_ornaments_reach_the_page(user_dir, made):
+    """rope-divider and brand-star are the two pictures main.css draws
+    through a variable rather than an <img>, so `theme_img()` never sees
+    them and a made pack has to declare them itself — or it uploads them
+    and keeps showing the default pack's."""
+    css = theme_packs.render_stylesheet(user_dir, made)
+    assert "--flourish-image" not in css  # nothing uploaded yet
+
+    theme_packs.save_asset(user_dir, made, "rope-divider.png", _png((1000, 144)))
+    theme_packs.save_asset(user_dir, made, "brand-star.png", _png((240, 240)))
+    css = theme_packs.render_stylesheet(user_dir, made)
+    assert '--flourish-image: url("/themes/woodblock/img/rope-divider.png")' in css
+    assert '--brand-mark: url("/themes/woodblock/img/brand-star.png")' in css
+
+
+def test_those_urls_are_absolute_because_a_relative_one_is_resolved_elsewhere():
+    """The bug this pins: these variables are declared in the pack's
+    stylesheet but used in main.css, and a relative url() inside a custom
+    property resolves against the sheet that *uses* it — so `img/x.png`
+    was fetched from /static/css/img/x.png, 404ed, and left the default
+    pack's ornament on screen with nothing to explain why."""
+    import re
+
+    css = Path("app/theme_packs.py").read_text()
+    for line in css.splitlines():
+        if "url(" in line and "img/" in line:
+            assert re.search(r'url\(\\?"/', line), line

@@ -63,9 +63,27 @@ TRANSLATIONS_FR = {
         "fonctionner ; chaque image qui lui manque est empruntée à celle "
         "fournie avec l'application.",
     "This goes at the top of every picture prompt, so it is what keeps "
-    "thirty-seven separate drawings looking like one book.":
+    "thirty-five separate drawings looking like one book.":
         "Ce texte ouvre chaque consigne : c'est lui qui fait que "
-        "trente-sept dessins séparés ressemblent à un seul livre.",
+        "trente-cinq dessins séparés ressemblent à un seul livre.",
+    # F52: the live preview above the colour fields.
+    "Preview": "Aperçu",
+    "Fill in the three colours to see them.":
+        "Renseignez les trois couleurs pour les voir.",
+    "Tick a colour scheme to see it.": "Cochez une palette pour la voir.",
+    "The text colour is hard to read on that background ({ratio} to 1, "
+    "where 4.5 is the usual floor). It saves either way — but try a "
+    "lighter or darker text colour.":
+        "La couleur du texte est difficile à lire sur ce fond ({ratio} "
+        "contre 1, alors que 4,5 est le seuil habituel). L'enregistrement "
+        "se fera quand même — mais essayez un texte plus clair ou plus "
+        "sombre.",
+    "3 years ago today": "Il y a 3 ans aujourd'hui",
+    "FIRST WORD": "PREMIER MOT",
+    "The night the power went out": "La nuit où le courant a été coupé",
+    "Text": "Texte",
+    "Accent colour": "Couleur d'accent",
+    "Quiet text": "Texte discret",
     "Three colours each; the app works out the rest. Only tick the ones "
     "your world actually has — the reader's toggle offers exactly these.":
         "Trois couleurs par palette ; l'application déduit le reste. Ne "

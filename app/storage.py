@@ -5,6 +5,7 @@ hidden global state), which keeps this module pure and easy to test against a
 tmp directory.
 """
 
+import json
 import logging
 import os
 import re
@@ -791,12 +792,21 @@ def import_backup(stories_dir, zip_file) -> int:
 
     **Made themes come back, additively (F50).** A theme pack under
     `themes/<name>/` is made content — someone described a world and
-    generated thirty-seven pictures for it — so it is restored like a
+    generated thirty-five pictures for it — so it is restored like a
     person rather than skipped like operational state. A pack whose folder
     is already here is left alone, and only the two shapes this app writes
     (`theme.json`, and pictures the catalogue names) are extracted, so a
     zip cannot use a theme folder as a way to drop arbitrary files into the
     stories directory.
+
+    **The book's own settings come back on a fresh restore (F51).** They
+    are family content, not operational state — the book's name, whose
+    childhood it is, who writes in it — and the Settings page says in so
+    many words that they travel with the backup. Restored the way a person
+    or a theme is: only when this book has none of its own, so a zip can
+    never overwrite a live title with an older one. Read through
+    `settings.KEYS` rather than extracted verbatim, for the same reason a
+    theme folder is: a zip may only put back shapes this app writes.
 
     **Credentials never come back.** `CREDENTIAL_FILENAMES` are dropped from
     a person's folder on the way in. A zip is a portable file: restoring one
@@ -810,6 +820,7 @@ def import_backup(stories_dir, zip_file) -> int:
     # Imported here rather than at module scope: storage.py is the data
     # layer every other module leans on, and theme_catalog leans back on
     # nothing, but keeping the import local keeps that arrow one-way.
+    from . import settings as book_settings
     from .theme_catalog import BY_FILENAME
     from .themes import USER_THEMES_DIRNAME
 
@@ -818,6 +829,7 @@ def import_backup(stories_dir, zip_file) -> int:
         story_ids = set()
         person_members = []
         theme_members = []
+        settings_member = None
         for info in zf.infolist():
             name = info.filename
             if name.endswith("/"):
@@ -848,6 +860,9 @@ def import_backup(stories_dir, zip_file) -> int:
                 ):
                     theme_members.append(info)
                 continue
+            if len(parts) == 1 and top == book_settings.SETTINGS_FILENAME:
+                settings_member = info
+                continue
             if not is_valid_story_id(top):
                 continue
             story_ids.add(top)
@@ -863,4 +878,29 @@ def import_backup(stories_dir, zip_file) -> int:
         for info in members + person_members + theme_members:
             zf.extract(info, stories_dir)
 
+        # After the extraction, and only into a book that has none of its
+        # own: an install that has already been configured keeps what it
+        # is doing, exactly as it keeps its own people and themes.
+        if settings_member and not book_settings.settings_path(stories_dir).is_file():
+            _restore_settings(zf, settings_member, stories_dir, book_settings)
+
     return len(story_ids)
+
+
+def _restore_settings(zf, info, stories_dir, book_settings) -> None:
+    """The settings out of a backup, filtered to the keys this app writes.
+
+    Never raises: a zip whose `settings.json` is unreadable costs the
+    restored settings and not the restore. Losing a title on the way back
+    from a dead server would be a nuisance; losing the stories would be
+    the thing this app exists to prevent.
+    """
+    try:
+        data = json.loads(zf.read(info).decode("utf-8"))
+    except (OSError, ValueError, KeyError, UnicodeDecodeError):
+        return
+    if not isinstance(data, dict):
+        return
+    kept = {key: data[key] for key in book_settings.KEYS if key in data}
+    if kept:
+        book_settings.save(stories_dir, kept)

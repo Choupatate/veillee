@@ -85,7 +85,7 @@ the exact `F<N>.` heading text to jump to it.
 - **F49** — Everything about how the book looks behind one button: a tap
   still cycles light and dark, a press-and-hold opens the rest
 - **F50** — Making a theme from inside the book: describe a world, get a
-  prompt for each of its thirty-seven pictures, and bring them back one at
+  prompt for each of its thirty-five pictures, and bring them back one at
   a time
 - **F51** — Setting the book up from inside it: four questions on a fresh
   install, a Settings page forever after, and nothing asked of a book that
@@ -6758,3 +6758,314 @@ Settings — and it says plainly that an existing install is untouched.
 answers, the child appearing in the cast with their birth date, the timeline
 under its new name, `/setup` then stepping aside to `/settings`, and the
 form prefilled with what had just been saved.
+
+---
+
+## F50 follow-up: the pictures a theme could not actually change
+
+> I do not see the different images within the text for all the themes,
+> how come?
+
+Three separate faults, found by reading what the browser fetched rather
+than what the code intended.
+
+**Two pictures were never reachable by a made pack at all.** main.css draws
+the divider between stories and the family tree's brand stamp through CSS
+variables — `--flourish-image` and `--brand-mark` — not through an `<img>`,
+so `theme_img()` never sees them. A pack with a hand-written `theme.css`
+(orbit) redeclares them; a made pack has no such file, and F50 never
+emitted them. Uploading `rope-divider.png` did nothing at all, silently.
+`render_stylesheet` now declares both when the pack has drawn them.
+
+**And then they still didn't appear**, which is the interesting part. A
+relative `url()` inside a custom property is resolved against the
+stylesheet that *uses* the property, not the one that declares it — so
+`url("img/rope-divider.png")`, declared in `/themes/<name>/theme.css` and
+used in `/static/css/main.css`, was fetched from
+`/static/css/img/rope-divider.png`. A 404 in the network log, the default
+pack's ornament still on screen, and nothing anywhere to explain it. The
+generated URLs are absolute now, and a test asserts they always will be,
+with the reason attached — it looks like a pointless detail otherwise.
+
+**Two catalogue entries asked for pictures nothing draws.** The family tree
+tiles its background, so `tree-map.jpg` and `tree-map-dark.jpg` — the
+un-tiled pair the tiling replaced — are referenced by no template, no
+stylesheet and no script. The sheet was asking someone to generate two
+pictures that would never be shown; it now asks for 35. They stay on disk
+(deleting committed artwork is a separate decision) behind a named
+constant, and a new test walks every catalogue entry and fails on any
+filename that appears in no template, stylesheet or script.
+
+A fourth thing turned up while checking: `brand-star.png` was described as
+"the mark beside the book's name". It isn't — it is stamped on the anchor
+person's card in the family tree, at 28 pixels. Someone would have drawn
+the wrong picture, and drawn it too detailed.
+
+Also removed: F50 mapped `--surface-texture` to the tree-map tile, which
+would have tiled the family tree's chart across every page of the book.
+A made pack has no page texture, which is the honest answer — the ranch's
+is an SVG filter and orbit's is a starfield in its own stylesheet, and
+neither is a catalogue asset.
+
+`pytest` (1348) and `ruff check .` green. Verified in Chromium by watching
+the network: before, `404 /static/css/img/rope-divider.png`; after,
+`200 /themes/ornaments/img/rope-divider.png`, with the used value on the
+element pointing at the pack's own file.
+
+Two of my own checks were wrong on the way here and are worth recording:
+the first probe fetched the URL relative to the *page* rather than letting
+CSS resolve it, and the second ran in a fresh browser context with no theme
+cookie, so it was measuring the default pack both times and would have
+reported success.
+
+## F52. Seeing the colours before saving them
+
+> please create a preview for the text so the user can relate
+
+The theme editor asked for a name, a description and **eighteen hex
+fields**, and gave back nothing until you saved. The colour swatch beside
+each field showed one colour on its own, which is the one thing that never
+tells you anything: a palette is a set of relationships — text on
+background, accent on background, the dimmed label the app derives for
+you — and none of them are visible one square at a time. So the only way
+to find out what nine hexes added up to was to save, switch the book to
+that theme, and go and look at a story.
+
+Now a miniature of the book sits above the colour fields and repaints as
+they are typed: the nav with its brand and its outlined **+ New story**
+button, an "on this day" card, a year marker, a timeline row with its
+milestone pill, and the empty mount an illustration is pinned to. Under it,
+the three ratios the palette is actually held to.
+
+**The preview computes nothing of its own.** This is the whole design
+constraint, and it is why the feature is more than a decorative box.
+`app/palette.py` derives eleven variables from three seed colours, and
+several of them are not obvious from the seeds — dimmed text is text mixed
+back toward the background *and then backed off in 4% steps until it clears
+4.5:1*, a border is the background nudged toward the text until it is
+visible as an edge, the accent's label is whichever of your own two colours
+can be read on it. A preview that eyeballed those would be worse than no
+preview: it would tell someone their quiet text was fine when the server
+was about to decide otherwise. So `app/static/js/palette-logic.js` is a
+port of `palette.py`, operation for operation, and
+`tests/test_palette_preview.py` runs 255 seeds through both and fails on
+the first hex that differs.
+
+Two things that port badly and would never show up in a spot check:
+
+- **Python's `round()` is half-to-even; JavaScript's `Math.round` is
+  half-up.** They disagree on exactly the values a mix produces
+  (126.5 → 126 in Python, 127 in the browser). `pyRound` does it Python's
+  way.
+- **Both back-off loops are iterative**, and their result depends on
+  accumulating `amount -= 0.04` in the same order. A closed-form
+  "improvement" on either side would drift, and the cross-check is what
+  would catch it.
+
+Three smaller decisions:
+
+- **It is sticky at the top of the form.** Eighteen fields is a long scroll
+  on a phone; a preview you have to scroll back to is a preview nobody
+  uses. Changing the accent and seeing the year marker move is the point.
+- **Everything inside the pane is written `var(--color-accent)`**, exactly
+  as main.css writes it, and the JS sets the derived variables on the pane.
+  There is no second set of colours to keep in step, and a test fails on
+  any literal hex appearing in the preview markup.
+- **It is not offered with JavaScript off.** The element ships `hidden` and
+  the script reveals it. Without the script the miniature would be painted
+  by main.css's own palette — a picture of the *current* theme captioned as
+  the one being typed, which is the single most misleading thing this page
+  could show.
+
+The live warning under the miniature is the same measurement
+`theme_packs.palette_warnings` makes on save, so the page cannot cry wolf
+about a palette the server would accept, or stay quiet about one it will
+complain about; a test holds the two to the same verdicts.
+
+`pytest` (1360) and `ruff check .` green — 19 new Node checks, a 255-seed
+cross-language comparison, six route tests. Verified in Chromium at 390px
+and 1280px: typing the dark seed `#0f0d14 / #ece0c8 / #c9a227` produced
+`--color-bg-raised: #1e1c21`, `--color-text-dim: #8f877c`,
+`--color-border: #373334`, `--illo-mount: #18151b` in the live DOM — the
+same values `palette.py` returns for those seeds — and the three scheme
+tabs flipped `color-scheme` along with the palette. A palette whose text
+cannot be read renders visibly unreadable *and* says so.
+
+Also corrected while here: the interface still said a theme was
+thirty-seven pictures. It has been thirty-five since the two un-tiled maps
+left the catalogue (F50 follow-up), in the editor's own hint, the French
+translation of it, README, and four comments and docstrings.
+
+## F46 follow-up: orbit's icons, drawn rather than generated
+
+> I thought you had a command to generate images within Claude code
+
+There is no image generator here — but eleven of orbit's thirteen icons
+were still borrowed from the ranch, so a book kept in orbit had a lasso and
+a branding iron on its buttons. Those eleven are the part of a pack that
+least needs a generator, and it took saying "I can't generate these" out
+loud to notice why.
+
+An icon in this project is four flat colours, a dark keyline and one
+silhouette that has to survive being drawn at twenty pixels. That is
+geometry, not illustration — and it is precisely what a generator is worst
+at: it softens small shapes, forgets the outline between one image and the
+next, and will not hold thirteen drawings to one style. So
+`scripts/draw_orbit_icons.py` draws them, in Pillow, from the subject table
+in IMAGE-PROMPTS-ORBIT.md. Pillow is already a pinned dependency, so the
+set is reproducible from `requirements.txt` alone: change a colour in the
+script and all thirteen redraw. The generated plates have never been
+reproducible in that sense, and never can be.
+
+The two icons that *did* come from the generator were redrawn with the
+rest, which IMAGE-PROMPTS-ORBIT.md had already said should happen once the
+others arrived — they predated the outline rule, and a half-outlined set
+looks like a mistake.
+
+**What drawing them taught, beyond what generating them had.** The pack's
+existing rule is that every shape carries a dark navy outline, because
+nothing in the palette reads on both the night side and the day side —
+starlight is 14.5:1 on one and 1.11:1 on the other. Drawing added a
+corollary a generator would never have surfaced: **a line cannot simply
+*be* the keyline.** A navy stroke disappears at night exactly as a navy
+fill does, so every stroke here is drawn twice, a fat navy keyline under a
+lighter core. Filled shapes need one pass; strokes need two.
+
+Two more, both about composition, and both cost several attempts each:
+
+- **Three heads inside an oval is a face.** In a triangle it is
+  unmistakably one; in a row it becomes a pod. `icon-group` only worked
+  inverted — the enclosing shape filled dark, three light silhouettes
+  inside it, no per-figure outline at all. Which is what the catalogue asks
+  for in words; the drawing had to catch up with the sentence.
+- **A dark oval centred in a pale disc is an eye.** `icon-new-person`'s
+  visor read as one until it became a band across the helmet.
+- And one that is just a fact about Pillow: an arc's rounded end caps read
+  as *bolts* when the arc is long enough to be a rim, so `arc()` takes
+  `caps=False` for the hatch and the dashed orbit.
+
+Five passes, and the honest record is that the first one produced six
+usable icons out of thirteen. What was wrong was never the colour or the
+keyline — it was that a shape which reads at 160 pixels can mean something
+else entirely at 20.
+
+`pytest` (1360) and `ruff check .` green. Verified in Chromium against a
+running book with `STORYBOOK_THEME=orbit`: the editor requests
+`/static/themes/orbit/img/icon-{new-story,instant,seal,draft,archive,source,record,save}.png`
+with no 404 and no ranch fallback, and every one reads on both
+`data-theme="dark"` and `data-theme="light"` — which is the test the
+keyline exists to pass.
+
+## F51 follow-up: the three ways a configured install lost its settings
+
+A code review of F51 found five defects. Three of them broke the same
+person — someone whose book is configured by environment variable, which
+is every install that predates the settings page and every install started
+from `.env.example`. That is the audience F51 and the README were written
+for, so these are fixed first.
+
+Each was reproduced against a running app before being touched, and each
+fix has a test that fails without it.
+
+**The wizard erased what it never asked about.** `_form_values()` returned
+all six settings on every submit, and `setup.html` renders neither a theme
+nor a tree-child. To `effective()` a key that is *present but empty* means
+"no value" — that is how clearing the title gets the app's own name back —
+so a book started with `STORYBOOK_THEME=orbit` and `STORYBOOK_CHILD=milo`
+wrote `{"theme": "", "child": ""}` and served the ranch from the moment
+anyone pressed "Start writing". F51's own entry claims a save can only
+write back what the book was already doing; it could not. `_form_values()`
+now returns only the keys whose field the form actually rendered, which is
+the general rule rather than a patch for these two — and `save()` merges,
+so an omitted key leaves whatever was there alone.
+
+**The Language field did nothing.** `resolve_language` computed `g.lang`
+from `settings.book("DEFAULT_LANGUAGE")` one line *before* `g.book` was
+assigned. `book()` falls back to the raw config while `g.book` is unset —
+correct outside a request, silently wrong inside one — so the language came
+from the environment while the title and theme from the same file worked,
+which is exactly why nobody noticed. The two lines are swapped, with the
+reason written above them.
+
+**A hand-edited narrator list took the whole book down.** `read()` promises
+that a settings file edited into nonsense costs the settings and not the
+book, and the birthdate branch keeps that promise. `authors` only checked
+that the value was a list, and every page indexes an entry as `a["name"]`
+— so `{"authors": ["Papa", "Maman"]}`, which is precisely what a person
+would write by hand, was a 500 on every page. Entries are now validated by
+shape and *filtered* rather than the list rejected: one bad line should not
+cost the other three narrators their colours.
+
+Five new tests, and the guard that matters more than the fixes:
+`test_the_settings_form_offers_every_key_it_writes` walks `settings.KEYS`
+against the rendered form, and
+`test_every_family_setting_is_read_through_the_request_context` sets each
+key to something the environment disagrees with and asserts the file wins.
+Those are the general versions — the next field added to one form and not
+the other fails here, rather than in somebody's book six months later.
+
+Each new test was run against the unfixed code to confirm it fails there;
+a guard that passes on the bug it describes is not a guard.
+
+`pytest` (1371) and `ruff check .` green.
+
+Still outstanding from the same review, and next: the MCP server reads
+authors, title and birthdate from the environment only, so a family who
+sets narrators in the app leaves its author allowlist empty; and
+`settings.html` promises the settings travel with a backup, which the
+export honours and `import_backup` silently drops.
+
+## F51 follow-up 2: the two places a setting stopped at the web app
+
+The other half of the same review. Both are the same shape as the three
+before them — a value a family can now change in the app, and something
+else that still read it from the environment — but neither breaks a page,
+so neither was going to be noticed by looking.
+
+**A backup did not bring the settings back.** `settings.html` says the
+settings travel with the backup; the export does put `settings.json` in
+the zip, and `import_backup` skipped it. Every root-level file was skipped,
+for a good reason that did not apply here: `pending_accounts.json` and
+`groups.json` are live operational state, and silently overwriting *those*
+from an old zip would be worse than leaving them alone. The book's own
+settings are not operational state — they are the book's name, whose
+childhood it is, who writes in it — and a restore onto a new server is
+exactly when you want them.
+
+So they come back the way a person or a made theme comes back: **only into
+a book that has none of its own.** An install that has already been
+configured keeps what it is doing, and an old zip can never roll a live
+title back. They are read through `settings.KEYS` rather than extracted
+verbatim, for the same reason a restored theme folder is filtered to the
+catalogue's filenames — a zip is a portable file, and may only put back
+shapes this app writes. A `settings.json` that is unreadable costs the
+restored settings and not the restore: losing a title on the way back from
+a dead server is a nuisance, losing the stories is the thing this app
+exists to prevent.
+
+**The MCP server never learned about the settings page.** It read authors,
+title and birthdate from `STORYBOOK_*` only, so a family who set their
+narrators in the app left its allowlist empty — and `create_story` reads
+`if configured and author not in configured`, which does not reject
+everything when the set is empty, it validates *nothing*. An assistant
+could write a story under any name at all. `book_overview` reported the
+default title and no birthdate at the same time, so ages were missing from
+everything it said about the book.
+
+It now resolves the same way the web app does: `settings.effective` over an
+environment-shaped config, read per call rather than cached at import. Per
+call matters — the process outlives any single change, and a parent adding
+a narrator in the app has to be able to name them in the very next tool
+call, exactly as a browser picks the change up on the next request. It also
+inherits the shape-filtering from the previous follow-up for free, so a
+hand-edited narrator list cannot reach an assistant either.
+
+Nine tests. Seven of them fail against the unfixed code — checked, not
+assumed. The other two (a restore not overwriting a configured book, and an
+unreadable `settings.json` not costing the restore) pin new behaviour
+rather than catching the old bug, since nothing was being restored at all
+before.
+
+`pytest` (1380) and `ruff check .` green.
+
+That closes every finding from the review of F51 and F52.

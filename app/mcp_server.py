@@ -49,7 +49,7 @@ from urllib.parse import urlparse
 
 from mcp.server.fastmcp import FastMCP
 
-from . import dates, kinship, life_events, people, prompts, storage
+from . import dates, kinship, life_events, people, prompts, settings, storage
 
 mcp = FastMCP(
     "storybook",
@@ -75,33 +75,73 @@ def _people_dir() -> Path:
     return storage.people_dir(_stories_dir())
 
 
-def _configured_author_names() -> set:
-    """The set of valid `author` values from STORYBOOK_AUTHORS
-    ("Name:#hex,Name:#hex"), tolerantly parsed: a malformed entry is just
-    skipped rather than raising, since a bad author name here should not stop
-    an otherwise-valid story from being created (unlike app/__init__.py's
-    fail-at-startup version of this same parsing)."""
-    names = set()
+def _environment_config() -> dict:
+    """What the *environment* says about the book, in the shape
+    `settings.effective` expects.
+
+    Tolerantly parsed: a malformed entry is skipped rather than raising,
+    since a bad author name here should not stop an otherwise-valid story
+    from being created (unlike app/__init__.py's fail-at-startup version of
+    this same parsing).
+    """
+    authors = []
     for entry in (os.environ.get("STORYBOOK_AUTHORS") or "").split(","):
-        name, _, _color = entry.strip().partition(":")
+        name, _, color = entry.strip().partition(":")
         name = name.strip()
         if name:
-            names.add(name)
-    return names
+            authors.append({"name": name, "color": color.strip()})
+
+    birthdate = None
+    raw = os.environ.get("STORYBOOK_BIRTHDATE")
+    if raw:
+        try:
+            birthdate = date_cls.fromisoformat(raw)
+        except ValueError:
+            birthdate = None
+
+    return {
+        "TITLE": os.environ.get("STORYBOOK_TITLE") or None,
+        "BIRTHDATE": birthdate,
+        "AUTHORS": authors,
+        "CHILD_SLUG": os.environ.get("STORYBOOK_CHILD") or None,
+        "DEFAULT_LANGUAGE": os.environ.get("STORYBOOK_LANGUAGE") or None,
+        "THEME": os.environ.get("STORYBOOK_THEME") or None,
+    }
+
+
+def _book() -> dict:
+    """The book's settings as the web app would resolve them: the
+    environment, with anything the family set from inside the book laid
+    over the top (F51).
+
+    Read fresh on every call rather than cached at import. This process
+    outlives any single change — a parent adding a narrator in the app
+    while their assistant is connected has to be able to name that
+    narrator in the very next tool call, exactly as the web app picks the
+    change up on the next request. Reading environment variables only, as
+    this file used to, meant a family who set their narrators in the app
+    left `create_story`'s author allowlist empty — which does not reject
+    everything, it validates nothing.
+    """
+    return settings.effective(_environment_config(), _stories_dir())
+
+
+def _configured_author_names() -> set:
+    """The set of valid `author` values."""
+    return {
+        entry["name"]
+        for entry in (_book().get("AUTHORS") or [])
+        if isinstance(entry, dict) and entry.get("name")
+    }
 
 
 def _configured_birthdate() -> Optional[date_cls]:
-    value = os.environ.get("STORYBOOK_BIRTHDATE")
-    if not value:
-        return None
-    try:
-        return date_cls.fromisoformat(value)
-    except ValueError:
-        return None
+    value = _book().get("BIRTHDATE")
+    return value if isinstance(value, date_cls) else None
 
 
 def _configured_title() -> str:
-    return os.environ.get("STORYBOOK_TITLE") or "Storybook"
+    return _book().get("TITLE") or "Storybook"
 
 
 # --- Validation (framework-free mirror of routes_api.py/routes_api_people.py) --
