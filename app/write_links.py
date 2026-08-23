@@ -17,14 +17,13 @@ resist brute force on a weak input.
 import hashlib
 import json
 import logging
-import os
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from . import storage
+from . import jsonstore, storage
 
 logger = logging.getLogger(__name__)
 
@@ -111,9 +110,7 @@ def _write_links(people_dir, person_slug: str, links: list[WriteLink]) -> None:
         }
         for link in links
     ]
-    tmp_path = path.with_suffix(".json.tmp")
-    tmp_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp_path, path)
+    jsonstore.write_json(path, data)
 
 
 def get_link(people_dir, person_slug: str, link_id: str) -> Optional[WriteLink]:

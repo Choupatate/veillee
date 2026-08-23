@@ -26,14 +26,13 @@ one that resists brute force on a weak human-chosen input.
 import hashlib
 import json
 import logging
-import os
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from . import accounts, storage
+from . import accounts, jsonstore, storage
 
 logger = logging.getLogger(__name__)
 
@@ -119,9 +118,7 @@ def _write_invites(people_dir, person_slug: str, invites: list[Invite]) -> None:
         }
         for invite in invites
     ]
-    tmp_path = path.with_suffix(".json.tmp")
-    tmp_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp_path, path)
+    jsonstore.write_json(path, data)
 
 
 def get_invite(people_dir, person_slug: str, invite_id: str) -> Optional[Invite]:

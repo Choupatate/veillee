@@ -24,10 +24,14 @@ immediately and a page render never reads the file twice.
 """
 
 import json
-import os
 import re
 from datetime import date
 from pathlib import Path
+
+# The one app import this module allows itself. `jsonstore` is a leaf too
+# — it imports nothing from the app — so reading it here costs none of the
+# independence the rest of this file is careful about.
+from . import jsonstore
 
 SETTINGS_FILENAME = "settings.json"
 
@@ -311,7 +315,4 @@ def save(stories_dir, values) -> None:
     stories_dir.mkdir(parents=True, exist_ok=True)
     existing = read(stories_dir)
     existing.update(values)
-    target = settings_path(stories_dir)
-    tmp = stories_dir / (SETTINGS_FILENAME + ".tmp")
-    tmp.write_text(json.dumps(existing, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp, target)
+    jsonstore.write_json(settings_path(stories_dir), existing)

@@ -35,7 +35,7 @@ from pathlib import Path
 from PIL import Image, ImageFilter
 
 from . import palette as palette_mod
-from . import themes
+from . import jsonstore, themes
 from .theme_catalog import BY_FILENAME, ICON, ORNAMENT, TILE
 
 #: How far a pixel may sit from the sampled background before it counts as
@@ -215,10 +215,7 @@ def save_pack(user_dir, name, *, label, description, scheme_colors) -> str:
     }
     directory = pack_dir(user_dir, name)
     (directory / "img").mkdir(parents=True, exist_ok=True)
-    target = directory / "theme.json"
-    tmp = directory / "theme.json.tmp"
-    tmp.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp, target)
+    jsonstore.write_json(directory / "theme.json", manifest)
     return name
 
 
