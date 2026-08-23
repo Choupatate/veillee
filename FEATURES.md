@@ -7014,3 +7014,58 @@ authors, title and birthdate from the environment only, so a family who
 sets narrators in the app leaves its author allowlist empty; and
 `settings.html` promises the settings travel with a backup, which the
 export honours and `import_backup` silently drops.
+
+## F51 follow-up 2: the two places a setting stopped at the web app
+
+The other half of the same review. Both are the same shape as the three
+before them — a value a family can now change in the app, and something
+else that still read it from the environment — but neither breaks a page,
+so neither was going to be noticed by looking.
+
+**A backup did not bring the settings back.** `settings.html` says the
+settings travel with the backup; the export does put `settings.json` in
+the zip, and `import_backup` skipped it. Every root-level file was skipped,
+for a good reason that did not apply here: `pending_accounts.json` and
+`groups.json` are live operational state, and silently overwriting *those*
+from an old zip would be worse than leaving them alone. The book's own
+settings are not operational state — they are the book's name, whose
+childhood it is, who writes in it — and a restore onto a new server is
+exactly when you want them.
+
+So they come back the way a person or a made theme comes back: **only into
+a book that has none of its own.** An install that has already been
+configured keeps what it is doing, and an old zip can never roll a live
+title back. They are read through `settings.KEYS` rather than extracted
+verbatim, for the same reason a restored theme folder is filtered to the
+catalogue's filenames — a zip is a portable file, and may only put back
+shapes this app writes. A `settings.json` that is unreadable costs the
+restored settings and not the restore: losing a title on the way back from
+a dead server is a nuisance, losing the stories is the thing this app
+exists to prevent.
+
+**The MCP server never learned about the settings page.** It read authors,
+title and birthdate from `STORYBOOK_*` only, so a family who set their
+narrators in the app left its allowlist empty — and `create_story` reads
+`if configured and author not in configured`, which does not reject
+everything when the set is empty, it validates *nothing*. An assistant
+could write a story under any name at all. `book_overview` reported the
+default title and no birthdate at the same time, so ages were missing from
+everything it said about the book.
+
+It now resolves the same way the web app does: `settings.effective` over an
+environment-shaped config, read per call rather than cached at import. Per
+call matters — the process outlives any single change, and a parent adding
+a narrator in the app has to be able to name them in the very next tool
+call, exactly as a browser picks the change up on the next request. It also
+inherits the shape-filtering from the previous follow-up for free, so a
+hand-edited narrator list cannot reach an assistant either.
+
+Nine tests. Seven of them fail against the unfixed code — checked, not
+assumed. The other two (a restore not overwriting a configured book, and an
+unreadable `settings.json` not costing the restore) pin new behaviour
+rather than catching the old bug, since nothing was being restored at all
+before.
+
+`pytest` (1380) and `ruff check .` green.
+
+That closes every finding from the review of F51 and F52.
