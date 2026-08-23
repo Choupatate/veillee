@@ -254,6 +254,19 @@ Frontend:
   in the same commit. Two details that port badly and are commented at
   length there: Python rounds halves to even and JS rounds them up, and
   both back-off loops are iterative on purpose (a closed form drifts).
+- `app/static/js/crop-logic.js` — the photo cropper's pan/zoom geometry.
+  Extracted because `editor.js` worked out where the photo sits **twice** —
+  once in CSS pixels for the preview, once in canvas pixels for the JPEG —
+  and if those ever disagreed, the photo a parent framed is not the photo
+  their book keeps, with nothing on screen to say so. `placement(state, k)`
+  is that arithmetic; `k` is the only difference between the two callers,
+  and `tests/js/crop_logic_test.mjs` asserts they agree.
+- `app/static/js/draft-logic.js` — whether an autosaved draft is worth
+  offering back after a crash (F31). The comparison used to be two fields
+  while `applyDraft` restored fourteen, so a draft whose only change was
+  the date, the audience, the tags or a toggle was silently deleted on the
+  next load. It compares the whole payload now; keep it that way, and add
+  new payload fields nowhere special — they are picked up automatically.
 - `app/static/js/theme-logic.js` — the scheme cycle and the press rules
   behind F49's theme menu (a tap cycles, a hold opens it, and the click a
   long press leaves behind must not also cycle). Pure, so those three

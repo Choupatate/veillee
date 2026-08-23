@@ -101,6 +101,9 @@ the exact `F<N>.` heading text to jump to it.
 - **Housekeeping 3** — the pure date maths leaves `storage.py` for
   `timeline.py`, and the Feb 29 rule that three call sites each wrote out
   becomes one `dates.same_day_of_year`
+- **Housekeeping 4** — `crop-logic.js` and `draft-logic.js` come out of
+  `editor.js`; the cropper's preview and saved JPEG become one calculation,
+  and crash recovery stops discarding drafts it should have offered back
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7423,3 +7426,71 @@ file per feature area, not one per module, and both are named for their
 feature.
 
 `pytest` (1489) and `ruff check .` green.
+
+## Housekeeping 4: two pure modules out of editor.js, and a bug in the second
+
+`editor.js` is 1,650 lines and the only large piece of front-end code that
+had never been through this codebase's own extraction pattern — ten UMD
+modules with plain-Node tests, and none of them from the biggest file.
+Two of its eleven sections are pure arithmetic hiding behind a browser.
+
+This is not a line-count exercise. `editor.js` is barely shorter
+afterwards, because the code was replaced by calls rather than deleted.
+What changed is that two things that could quietly be wrong now cannot.
+
+### `crop-logic.js`: the preview and the saved photo were computed twice
+
+The pan/zoom cropper worked out where the photo sits in two places:
+`updateCropTransform`, in CSS pixels against the on-screen stage, and
+`rasterizeCrop`, in canvas pixels against a 900px square. The same
+arithmetic, written out separately — and the failure mode if they ever
+drifted is the worst kind this app has. **The photo a parent framed would
+not be the photo their book keeps, and nothing on screen would say so.**
+
+`placement(state, k)` is that arithmetic now. `k` is 1 for the preview and
+`900 / stageSize` for the canvas, and it is the entire difference between
+the two callers. Nineteen checks, including the one the two copies were
+always supposed to satisfy and nothing tested: for five different photo
+shapes, zooms and pans, the canvas placement equals the preview placement
+times `k`. Introducing a one-pixel drift at output scale fails it.
+
+Two smaller things the extraction turned up and fixed: a pinch whose two
+pointers arrive at the same coordinates used to divide by zero and set the
+zoom to `NaN`, which the slider cannot come back from; and clamping a
+negative drag against a limit of zero yields `-0` in JavaScript, which
+survives JSON and comparisons.
+
+Verified in a real browser as well as in Node — a 1200×800 photo on a
+256px stage, zoomed to 50 and dragged 60px left, produced exactly the
+placement `CropLogic` predicts, and the saved 900×900 JPEG contained
+exactly the predicted region of the source image (green band left, yellow
+right, the marker ellipse where the maths said it would be).
+
+### `draft-logic.js`: crash recovery was throwing drafts away
+
+This one is a defect, not a refactor.
+
+`applyDraft` restores fourteen fields — the date, the sealed-until date,
+the draft and archived toggles, the people, the tags, the sources, the
+audience, the family pickers, the sepia dial. The question *"is there
+anything to restore?"* compared **two**: the title and the markdown.
+
+So a parent who opened the editor, set the date, chose who the story was
+for, tagged it, and then lost the tab got no banner and no draft. The
+autosave had run and written all of it. The recovery read it back,
+decided nothing had changed, and called `clearAutosave()`.
+
+Reproduced in a browser before fixing it, and again after putting the old
+comparison back: with two fields, a date-only edit and a tags-only edit
+both come back `banner=false`; with the whole payload compared, both are
+`banner=true`, and a genuinely unchanged page still shows nothing.
+
+The comparison is now over every field either side mentions, which also
+means a field added to the payload later is picked up with no change here.
+Fifteen checks, including the nine "only this changed" cases that used to
+be discarded, and the ones that guard the other direction: `false` and `0`
+and `""` are values rather than absences, key order in an object is not a
+change, the order of `people` and `sources` is, and anything else that
+turns up in that localStorage key is not a draft at all.
+
+`pytest` (1491) and `ruff check .` green.

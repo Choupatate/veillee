@@ -3,7 +3,9 @@
 (app/static/js/tree-graph-logic.js), the shared localStorage wrapper
 (app/static/js/safe-storage.js), the shared fetch/JSON response
 helper (app/static/js/fetch-json.js), the in-app camera's frame math
-(app/static/js/camera-logic.js), the editor's image-link conversion
+(app/static/js/camera-logic.js), the photo cropper's pan/zoom geometry
+(app/static/js/crop-logic.js), the crash-recovery decision behind its
+autosave (app/static/js/draft-logic.js), the editor's image-link conversion
 (app/static/js/media-links.js), and the voice recorder's clock and
 interruption policy (app/static/js/recorder-logic.js), the screen wake
 lock it holds (app/static/js/wake-lock.js), the theme menu's scheme
@@ -108,6 +110,24 @@ def test_theme_logic_pure_functions():
 def test_palette_logic_pure_functions():
     result = subprocess.run(
         [NODE, "tests/js/palette_logic_test.mjs"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node not available on PATH")
+def test_crop_logic_pure_functions():
+    result = subprocess.run(
+        [NODE, "tests/js/crop_logic_test.mjs"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node not available on PATH")
+def test_draft_logic_pure_functions():
+    result = subprocess.run(
+        [NODE, "tests/js/draft_logic_test.mjs"],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
