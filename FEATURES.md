@@ -7069,3 +7069,80 @@ before.
 `pytest` (1380) and `ruff check .` green.
 
 That closes every finding from the review of F51 and F52.
+
+## F46 follow-up 2: the keyline that was on the wrong side of the line
+
+A second review of the drawn orbit icons found three faults in artwork I
+had reported as verified on both schemes. All three were invisible in the
+things I checked with, which is the part worth recording.
+
+**The light core was outside the keyline, not inside it.** Pillow draws an
+arc's and an ellipse's stroke *inward* from its bounding box rather than
+centred on it, so `arc()` and `ring()` — which drew a fat navy band and
+then a narrower light one from the same box — put the light band outermost
+and the navy within. That is the exact inverse of the rule the whole pack
+is built on: on the pale page the shape loses its outer edge entirely.
+`stroke()` never had it, because `line()` *is* centred on its path, which
+is why the icons built from strokes looked right and the ones built from
+arcs looked slightly soft.
+
+Measured through one dash of `icon-draft`, before: navy r=35–56, starlight
+r=59–68 — light on the outside. After: navy 35–47, starlight 50–68, navy
+71. Enclosed.
+
+**Three shapes were drawn past the edge of the grid** — the review found
+two, and measuring found a third. A shape drawn off-grid is cut flat and
+the cut carries no keyline, and it does not look wrong either: `render`
+trims to content and *then* pads, so the flat edge lands inside the padded
+frame rather than on the image border, where somebody would notice.
+`icon-new-person`'s plus reached x=65.7 on a 64-wide grid.
+
+**`icon_draft`'s docstring described the opposite of what it drew.** The
+module header says those docstrings are the catalogue's subject line so a
+drawing that has drifted is visible right there — a mechanism that only
+works if the line is kept in step when the drawing changes, and it was not.
+The drawing won on merit here (a dashed *orbit* survives 20px where a
+dashed body closes up into a solid rim), so the line was corrected to match
+the drawing rather than the reverse, with the reason attached.
+
+**The tests are the point of this entry.** `tests/test_orbit_icons.py`
+measures the three properties instead of admiring them: bands along a ray
+must run navy, core, navy; nothing may be drawn past the grid; and every
+icon must still have ink on it at the twenty pixels the app draws it, on
+every scheme the pack offers. The floor is 8% of a 20×20 square clearing
+3:1 against the button's own background — picked from measurement, not
+taste. All fifty-six were run against the unfixed code first; the three
+that describe the bugs fail there.
+
+A finding that came out of writing that floor, and is *not* fixed here.
+Measured each pack against its own `--color-bg-raised` rather than another
+pack's — the mistake I made on the first attempt, which flattered orbit and
+libelled the ranch — several of the **default** pack's icons fall well
+below the same floor:
+
+| ranch icon | dark | light | manuscript |
+|---|---|---|---|
+| `icon-new-person` | **0.0%** | 28.0% | 27.8% |
+| `icon-tree` | 7.5% | 5.5% | **2.8%** |
+| `icon-source` | 21.0% | 7.8% | **4.5%** |
+| `icon-print` | 17.0% | 12.8% | **7.2%** |
+
+Orbit's weakest is 9.5%. These are thin-line drawings that dissolve at
+button size — the catalogue's own "no stroke thinner than a tenth of the
+icon's width" is the rule they miss.
+
+**Raised, decided, and deliberately left alone.** The numbers were put to
+the book's owner and the answer was that the ranch's icons are fine as
+they are. That is a taste call and it is theirs: the ranch is the app's
+own hand, the drawings have character a measurement cannot see, and the
+alternative — thickening four of them, or giving the ranch a drawing
+script the way orbit now has one — would trade that character for a
+number. Recorded here so it reads as a decision that was made rather than
+a defect nobody noticed, and so the next person to run the same
+measurement does not re-open it.
+
+The floor in `tests/test_orbit_icons.py` therefore applies to the icons
+that script draws, and to nothing else. It is not a rule the ranch is
+held to, and it should not become one without the same conversation.
+
+`pytest` (1436) and `ruff check .` green.

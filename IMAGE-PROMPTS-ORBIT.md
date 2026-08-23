@@ -728,6 +728,17 @@ navy stroke is invisible at night for the same reason a navy fill is, so
 every stroke in the set is drawn twice — a fat navy keyline with a lighter
 core on top. Filled shapes need only the outline; strokes need both.
 
+And a corollary to *that*, which cost a round of committed artwork: **the
+core has to sit inside the keyline, not on top of its outer half.** Pillow
+draws an arc's and an ellipse's stroke *inward* from its bounding box
+rather than centred on it, so a keyline and a core sharing one box both hug
+the outer edge and the light band ends up outermost — the exact inverse of
+the rule, and on the pale page the shape loses its outer edge entirely. It
+is invisible at 160 pixels. It survived a contact sheet, a screenshot of
+the running app and a round of review, and was found by taking a radial
+profile through a single dash. `tests/test_orbit_icons.py` now measures the
+bands along a ray and fails unless they run navy, core, navy.
+
 Two more things drawing them taught, both about composition rather than
 colour, and both cost several attempts:
 
@@ -738,6 +749,11 @@ colour, and both cost several attempts:
   is also what the catalogue asks for in words.
 - **A dark oval centred in a pale disc is an eye.** `icon-new-person`'s
   visor had to become a band across the helmet before it read as a helmet.
+- **A shape drawn past the edge of the grid is cut flat, and the cut has
+  no keyline on it.** Worse, it does not look wrong: the output is trimmed
+  to content and *then* padded, so the flat edge lands inside the padded
+  frame rather than on the image border. Three icons were doing this.
+  There is a test now.
 
 The other thing the first batch taught: *the subject line has to name a
 shape, not a concept*. "A ringed planet inside a downward chevron" came
