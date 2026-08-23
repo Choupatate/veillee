@@ -4587,7 +4587,7 @@ img.family-chip__thumb {
 
 /* --- Making a theme (F50) -------------------------------------------------
    The two pages behind "Make a theme": a small form for the colours, and
-   the sheet of thirty-seven pictures with a prompt beside each. Both are
+   the sheet of thirty-five pictures with a prompt beside each. Both are
    admin pages and borrow .admin's frame; only what is particular to them
    is here. */
 
@@ -4697,6 +4697,244 @@ img.family-chip__thumb {
   margin-top: 2.5rem;
   padding-top: 1rem;
   border-top: 1px solid var(--color-border);
+}
+
+/* ---------------------------------------------------------------------- */
+/* F52: the theme editor's live preview                                    */
+/*                                                                          */
+/* Sticky at the top of the form, because the thing you are looking at and  */
+/* the field you are changing are otherwise a phone-screen apart: eighteen  */
+/* hex fields is a long scroll, and a preview you have to scroll back to is */
+/* a preview you stop using.                                                */
+/*                                                                          */
+/* Everything inside .theme-preview__pane is written in var(--color-...)    */
+/* exactly as main.css writes it, and theme-preview.js sets those variables */
+/* on the pane itself. That is the whole trick, and it is what stops the    */
+/* miniature from drifting away from the real screens: there is no second   */
+/* set of colours to keep in step.                                          */
+/* ---------------------------------------------------------------------- */
+
+.theme-preview {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0 0.85rem;
+  /* Opaque: the colour fields scroll underneath this. */
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.theme-preview__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.theme-preview__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.theme-preview__tab {
+  min-height: 32px;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-dim);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.theme-preview__tab[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* The miniature. Its own --color-* variables arrive inline from
+   theme-preview.js, so nothing below names a colour. */
+.theme-preview__pane {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.theme-preview__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.theme-preview__brand {
+  flex: 1;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-preview__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+}
+
+/* The nav's own button is outlined, not filled — .btn--new, not
+   .btn--primary. Getting this wrong in a preview would flatter an accent
+   that is actually only ever drawn as an outline. */
+.theme-preview__btn {
+  flex: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--color-accent);
+  background: var(--color-bg-raised);
+  color: var(--color-accent);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.theme-preview__body {
+  padding: 0.7rem 0.85rem 0.85rem;
+}
+
+.theme-preview__card {
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 0.4rem 0.4rem 0;
+  background: var(--color-bg-raised);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--color-text-dim);
+}
+
+.theme-preview__year {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  color: var(--color-accent);
+}
+
+.theme-preview__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.2rem 0 0.1rem;
+}
+
+.theme-preview__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.theme-preview__date {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  color: var(--color-accent);
+}
+
+.theme-preview__pill {
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.1em 0.5em;
+  border-radius: 999px;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+}
+
+.theme-preview__title {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-serif);
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+/* Where a picture goes: the card the app draws around every illustration,
+   which a pack colours through --illo-mount even before it has any art. */
+.theme-preview__mount {
+  display: block;
+  height: 34px;
+  border-radius: 4px;
+  background: var(--illo-mount);
+  border: 1px solid var(--illo-mount-edge);
+}
+
+.theme-preview__empty,
+.theme-preview__warning {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-text-dim);
+}
+
+.theme-preview__warning {
+  color: var(--color-error);
+}
+
+.theme-preview__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--color-text-dim);
+}
+
+.theme-preview__check {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.theme-preview__check-value {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Below the floor the app itself holds that pair to. Said in colour and in
+   the number, never in colour alone. */
+.theme-preview__check.is-low .theme-preview__check-value {
+  color: var(--color-error);
+}
+
+.theme-preview__check.is-low .theme-preview__check-value::after {
+  content: " \26A0";
+}
+
+@media (min-width: 48rem) {
+  .theme-preview__pane {
+    max-width: 26rem;
+  }
 }
 
 /* The sheet. One row per picture: what the book draws there now on the

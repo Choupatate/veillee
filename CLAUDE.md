@@ -32,7 +32,7 @@ Read these before making non-trivial changes, in this order:
   Both files are **hand-written prompts for one specific pack**, and are
   the record of what was learned drawing it. `app/theme_catalog.py` (F50)
   is the generic version the app generates for a pack a family makes: same
-  37 assets, described by the job each does rather than by what the ranch
+  35 assets, described by the job each does rather than by what the ranch
   or orbit draws for it. A rule learned in either markdown file — no
   lettering, no corner watermark, a dark outline on icons, an object and
   not a scene — belongs in the catalogue too, or the next person to make a
@@ -149,7 +149,7 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   survives an app update and travels in the backup zip. `themes.py`
   checks the built-in root first, so a made pack can never shadow `ranch`
   and break the fallback. Three rules to keep if you touch this: the only
-  filenames that can ever be written into a pack are the 37 in
+  filenames that can ever be written into a pack are the 35 in
   `theme_catalog.CATALOG` (the allowlist *is* the catalogue), a palette is
   validated hex rendered into CSS by `palette.py` and never user-authored
   CSS, and uploads are re-encoded through Pillow like every other image
@@ -199,6 +199,15 @@ Frontend:
   ancestor walks, chain validation), unit-tested directly under Node via
   `tests/js/tree_logic_test.mjs`. Keep new pure tree logic here rather than
   inline in `tree.js`, so it stays testable without a browser.
+- `app/static/js/palette-logic.js` — the theme editor's live preview
+  (F52). A port of `app/palette.py`'s `derive`/`contrast`/warnings so the
+  preview shows the palette the server will actually render, not an
+  impression of it. **The two are held together by
+  `tests/test_palette_preview.py`, which runs 255 seeds through both and
+  fails on the first hex that differs** — change one and change the other
+  in the same commit. Two details that port badly and are commented at
+  length there: Python rounds halves to even and JS rounds them up, and
+  both back-off loops are iterative on purpose (a closed form drifts).
 - `app/static/js/theme-logic.js` — the scheme cycle and the press rules
   behind F49's theme menu (a tap cycles, a hold opens it, and the click a
   long press leaves behind must not also cycle). Pure, so those three

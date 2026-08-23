@@ -838,17 +838,24 @@ whoever has the password). Then:
 1. **Name it and describe the world** in a sentence or two — *"a Japanese
    woodblock print world: indigo, rust and off-white paper, strong
    outlines, flat colour, soft mist"*. That description is what keeps
-   thirty-seven separate drawings looking like one book. **Describe a way
+   thirty-five separate drawings looking like one book. **Describe a way
    of drawing, not a place**: what it's drawn with, how it's lit, what the
    lines are like. A world named as a setting — *"a neon city at night"* —
    makes a generator draw the setting instead of the thing you asked for,
-   thirty-seven times. Your palette's hex codes are added to every prompt
+   thirty-five times. Your palette's hex codes are added to every prompt
    automatically, so you don't need to name colours here.
 2. **Pick three colours per scheme** — a background, a text colour, an
    accent — and tick only the schemes your world actually has. The app
-   derives the other dozen variables from those three.
+   derives the other dozen variables from those three. A **live preview**
+   above the fields shows a miniature of the book in whatever you've typed
+   so far — nav, timeline, a story title, the card a picture sits in —
+   with a tab per scheme and the three contrast ratios the palette is held
+   to underneath. It's the derived palette, not an impression of it: the
+   same maths the server runs, so what you see is what saving will give
+   you. A text colour that can't be read on its background says so before
+   you save rather than after.
 3. **Fill in the pictures at your own pace.** The Pictures page lists all
-   37 with a ready-to-paste prompt for each: what the picture is *for* in
+   35 with a ready-to-paste prompt for each: what the picture is *for* in
    this book, plus the rules that keep what comes back usable (no
    lettering, no watermark, no border; icons outlined so they survive on
    both a light and a dark page). Copy one, paste it into an image

@@ -6,9 +6,10 @@ helper (app/static/js/fetch-json.js), the in-app camera's frame math
 (app/static/js/camera-logic.js), the editor's image-link conversion
 (app/static/js/media-links.js), and the voice recorder's clock and
 interruption policy (app/static/js/recorder-logic.js), the screen wake
-lock it holds (app/static/js/wake-lock.js), and the theme menu's scheme
-cycle and press rules (app/static/js/theme-logic.js) as part of the bare
-`pytest` run.
+lock it holds (app/static/js/wake-lock.js), the theme menu's scheme
+cycle and press rules (app/static/js/theme-logic.js), and the theme
+editor's preview colour maths (app/static/js/palette-logic.js) as part of
+the bare `pytest` run.
 Skipped, not failed, when node isn't on PATH — the app has no Node
 dependency and never should; this just piggybacks on it being present
 in CI."""
@@ -98,6 +99,15 @@ def test_wake_lock():
 def test_theme_logic_pure_functions():
     result = subprocess.run(
         [NODE, "tests/js/theme_logic_test.mjs"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node not available on PATH")
+def test_palette_logic_pure_functions():
+    result = subprocess.run(
+        [NODE, "tests/js/palette_logic_test.mjs"],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr

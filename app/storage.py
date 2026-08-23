@@ -791,7 +791,7 @@ def import_backup(stories_dir, zip_file) -> int:
 
     **Made themes come back, additively (F50).** A theme pack under
     `themes/<name>/` is made content — someone described a world and
-    generated thirty-seven pictures for it — so it is restored like a
+    generated thirty-five pictures for it — so it is restored like a
     person rather than skipped like operational state. A pack whose folder
     is already here is left alone, and only the two shapes this app writes
     (`theme.json`, and pictures the catalogue names) are extracted, so a

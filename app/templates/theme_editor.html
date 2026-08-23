@@ -33,14 +33,74 @@
       <span class="theme-form__label">{{ _("Describe the world") }}</span>
       <textarea name="description" rows="4" maxlength="2000"
                 placeholder="{{ _('e.g. A Japanese woodblock print world: indigo, rust and off-white paper, strong outlines, flat colour, soft mist.') }}">{{ (form and form.get('description')) or (pack and pack.description) or '' }}</textarea>
-      <span class="theme-form__note">{{ _("This goes at the top of every picture prompt, so it is what keeps thirty-seven separate drawings looking like one book.") }}</span>
+      <span class="theme-form__note">{{ _("This goes at the top of every picture prompt, so it is what keeps thirty-five separate drawings looking like one book.") }}</span>
       <span class="theme-form__note">
         {# The lesson of the first theme anyone tried to make: naming a
-           *place* gets you thirty-seven views of that place, with the
+           *place* gets you thirty-five views of that place, with the
            subject lost somewhere inside each one. #}
         {{ _("Describe a way of drawing, not a place: what it is drawn with, how it is lit, what the lines are like. A world named as a setting — “a neon city at night”, “a misty forest” — makes a generator draw the setting instead of the thing being asked for. The colours are added for you.") }}
       </span>
     </label>
+
+    {# F52: the preview. Deliberately not offered with JavaScript off — a
+       still picture of somebody else's palette would be worse than none.
+       Every colour in it is computed by palette-logic.js, which is a port
+       of palette.py checked against it in tests/test_palette_preview.py;
+       if the two ever disagree the preview stops being worth having. #}
+    <div class="theme-preview" id="theme-preview" hidden
+         data-warning="{{ _('The text colour is hard to read on that background ({ratio} to 1, where 4.5 is the usual floor). It saves either way — but try a lighter or darker text colour.') }}"
+         data-empty="{{ _('Fill in the three colours to see them.') }}"
+         data-none="{{ _('Tick a colour scheme to see it.') }}">
+      <div class="theme-preview__head">
+        <span class="theme-form__label">{{ _("Preview") }}</span>
+        <div class="theme-preview__tabs" id="theme-preview-tabs"
+             role="group" aria-label="{{ _('Colour scheme') }}"></div>
+      </div>
+
+      {# The pane carries the derived variables as inline custom properties,
+         so everything inside it is written the way main.css writes it —
+         var(--color-accent), not a colour. #}
+      <div class="theme-preview__pane" id="theme-preview-pane">
+        <div class="theme-preview__nav">
+          <span class="theme-preview__brand">{{ (form and form.get('label')) or (pack and pack.label) or app_title }}</span>
+          <span class="theme-preview__toggle" aria-hidden="true">&#9680;</span>
+          <span class="theme-preview__btn">{{ _("+ New story") }}</span>
+        </div>
+        <div class="theme-preview__body">
+          <p class="theme-preview__card">{{ _("3 years ago today") }}</p>
+          <p class="theme-preview__year">2024</p>
+          <p class="theme-preview__row">
+            <span class="theme-preview__dot" aria-hidden="true"></span>
+            <span class="theme-preview__date">27/08</span>
+            <span class="theme-preview__pill">{{ _("FIRST WORD") }}</span>
+          </p>
+          <p class="theme-preview__title">{{ _("The night the power went out") }}</p>
+          <span class="theme-preview__mount" aria-hidden="true"></span>
+        </div>
+      </div>
+
+      <p class="theme-preview__empty" id="theme-preview-empty" hidden></p>
+
+      {# The same three pairs the palette is actually held to. Shown as
+         numbers because "looks fine to me" is exactly the judgement that
+         goes wrong on somebody else's screen. #}
+      <ul class="theme-preview__checks" id="theme-preview-checks">
+        <li class="theme-preview__check" data-check="text">
+          <span class="theme-preview__check-name">{{ _("Text") }}</span>
+          <span class="theme-preview__check-value"></span>
+        </li>
+        <li class="theme-preview__check" data-check="accent">
+          <span class="theme-preview__check-name">{{ _("Accent colour") }}</span>
+          <span class="theme-preview__check-value"></span>
+        </li>
+        <li class="theme-preview__check" data-check="dim">
+          <span class="theme-preview__check-name">{{ _("Quiet text") }}</span>
+          <span class="theme-preview__check-value"></span>
+        </li>
+      </ul>
+
+      <p class="theme-preview__warning" id="theme-preview-warning" hidden></p>
+    </div>
 
     <fieldset class="theme-form__schemes">
       <legend>{{ _("Colour schemes") }}</legend>
@@ -82,5 +142,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/palette-logic.js') }}"></script>
+<script src="{{ url_for('static', filename='js/theme-preview.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme-form.js') }}"></script>
 {% endblock %}

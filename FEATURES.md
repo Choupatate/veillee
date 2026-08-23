@@ -85,7 +85,7 @@ the exact `F<N>.` heading text to jump to it.
 - **F49** — Everything about how the book looks behind one button: a tap
   still cycles light and dark, a press-and-hold opens the rest
 - **F50** — Making a theme from inside the book: describe a world, get a
-  prompt for each of its thirty-seven pictures, and bring them back one at
+  prompt for each of its thirty-five pictures, and bring them back one at
   a time
 - **F51** — Setting the book up from inside it: four questions on a fresh
   install, a Settings page forever after, and nothing asked of a book that
@@ -6817,3 +6817,81 @@ the first probe fetched the URL relative to the *page* rather than letting
 CSS resolve it, and the second ran in a fresh browser context with no theme
 cookie, so it was measuring the default pack both times and would have
 reported success.
+
+## F52. Seeing the colours before saving them
+
+> please create a preview for the text so the user can relate
+
+The theme editor asked for a name, a description and **eighteen hex
+fields**, and gave back nothing until you saved. The colour swatch beside
+each field showed one colour on its own, which is the one thing that never
+tells you anything: a palette is a set of relationships — text on
+background, accent on background, the dimmed label the app derives for
+you — and none of them are visible one square at a time. So the only way
+to find out what nine hexes added up to was to save, switch the book to
+that theme, and go and look at a story.
+
+Now a miniature of the book sits above the colour fields and repaints as
+they are typed: the nav with its brand and its outlined **+ New story**
+button, an "on this day" card, a year marker, a timeline row with its
+milestone pill, and the empty mount an illustration is pinned to. Under it,
+the three ratios the palette is actually held to.
+
+**The preview computes nothing of its own.** This is the whole design
+constraint, and it is why the feature is more than a decorative box.
+`app/palette.py` derives eleven variables from three seed colours, and
+several of them are not obvious from the seeds — dimmed text is text mixed
+back toward the background *and then backed off in 4% steps until it clears
+4.5:1*, a border is the background nudged toward the text until it is
+visible as an edge, the accent's label is whichever of your own two colours
+can be read on it. A preview that eyeballed those would be worse than no
+preview: it would tell someone their quiet text was fine when the server
+was about to decide otherwise. So `app/static/js/palette-logic.js` is a
+port of `palette.py`, operation for operation, and
+`tests/test_palette_preview.py` runs 255 seeds through both and fails on
+the first hex that differs.
+
+Two things that port badly and would never show up in a spot check:
+
+- **Python's `round()` is half-to-even; JavaScript's `Math.round` is
+  half-up.** They disagree on exactly the values a mix produces
+  (126.5 → 126 in Python, 127 in the browser). `pyRound` does it Python's
+  way.
+- **Both back-off loops are iterative**, and their result depends on
+  accumulating `amount -= 0.04` in the same order. A closed-form
+  "improvement" on either side would drift, and the cross-check is what
+  would catch it.
+
+Three smaller decisions:
+
+- **It is sticky at the top of the form.** Eighteen fields is a long scroll
+  on a phone; a preview you have to scroll back to is a preview nobody
+  uses. Changing the accent and seeing the year marker move is the point.
+- **Everything inside the pane is written `var(--color-accent)`**, exactly
+  as main.css writes it, and the JS sets the derived variables on the pane.
+  There is no second set of colours to keep in step, and a test fails on
+  any literal hex appearing in the preview markup.
+- **It is not offered with JavaScript off.** The element ships `hidden` and
+  the script reveals it. Without the script the miniature would be painted
+  by main.css's own palette — a picture of the *current* theme captioned as
+  the one being typed, which is the single most misleading thing this page
+  could show.
+
+The live warning under the miniature is the same measurement
+`theme_packs.palette_warnings` makes on save, so the page cannot cry wolf
+about a palette the server would accept, or stay quiet about one it will
+complain about; a test holds the two to the same verdicts.
+
+`pytest` (1360) and `ruff check .` green — 19 new Node checks, a 255-seed
+cross-language comparison, six route tests. Verified in Chromium at 390px
+and 1280px: typing the dark seed `#0f0d14 / #ece0c8 / #c9a227` produced
+`--color-bg-raised: #1e1c21`, `--color-text-dim: #8f877c`,
+`--color-border: #373334`, `--illo-mount: #18151b` in the live DOM — the
+same values `palette.py` returns for those seeds — and the three scheme
+tabs flipped `color-scheme` along with the palette. A palette whose text
+cannot be read renders visibly unreadable *and* says so.
+
+Also corrected while here: the interface still said a theme was
+thirty-seven pictures. It has been thirty-five since the two un-tiled maps
+left the catalogue (F50 follow-up), in the editor's own hint, the French
+translation of it, README, and four comments and docstrings.

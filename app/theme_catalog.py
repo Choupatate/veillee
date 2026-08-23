@@ -1,6 +1,6 @@
 """What a theme pack is made of, and how to ask an AI for each piece (F50).
 
-Thirty-seven pictures, described by the *job* each one does rather than by
+Thirty-five pictures, described by the *job* each one does rather than by
 what the ranch happens to draw for it. That distinction is the whole file.
 `login-campfire.jpg` is not "a campfire": it is the welcome on the login
 page, the thing that says *this is a private place, come and sit down* —
@@ -209,7 +209,7 @@ TILE_RULES = (
 )
 
 
-#: The line that keeps thirty-seven pictures a *set* rather than a gallery.
+#: The line that keeps thirty-five pictures a *set* rather than a gallery.
 #: A style described as a place — "a neon-lit night city", "a misty forest"
 #: — pulls a generator toward drawing that place, and what comes back is a
 #: wallpaper with the subject somewhere in it. These are small pictures on
@@ -232,7 +232,7 @@ def palette_line(palette: dict | None) -> str:
 
     The app already knows exactly which hexes this theme is built from, and
     a generator left to pick its own "cyan" picks a different one each
-    time. Naming them is most of what makes a set of thirty-seven separate
+    time. Naming them is most of what makes a set of thirty-five separate
     drawings look like one book.
     """
     if not isinstance(palette, dict):
