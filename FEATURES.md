@@ -118,6 +118,8 @@ complete rather than merely intended to be.
   and crash recovery stops discarding drafts it should have offered back
 - **Housekeeping 5** — this index becomes a tested promise rather than an
   intention, and the plan to sort the file is abandoned with reasons
+- **Housekeeping 6** — Toast UI gets the `LICENSE` it never had, and a test
+  that catches the next vendored file served without a copyright notice
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7548,3 +7550,53 @@ generated icons, and the framing rules in it are the ones the drawing
 script matches.
 
 `pytest` (1497) and `ruff check .` green.
+
+## Housekeeping 6: the vendored libraries ship their licences
+
+Found while working out whether three unmerged branches were worth
+keeping. One of them — a session from July that never landed — carried an
+in-app credits page under feature numbers that other work has since taken,
+so it cannot merge as it stands. But it was right about one thing, and that
+thing is still true on `main`.
+
+**`app/static/vendor/toastui/` had no `LICENSE` file.** `d3/` and
+`familychart/` both had one; `familychart/` had a `VENDORED.md` too. Toast
+UI had neither — no licence text, no provenance note — despite CLAUDE.md's
+vendoring rule being written *about* that very bundle.
+
+Nothing looked wrong from inside the code, because the bundle's own banner
+already named the licence. What was missing was the text MIT asks to be
+distributed with copies. This app exists to be self-hosted and handed
+around; that is exactly the situation the obligation is about.
+
+So: the MIT text (verified against upstream — `Copyright (c) 2020 NHN Cloud
+Corp.`), and a `VENDORED.md` recording the version, the esbuild rebuild
+command, the `usageStatistics: false` rule, and where its class names may
+be styled.
+
+### The test found a second one on its first run
+
+`tests/test_vendored_licences.py` checks three things per vendored library:
+a `LICENSE` with an actual grant and a copyright holder in it, provenance
+written down somewhere (`d3/` has no `VENDORED.md` of its own and does not
+need one — it is family-chart's peer and is documented in that folder's
+file), and **a licence notice in every `.js`/`.css` file a browser
+downloads**.
+
+That third check is the one that matters, and it failed immediately on
+`familychart/family-chart.css`. Upstream ships that file without a banner,
+so the only copy of it this app serves was going out with no copyright line
+on it — the same defect as Toast UI's, in a library that already had its
+`LICENSE`. Toast UI's dark theme stylesheet was the same story.
+
+Both now carry a banner added locally, and each folder's `VENDORED.md`
+names that as its only local edit, so a future re-vendoring knows to put it
+back. The vendored CSS is otherwise untouched: the diffs are pure
+additions, and both stylesheets parse to exactly the rule count they did
+before (99 and 145), checked in a browser rather than assumed.
+
+The guard was confirmed to fail three ways: a library folder with no
+`LICENSE`, a loose file dropped at the top of `vendor/` where no library
+owns it, and the banner taken off again.
+
+`pytest` (1508) and `ruff check .` green.
