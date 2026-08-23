@@ -6955,3 +6955,62 @@ running book with `STORYBOOK_THEME=orbit`: the editor requests
 with no 404 and no ranch fallback, and every one reads on both
 `data-theme="dark"` and `data-theme="light"` — which is the test the
 keyline exists to pass.
+
+## F51 follow-up: the three ways a configured install lost its settings
+
+A code review of F51 found five defects. Three of them broke the same
+person — someone whose book is configured by environment variable, which
+is every install that predates the settings page and every install started
+from `.env.example`. That is the audience F51 and the README were written
+for, so these are fixed first.
+
+Each was reproduced against a running app before being touched, and each
+fix has a test that fails without it.
+
+**The wizard erased what it never asked about.** `_form_values()` returned
+all six settings on every submit, and `setup.html` renders neither a theme
+nor a tree-child. To `effective()` a key that is *present but empty* means
+"no value" — that is how clearing the title gets the app's own name back —
+so a book started with `STORYBOOK_THEME=orbit` and `STORYBOOK_CHILD=milo`
+wrote `{"theme": "", "child": ""}` and served the ranch from the moment
+anyone pressed "Start writing". F51's own entry claims a save can only
+write back what the book was already doing; it could not. `_form_values()`
+now returns only the keys whose field the form actually rendered, which is
+the general rule rather than a patch for these two — and `save()` merges,
+so an omitted key leaves whatever was there alone.
+
+**The Language field did nothing.** `resolve_language` computed `g.lang`
+from `settings.book("DEFAULT_LANGUAGE")` one line *before* `g.book` was
+assigned. `book()` falls back to the raw config while `g.book` is unset —
+correct outside a request, silently wrong inside one — so the language came
+from the environment while the title and theme from the same file worked,
+which is exactly why nobody noticed. The two lines are swapped, with the
+reason written above them.
+
+**A hand-edited narrator list took the whole book down.** `read()` promises
+that a settings file edited into nonsense costs the settings and not the
+book, and the birthdate branch keeps that promise. `authors` only checked
+that the value was a list, and every page indexes an entry as `a["name"]`
+— so `{"authors": ["Papa", "Maman"]}`, which is precisely what a person
+would write by hand, was a 500 on every page. Entries are now validated by
+shape and *filtered* rather than the list rejected: one bad line should not
+cost the other three narrators their colours.
+
+Five new tests, and the guard that matters more than the fixes:
+`test_the_settings_form_offers_every_key_it_writes` walks `settings.KEYS`
+against the rendered form, and
+`test_every_family_setting_is_read_through_the_request_context` sets each
+key to something the environment disagrees with and asserts the file wins.
+Those are the general versions — the next field added to one form and not
+the other fails here, rather than in somebody's book six months later.
+
+Each new test was run against the unfixed code to confirm it fails there;
+a guard that passes on the bug it describes is not a guard.
+
+`pytest` (1371) and `ruff check .` green.
+
+Still outstanding from the same review, and next: the MCP server reads
+authors, title and birthdate from the environment only, so a family who
+sets narrators in the app leaves its author allowlist empty; and
+`settings.html` promises the settings travel with a backup, which the
+export honours and `import_backup` silently drops.

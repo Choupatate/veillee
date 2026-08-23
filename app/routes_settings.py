@@ -34,23 +34,49 @@ def _stories_dir():
     return current_app.config["STORIES_DIR"]
 
 
+def _birthdate_value():
+    parsed = settings.clean_birthdate(request.form.get("birthdate"))
+    return parsed.isoformat() if parsed else ""
+
+
+#: How each stored setting is read back out of a submitted form. Keyed by
+#: the name of the field that carries it, which is also the key it is
+#: stored under.
+_FIELDS = {
+    "title": lambda: settings.clean_title(request.form.get("title")),
+    "birthdate": _birthdate_value,
+    "child": lambda: settings.clean_child(request.form.get("child")),
+    "authors": lambda: settings.clean_authors(request.form.get("authors")),
+    "language": lambda: settings.clean_language(
+        request.form.get("language"), i18n.LANGUAGES
+    ),
+    "theme": lambda: _clean_theme(request.form.get("theme")),
+}
+
+
 def _form_values():
-    """The six settings as the form submitted them, validated. Raises
-    SettingsError with something a person can act on."""
-    return {
-        "title": settings.clean_title(request.form.get("title")),
-        "birthdate": (
-            settings.clean_birthdate(request.form.get("birthdate")).isoformat()
-            if settings.clean_birthdate(request.form.get("birthdate"))
-            else ""
-        ),
-        "child": settings.clean_child(request.form.get("child")),
-        "authors": settings.clean_authors(request.form.get("authors")),
-        "language": settings.clean_language(
-            request.form.get("language"), i18n.LANGUAGES
-        ),
-        "theme": _clean_theme(request.form.get("theme")),
-    }
+    """The settings *this* form submitted, validated. Raises SettingsError
+    with something a person can act on.
+
+    Only the fields the form actually rendered, and that is load-bearing
+    rather than tidy. To `settings.effective` a key that is *present but
+    empty* means "no value" — it is how someone clears the title and gets
+    the app's own name back — while a key that is *absent* falls through
+    to the environment. So a form that returned all six keys regardless
+    would erase whatever the environment set for any field it does not
+    show.
+
+    That is not hypothetical: the setup wizard offers no theme and no
+    tree-child, and used to write both as empty. A fresh install started
+    with STORYBOOK_THEME=orbit served the ranch from the moment anyone
+    pressed "Start writing", which is the exact opposite of what F51
+    promised about upgrading.
+    """
+    values = {}
+    for key, read in _FIELDS.items():
+        if key in request.form:
+            values[key] = read()
+    return values
 
 
 def _clean_theme(value):
@@ -149,7 +175,9 @@ def setup_page():
             )
 
         child_name = (request.form.get("child_name") or "").strip()
-        if child_name and not values["child"]:
+        # `.get`: the wizard renders no `child` field, so the key is not in
+        # `values` at all — which is the point of the rule above.
+        if child_name and not values.get("child"):
             # The book is for someone, so that someone becomes the first
             # person in the cast — with their birthday already on it.
             slug = people.create_person(

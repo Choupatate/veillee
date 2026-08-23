@@ -217,3 +217,133 @@ def test_a_settings_file_edited_into_nonsense_costs_the_settings_not_the_book(fr
     settings.settings_path(fresh_dir).write_text("{not json at all")
     assert settings.read(fresh_dir) == {}
     assert _client(fresh_dir).get("/").status_code == 200
+
+
+# --- what a fresh install is actually promised --------------------------------
+#
+# Three defects a code review found after F51 shipped, each of which broke
+# an install that was configured by environment variable — which is every
+# install that predates the settings page, and every install started from
+# .env.example. The tests are written as the promise rather than as the
+# bug, so they keep meaning something once the bug is a memory.
+
+
+def test_a_form_never_writes_a_setting_it_did_not_offer(fresh_dir):
+    """The wizard shows no theme and no tree-child, so pressing its button
+    must not touch either.
+
+    `effective` reads a key that is present-but-empty as "no value" — that
+    is how clearing the title gets the app's own name back. So writing
+    every key regardless would erase whatever the environment set for a
+    field the form does not show. A book started with STORYBOOK_THEME=orbit
+    served the ranch from the moment anyone finished the wizard.
+    """
+    client = _client(fresh_dir, THEME="orbit", CHILD_SLUG="milo")
+    client.post("/setup", data={
+        "title": "Veillée", "birthdate": "", "child_name": "",
+        "authors": "", "language": "fr",
+    })
+
+    stored = settings.read(fresh_dir)
+    assert "theme" not in stored
+    assert "child" not in stored
+    assert stored["title"] == "Veillée"
+
+    app = create_app(test_config={"STORIES_DIR": fresh_dir, **BASE,
+                                  "THEME": "orbit", "CHILD_SLUG": "milo"})
+    effective = settings.effective(app.config, fresh_dir)
+    assert effective["THEME"] == "orbit"
+    assert effective["CHILD_SLUG"] == "milo"
+
+
+def test_the_settings_form_offers_every_key_it_writes(fresh_dir):
+    """The general version of the test above, so the next field added to
+    one form and not the other is caught here rather than by somebody's
+    theme quietly reverting.
+
+    /settings is the page that claims to change everything, so every key
+    in `settings.KEYS` has to have a field on it.
+    """
+    client = _client(fresh_dir)
+    settings.save(fresh_dir, {})          # count the book as set up
+    body = client.get("/settings").get_data(as_text=True)
+    missing = [key for key in settings.KEYS if f'name="{key}"' not in body]
+    assert not missing, f"/settings writes but never offers: {missing}"
+
+
+def test_the_language_setting_actually_changes_the_language(fresh_dir):
+    """`settings.book()` falls back to the raw config while `g.book` is
+    unset, which is right outside a request and silently wrong inside one.
+    Resolving the language before `g.book` was assigned read
+    DEFAULT_LANGUAGE from the environment, so this field did nothing at
+    all while the title and theme from the same file worked.
+    """
+    settings.save(fresh_dir, {"title": "Veillée", "language": "fr"})
+    client = _client(fresh_dir, DEFAULT_LANGUAGE="en")
+    body = client.get("/").get_data(as_text=True)
+    assert '<html lang="fr"' in body
+    # ...and the neighbouring settings still work, which is what made the
+    # original bug so easy to miss.
+    assert "Veillée" in body
+
+
+def test_every_family_setting_is_read_through_the_request_context(fresh_dir):
+    """The rule CLAUDE.md states and nothing enforced: a value a family can
+    change is read through `settings.book()`, per request, not out of
+    `config` at import or startup.
+
+    Checked by setting each key in the file to something the environment
+    disagrees with, and asserting the file wins.
+    """
+    settings.save(fresh_dir, {
+        "title": "From the file",
+        "language": "fr",
+        "theme": "orbit",
+    })
+    app = create_app(test_config={
+        "STORIES_DIR": fresh_dir, **BASE,
+        "TITLE": "From the environment", "DEFAULT_LANGUAGE": "en",
+        "THEME": "ranch",
+    })
+    client = app.test_client()
+    client.post("/login", data={"password": "test-password"})
+    body = client.get("/").get_data(as_text=True)
+    assert "From the file" in body
+    assert "From the environment" not in body
+    assert '<html lang="fr"' in body
+    assert "/static/themes/orbit/" in body
+
+
+@pytest.mark.parametrize("authors", [
+    ["Papa", "Maman"],                                  # the shape a person types
+    [{"name": "Papa"}],                                 # half an entry
+    [{"name": "Papa", "color": "not-a-colour"}],
+    [{"name": "", "color": "#d9a441"}],
+    ["Papa", {"name": "Maman", "color": "#8f2f2a"}],     # one of each
+    "Papa #d9a441",                                      # not a list at all
+])
+def test_a_hand_edited_narrator_list_costs_the_settings_not_the_book(
+    fresh_dir, authors
+):
+    """`read()`'s promise, applied to the one key that was not keeping it.
+    Every page indexes a narrator as `a["name"]`, so a list of bare strings
+    — which is exactly what someone would write by hand — turned the whole
+    book into a 500."""
+    settings.save(fresh_dir, {"authors": authors})
+    client = _client(fresh_dir)
+    assert client.get("/").status_code == 200
+
+
+def test_a_hand_edited_narrator_list_keeps_the_entries_that_are_fine(fresh_dir):
+    """Filtered, not rejected wholesale: one bad line should not cost the
+    other narrators their colours."""
+    settings.save(fresh_dir, {"authors": [
+        {"name": "Papa", "color": "#d9a441"},
+        "Maman",
+        {"name": "Mamie", "color": "#5f8f6a"},
+    ]})
+    app = create_app(test_config={"STORIES_DIR": fresh_dir, **BASE})
+    assert settings.effective(app.config, fresh_dir)["AUTHORS"] == [
+        {"name": "Papa", "color": "#d9a441"},
+        {"name": "Mamie", "color": "#5f8f6a"},
+    ]

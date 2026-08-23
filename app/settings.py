@@ -194,6 +194,35 @@ def authors_text(authors) -> str:
 # --- reading and writing -----------------------------------------------------
 
 
+def _stored_authors(value, fallback):
+    """A narrator list read back off disk, or the environment's if it is
+    not one.
+
+    `read()` promises that a settings file someone edited by hand costs
+    them the settings and not the book, and the birthdate branch below
+    keeps that promise by catching a bad date. This is the same promise
+    for the same reason: `_authors_and_colors` indexes every entry as
+    `a["name"]`, so `{"authors": ["Papa", "Maman"]}` — which is exactly
+    what a person would write by hand — turned every page of the book
+    into a 500.
+
+    Entries are filtered rather than the whole list rejected: one bad line
+    should not cost the other three narrators their colours.
+    """
+    if not isinstance(value, list):
+        return fallback
+    clean = []
+    for entry in value:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        color = entry.get("color")
+        if (isinstance(name, str) and name.strip()
+                and isinstance(color, str) and _HEX_RE.match(color.strip())):
+            clean.append({"name": name.strip(), "color": color.strip().lower()})
+    return clean
+
+
 def effective(config, stories_dir) -> dict:
     """The settings this request should use: the environment's values, with
     anything set inside the book laid over the top.
@@ -217,7 +246,7 @@ def effective(config, stories_dir) -> dict:
             except (TypeError, ValueError):
                 out[config_key] = config.get(config_key)
         elif key == "authors":
-            out[config_key] = value if isinstance(value, list) else config.get(config_key)
+            out[config_key] = _stored_authors(value, config.get(config_key))
         else:
             out[config_key] = value or None
     return out
