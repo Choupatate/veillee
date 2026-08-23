@@ -95,7 +95,7 @@ def test_timeline_legend_shows_account_holders_with_default_color(accounts_clien
     html = resp.data.decode()
     assert "timeline__legend" in html
     assert "Papa" in html
-    from app.routes_pages import DEFAULT_AUTHOR_COLOR
+    from app.views import DEFAULT_AUTHOR_COLOR
 
     assert DEFAULT_AUTHOR_COLOR in html
 

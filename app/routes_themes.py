@@ -1,8 +1,8 @@
 """Making a theme pack from inside the book (FEATURES.md F50).
 
 Two public routes and a small admin area, all registering onto the `pages`
-blueprint `routes_pages.py` defines — see that module's docstring for why
-these live in their own file without a blueprint of their own.
+blueprint `views.py` defines — see that module's docstring for why these
+live in their own file without a blueprint of their own.
 
 The two public ones serve a made pack's palette and pictures. They are
 public for the same reason `/static` is: the login page is dressed by the
@@ -30,7 +30,7 @@ from flask import (
 from . import theme_catalog, theme_packs, themes
 from .auth import admin_required_in_accounts_mode
 from .i18n import _
-from .routes_pages import bp
+from .views import bp
 
 
 def _user_dir():

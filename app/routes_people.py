@@ -1,8 +1,8 @@
 """People/genealogy page routes: the cast-of-the-book pages (FEATURES.md
 F14), the family tree (F18), and the life-dates almanac (F27). Registers
-onto the same `pages` blueprint `routes_pages.py` defines — see that
-module's docstring/bottom-of-file import for why these live in a separate
-file without a separate blueprint.
+onto the `pages` blueprint `views.py` defines — see that module's
+docstring for why these live in a separate file without a separate
+blueprint.
 """
 
 from datetime import date
@@ -12,14 +12,14 @@ from flask import abort, render_template
 from . import i18n, kinship, life_events, people, settings, storage
 from .auth import login_required
 from .rendering import render_markdown
-from .routes_pages import (
+from .views import (
     DEFAULT_AUTHOR_COLOR,
-    _other_people_refs,
-    _people_dir,
-    _person_ref,
-    _serve_media,
-    _visible_stories,
     bp,
+    current_people_dir,
+    other_people_refs,
+    person_ref,
+    serve_media,
+    visible_stories,
 )
 
 
@@ -47,7 +47,7 @@ def _has_life_dates(all_people):
 @bp.route("/people")
 @login_required
 def people_page():
-    all_people = people.list_people(_people_dir())
+    all_people = people.list_people(current_people_dir())
     graph = kinship.build_graph(all_people)
     return render_template(
         "people.html", people=all_people, show_tree_link=_has_family_links(graph),
@@ -58,7 +58,7 @@ def people_page():
 @bp.route("/almanac")
 @login_required
 def almanac():
-    all_people = people.list_people(_people_dir())
+    all_people = people.list_people(current_people_dir())
     entries = life_events.almanac_entries(all_people)
     months = {}
     for entry in entries:
@@ -74,10 +74,10 @@ def almanac():
 @bp.route("/people/<slug>")
 @login_required
 def person_page(slug):
-    p = _get_person_or_404(_people_dir(), slug)
+    p = _get_person_or_404(current_people_dir(), slug)
     body_html = render_markdown(p.body, f"/people/{slug}/media")
 
-    all_people = people.list_people(_people_dir())
+    all_people = people.list_people(current_people_dir())
     people_by_slug = {person.slug: person for person in all_people}
     graph = kinship.build_graph(all_people)
     anchor = kinship.resolve_anchor(settings.book("CHILD_SLUG"), graph)
@@ -88,19 +88,19 @@ def person_page(slug):
         if anchor:
             kinship_line = kinship.kinship_label(graph, anchor, slug, i18n.current_language())
         if kinship_line is None and p.friend_of:
-            friend_of_line = _person_ref(people_by_slug, p.friend_of[0])
+            friend_of_line = person_ref(people_by_slug, p.friend_of[0])
 
     family = {
-        "parents": [_person_ref(people_by_slug, s) for s in graph.parents.get(slug, [])],
-        "partners": [_person_ref(people_by_slug, s) for s in kinship.partners_of(graph, slug)],
-        "children": [_person_ref(people_by_slug, s) for s in kinship.children_of(graph, slug)],
-        "siblings": [_person_ref(people_by_slug, s) for s in kinship.siblings_of(graph, slug)],
+        "parents": [person_ref(people_by_slug, s) for s in graph.parents.get(slug, [])],
+        "partners": [person_ref(people_by_slug, s) for s in kinship.partners_of(graph, slug)],
+        "children": [person_ref(people_by_slug, s) for s in kinship.children_of(graph, slug)],
+        "siblings": [person_ref(people_by_slug, s) for s in kinship.siblings_of(graph, slug)],
     }
     family = {key: [ref for ref in refs if ref] for key, refs in family.items()}
 
     unions = []
     for u in p.unions:
-        partner_ref = _person_ref(people_by_slug, u["partner"])
+        partner_ref = person_ref(people_by_slug, u["partner"])
         if partner_ref:
             unions.append({
                 "partner": partner_ref, "kind": u["kind"], "since": u["since"], "until": u["until"],
@@ -110,7 +110,7 @@ def person_page(slug):
     # viewer may read, or a scoped story's title shows up on a person page
     # (FEATURES.md F40).
     appears_in = storage.readable_stories(
-        [s for s in _visible_stories() if slug in s.people]
+        [s for s in visible_stories() if slug in s.people]
     )
 
     return render_template(
@@ -123,13 +123,13 @@ def person_page(slug):
 @bp.route("/people/<slug>/media/<filename>")
 @login_required
 def person_media(slug, filename):
-    return _serve_media(_people_dir(), slug, filename)
+    return serve_media(current_people_dir(), slug, filename)
 
 
 @bp.route("/tree")
 @login_required
 def tree_page():
-    all_people = people.list_people(_people_dir())
+    all_people = people.list_people(current_people_dir())
     people_by_slug = {p.slug: p for p in all_people}
     graph = kinship.build_graph(all_people)
 
@@ -146,7 +146,7 @@ def tree_page():
         buckets = {}
         for p in all_people:
             if kinship.is_in_family(graph, p.slug):
-                ref = _person_ref(people_by_slug, p.slug)
+                ref = person_ref(people_by_slug, p.slug)
                 if ref is None:
                     continue
                 key = None
@@ -155,7 +155,7 @@ def tree_page():
                     key = kinship.generation_offset(graph, anchor, p.slug)
                 buckets.setdefault(key, []).append(ref)
                 continue
-            friend_refs = [_person_ref(people_by_slug, s) for s in graph.friend_of.get(p.slug, [])]
+            friend_refs = [person_ref(people_by_slug, s) for s in graph.friend_of.get(p.slug, [])]
             others.append({
                 "slug": p.slug,
                 "name": p.name,
@@ -183,7 +183,7 @@ def tree_page():
 @login_required
 def new_person():
     return render_template(
-        "person_editor.html", person=None, other_people=_other_people_refs(),
+        "person_editor.html", person=None, other_people=other_people_refs(),
         default_author_color=DEFAULT_AUTHOR_COLOR,
     )
 
@@ -191,8 +191,8 @@ def new_person():
 @bp.route("/edit-person/<slug>")
 @login_required
 def edit_person(slug):
-    p = _get_person_or_404(_people_dir(), slug)
+    p = _get_person_or_404(current_people_dir(), slug)
     return render_template(
-        "person_editor.html", person=p, other_people=_other_people_refs(exclude_slug=slug),
+        "person_editor.html", person=p, other_people=other_people_refs(exclude_slug=slug),
         default_author_color=DEFAULT_AUTHOR_COLOR,
     )

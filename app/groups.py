@@ -28,13 +28,12 @@ in the web layer goes through it.
 
 import json
 import logging
-import os
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from . import storage
+from . import jsonstore, storage
 
 logger = logging.getLogger(__name__)
 
@@ -140,9 +139,7 @@ def _write_groups(stories_dir, all_groups: list[Group]) -> None:
         }
         for g in all_groups
     ]
-    tmp_path = path.with_suffix(".json.tmp")
-    tmp_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp_path, path)
+    jsonstore.write_json(path, data)
 
 
 def get_group(stories_dir, slug: str) -> Optional[Group]:

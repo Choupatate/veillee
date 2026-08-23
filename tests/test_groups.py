@@ -284,9 +284,16 @@ def test_the_author_still_sees_a_story_they_scoped_away_from_themselves(scoped_a
 # --- the guard that keeps the perimeter honest ------------------------------
 
 
+# `views.py` is on this list because the gate itself moved there:
+# `visible_stories` and `get_story_or_404` used to live in routes_pages.py.
+# A file holding the only sanctioned way into a story is the last one that
+# should fall outside the count — and it would have, silently, since the
+# list is written by hand. `test_every_route_file_is_counted` below is what
+# makes sure the next file added is on it too.
 ROUTE_FILES = (
-    "routes_pages.py", "routes_people.py", "routes_groups.py",
-    "routes_accounts.py", "routes_api.py", "routes_api_people.py",
+    "views.py", "routes_pages.py", "routes_people.py", "routes_groups.py",
+    "routes_accounts.py", "routes_settings.py", "routes_themes.py",
+    "routes_api.py", "routes_api_people.py",
 )
 
 # Anything in storage.py that hands back stories without a viewer in hand.
@@ -295,18 +302,24 @@ ROUTE_FILES = (
 UNSCOPED_ENTRY_POINTS = ("storage.list_stories(", "storage.get_story(")
 
 # The sanctioned exceptions, each with a reason:
-#   routes_pages   — inside _visible_stories/_get_story_or_404/_exportable_story_ids
-#                    and _export_is_scoped (the gate itself), plus book/book_epub
-#                    re-reading a story already filtered to visible ones.
+#   views          — inside visible_stories and get_story_or_404: the gate
+#                    itself, and the only two here.
+#   routes_pages   — inside _exportable_story_ids and _export_is_scoped (the
+#                    export gate, which scopes a backup to what the viewer
+#                    can see), plus book/book_epub re-reading a story already
+#                    filtered to visible ones.
 #   routes_groups  — two per-group story counts on an admin screen; they
 #                    count, and never render a title or body.
 #   routes_api     — inside _readable_story_or_error (the gate itself).
 ALLOWED_UNSCOPED = {
-    "routes_pages.py": 6,
+    "views.py": 2,
+    "routes_pages.py": 4,
     "routes_groups.py": 2,
     "routes_api.py": 1,
     "routes_people.py": 0,
     "routes_accounts.py": 0,
+    "routes_settings.py": 0,
+    "routes_themes.py": 0,
     "routes_api_people.py": 0,
 }
 
@@ -496,7 +509,8 @@ def test_a_unique_name_keeps_the_rail(scoped_app):
 
 
 def test_no_route_file_reaches_stories_unscoped():
-    """`_visible_stories()` / `_get_story_or_404()` / `_readable_story_or_error()`
+    """`views.visible_stories()` / `views.get_story_or_404()` /
+    `_readable_story_or_error()`
     are the only sanctioned ways into a story from a route. This counts the
     unscoped alternatives per file and fails when one appears, so a new route
     that forgets the gate is caught the day it's written rather than the day
@@ -516,6 +530,30 @@ def test_no_route_file_reaches_stories_unscoped():
             f"{ALLOWED_UNSCOPED[filename]}); routes must go through the "
             "audience gate so scoping applies"
         )
+
+
+def test_every_route_file_is_counted():
+    """ROUTE_FILES is hand-written, so a new route file joins the app
+    already exempt from the count above unless somebody remembers.
+
+    That is not a hypothetical: splitting the shared view helpers out of
+    routes_pages.py moved `visible_stories` and `get_story_or_404` — the
+    gate — into a file this list did not know about, and the counting test
+    above would have gone green with the gate unwatched.
+    """
+    from pathlib import Path
+
+    app_dir = Path(__file__).resolve().parent.parent / "app"
+    on_disk = {p.name for p in app_dir.glob("routes_*.py")} | {"views.py"}
+    missing = sorted(on_disk - set(ROUTE_FILES))
+    assert not missing, (
+        f"{missing} serve routes but are not in ROUTE_FILES, so nothing "
+        "checks whether they reach stories unscoped — add them, with a "
+        "count and a reason"
+    )
+    assert set(ROUTE_FILES) == set(ALLOWED_UNSCOPED), (
+        "every counted file needs an allowance, and every allowance a file"
+    )
 
 
 def test_storage_exposes_no_unscoped_story_finder():

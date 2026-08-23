@@ -1,7 +1,6 @@
 """Setting the book up from inside it (FEATURES.md F51).
 
-Two pages, registering onto the `pages` blueprint `routes_pages.py`
-defines. `/setup` runs once, on a book nobody has configured yet;
+Two pages, registering onto the `pages` blueprint `views.py` defines. `/setup` runs once, on a book nobody has configured yet;
 `/settings` is the same values, changeable forever after. Both are behind
 `admin_required_in_accounts_mode`, the gate the theme pages and the backup
 restore already use: the admin when accounts are on, the one
@@ -27,7 +26,7 @@ from flask import (
 from . import i18n, people, settings, storage, themes
 from .auth import admin_required_in_accounts_mode
 from .i18n import _
-from .routes_pages import bp
+from .views import bp
 
 
 def _stories_dir():
@@ -54,9 +53,32 @@ _FIELDS = {
 }
 
 
-def _form_values():
+def _blank(value):
+    """What "the field was left empty" looks like for each kind of
+    setting."""
+    return value in ("", [], None)
+
+
+def _form_values(keep_existing=False):
     """The settings *this* form submitted, validated. Raises SettingsError
     with something a person can act on.
+
+    `keep_existing` is the setup wizard's rule: **a blank field means
+    "skip this", not "erase what is there".** On /settings, clearing a box
+    is how someone takes a title back off their book, and that has to keep
+    working — it is a page they can return to, and it says so. The wizard
+    is a one-time flow that a family may meet on a book that already has a
+    name, a cast and a theme, and on that page an empty box is far more
+    likely to mean "I did not fill this in" than "delete it". Measured on
+    a book with a cast, a made theme and an audience group but no story
+    yet: one submit with the fields cleared took away its title, birth
+    date, narrators and language.
+
+    This is deliberately belt-and-braces with `settings.is_configured`,
+    which now recognises made themes and groups too. That one answers
+    "should the wizard run at all"; this one makes the answer not matter,
+    including for the case neither can detect — a stories volume that
+    failed to mount looks exactly like a new book.
 
     Only the fields the form actually rendered, and that is load-bearing
     rather than tidy. To `settings.effective` a key that is *present but
@@ -74,8 +96,12 @@ def _form_values():
     """
     values = {}
     for key, read in _FIELDS.items():
-        if key in request.form:
-            values[key] = read()
+        if key not in request.form:
+            continue
+        value = read()
+        if keep_existing and _blank(value) and settings.book(settings.KEYS[key]):
+            continue
+        values[key] = value
     return values
 
 
@@ -167,7 +193,7 @@ def setup_page():
             settings.save(stories_dir, {})
             return redirect(url_for("pages.timeline"))
         try:
-            values = _form_values()
+            values = _form_values(keep_existing=True)
         except settings.SettingsError as error:
             flash(str(error), "error")
             return render_template(

@@ -124,6 +124,14 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   writing in for a year.
 - `app/throttle.py` — the per-IP login lockout (10 failures / 15 minutes),
   in memory and deliberately not persisted.
+- `app/jsonstore.py` — `write_json(path, data)`: the one way a sidecar JSON
+  file (`settings.json`, `groups.json`, `account.json`, `invites.json`,
+  `write_links.json`, a pack's `theme.json`) is written. Atomic, and
+  `ensure_ascii=False` so a typed name stays a typed name on disk rather
+  than `\u00e9`. **Never hand-roll the write** — it was seven copies and
+  four of them had drifted; `tests/test_jsonstore.py` fails on a new one.
+  A leaf: it imports nothing from the app, which is what lets `settings.py`
+  use it without giving up its independence.
 - `app/dates.py`, `app/prompts.py`, `app/rendering.py`, `app/epub.py` — age-
   label computation, the writing-prompts list, markdown-to-HTML rendering,
   and EPUB export, respectively.
@@ -160,31 +168,42 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   what the ranch draws for it — that is what lets another world supply its
   own equivalent.
 
-Web layer — Flask, split by resource; each `routes_api_*`/`routes_*`
-sub-file registers its routes onto a blueprint object (`bp`) defined in
-its non-suffixed counterpart rather than declaring its own blueprint, and
-is imported at the bottom of that file purely for the route-registration
-side effect (so `url_for(...)` references never care which file a route's
-code actually lives in — see each file's module docstring for specifics):
+Web layer — Flask, split by resource. Every page route file registers
+onto the one `pages` blueprint, so `url_for("pages.xxx")` never cares
+which file a route's code sits in. `create_app` imports the six for that
+side effect; **no route file imports another**.
 
 - `app/__init__.py` — `create_app()` factory; all config comes from
-  `STORYBOOK_*` env vars (see `.env.example`), nothing is hardcoded.
+  `STORYBOOK_*` env vars (see `.env.example`), nothing is hardcoded. Also
+  where every page route file is imported, purely so its routes register.
+- `app/views.py` — the `pages` blueprint and the view helpers every page
+  route shares: `visible_stories`, `get_story_or_404`, `viewer_scope`,
+  `serve_media`, `current_people_dir`, `person_ref`, `authors_and_colors`.
+  **Read this before adding a page route.** It used to be the top half of
+  `routes_pages.py`, which meant every sibling imported the file that
+  imported them; `tests/test_view_helpers.py` is what keeps that from
+  coming back. Three of these helpers are F40's audience gate, so
+  `views.py` is counted by `test_groups.py`'s unscoped-access ratchet
+  exactly like a route file.
 - `app/auth.py` — login (single shared password, or F19 per-person
   accounts when `STORYBOOK_ACCOUNTS=1`). `login_required` decorator gates
   every page and API route except `/manifest.webmanifest` (must stay
   public for home-screen install) and `/login` itself.
 - `app/routes_pages.py` (+ `routes_accounts.py`, `routes_people.py`,
   `routes_groups.py`, `routes_settings.py`, `routes_themes.py`) — HTML
-  page routes (Blueprint `pages`): timeline/story/book/firsts/growth/
-  almanac pages, account management, the family tree and person pages,
-  audience groups, the first-run wizard and Settings (F51), and the
-  theme-making pages (F50) — the last two behind
-  `admin_required_in_accounts_mode`.
+  page routes: timeline/story/book/firsts/growth/almanac pages, account
+  management, the family tree and person pages, audience groups, the
+  first-run wizard and Settings (F51), and the theme-making pages (F50) —
+  the last two behind `admin_required_in_accounts_mode`. `routes_pages.py`
+  also owns `/export`'s own scoping rules (`_exportable_story_ids`,
+  `_viewer_may_export_credentials`), which decide what a backup contains
+  for a guest, a family member and an admin respectively.
 - `app/routes_api.py` (+ `routes_api_people.py`) — JSON API routes
   (Blueprint `api`, under `/api`), consumed by the editor and tree JS.
-  Every mutating endpoint validates its inputs explicitly (see the
-  `_validate_*` helpers) rather than trusting the client — follow that
-  pattern for any new endpoint.
+  `routes_api_people.py` registers onto `routes_api.py`'s `bp` the same
+  way the page files register onto `views.py`'s. Every mutating endpoint
+  validates its inputs explicitly (see the `_validate_*` helpers) rather
+  than trusting the client — follow that pattern for any new endpoint.
 
 AI-tool layer:
 

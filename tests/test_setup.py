@@ -416,3 +416,137 @@ def test_a_hand_edited_narrator_list_keeps_the_entries_that_are_fine(fresh_dir):
         {"name": "Papa", "color": "#d9a441"},
         {"name": "Mamie", "color": "#5f8f6a"},
     ]
+
+
+# --- the wizard cannot take a book away from a family -------------------------
+#
+# The question behind these: can the one-time setup flow dismiss a book that
+# already exists? It cannot delete anything — it writes one file and may add
+# one person — but it could reach a book that was plainly not new and take
+# away its name, its narrators, its birth date and its language in a single
+# submit. Two independent guards now, because the interesting failure is the
+# one neither can see: a stories volume that failed to mount looks exactly
+# like a new book, and always will.
+
+
+def _made_theme(stories_dir, name="woodblock"):
+    from app import theme_packs, themes
+    theme_packs.save_pack(
+        themes.user_themes_dir(stories_dir), name,
+        label="Woodblock", description="indigo and rust",
+        scheme_colors={"dark": {"bg": "#101822", "text": "#e8e2d9",
+                                "accent": "#d9a441"}},
+    )
+
+
+def test_a_book_with_a_made_theme_is_already_set_up(fresh_dir):
+    """An evening spent making a theme is a book that exists, story or
+    not — and a pack does not appear unless somebody made it."""
+    _made_theme(fresh_dir)
+    assert settings.is_configured(fresh_dir)
+    resp = _client(fresh_dir).get("/setup")
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/settings")
+
+
+def test_a_book_with_an_audience_group_is_already_set_up(fresh_dir):
+    """Same reasoning: deciding who may read what is a decision about a
+    book that already exists."""
+    from app import groups
+    groups.create_group(fresh_dir, "Just us")
+    assert settings.is_configured(fresh_dir)
+    assert _client(fresh_dir).get("/setup").status_code == 302
+
+
+def test_a_cast_alone_still_counts_as_a_new_book(fresh_dir):
+    """The deliberate exclusion, pinned so nobody 'fixes' it.
+
+    In accounts mode the first account creates a Person before a single
+    story is written, so counting people would meet every genuinely new
+    book with a redirect away from its own setup wizard. The rule below is
+    what protects a book that has only a cast.
+    """
+    from app import people, storage as st
+    people.create_person(st.people_dir(fresh_dir), "Mamie Solène")
+    assert not settings.is_configured(fresh_dir)
+    assert _client(fresh_dir).get("/setup").status_code == 200
+
+
+@pytest.mark.parametrize("field, config_key, config_value, expected", [
+    ("title", "TITLE", "Le livre de Milo", "Le livre de Milo"),
+    ("birthdate", "BIRTHDATE", date(2021, 7, 14), date(2021, 7, 14)),
+    ("language", "DEFAULT_LANGUAGE", "fr", "fr"),
+    ("authors", "AUTHORS", [{"name": "Papa", "color": "#d9a441"}],
+     [{"name": "Papa", "color": "#d9a441"}]),
+])
+def test_the_wizard_will_not_clear_a_setting_that_already_has_a_value(
+    fresh_dir, field, config_key, config_value, expected
+):
+    """A blank box on a one-time wizard means "I did not fill this in",
+    not "delete it".
+
+    /settings keeps the power to clear — it is a page someone returns to,
+    and that is how a title comes back off a book. The wizard does not,
+    because a family may meet it on a book that already has a name.
+    """
+    client = _client(fresh_dir, **{config_key: config_value})
+    client.post("/setup", data={
+        "title": "", "child_name": "", "birthdate": "",
+        "authors": "", "language": "",
+    })
+    app = create_app(test_config={"STORIES_DIR": fresh_dir, **BASE,
+                                  config_key: config_value})
+    assert settings.effective(app.config, fresh_dir)[config_key] == expected
+    assert field not in settings.read(fresh_dir)
+
+
+def test_the_wizard_still_writes_what_it_was_actually_given(fresh_dir):
+    """The rule above must not make the wizard inert — a value someone
+    types replaces the environment's, which is the whole point of it."""
+    client = _client(fresh_dir, TITLE="From the environment")
+    client.post("/setup", data={
+        "title": "Milo's book", "child_name": "", "birthdate": "",
+        "authors": "", "language": "fr",
+    })
+    stored = settings.read(fresh_dir)
+    assert stored["title"] == "Milo's book"
+    assert stored["language"] == "fr"
+
+
+def test_finishing_the_wizard_deletes_nothing(fresh_dir):
+    """It writes one file and may add one person. Said out loud as a test
+    because "cannot dismiss a book" is the promise, and a promise about
+    what does *not* happen needs pinning."""
+    from app import groups, people, storage as st, themes
+    people.create_person(st.people_dir(fresh_dir), "Mamie Solène")
+    _made_theme(fresh_dir)
+    groups.create_group(fresh_dir, "Just us")
+    st.create_story(fresh_dir, "A story", date(2026, 1, 1), "body")
+
+    client = _client(fresh_dir)
+    # The book counts as set up now, so the wizard redirects — but post to
+    # it anyway, which is what an attacker or a stale tab would do.
+    client.post("/setup", data={"title": "", "child_name": "", "birthdate": "",
+                                "authors": "", "language": ""})
+    client.post("/setup", data={"skip": "1"})
+
+    assert [s.title for s in st.list_stories(fresh_dir)] == ["A story"]
+    assert [p.name for p in people.list_people(st.people_dir(fresh_dir))] == \
+        ["Mamie Solène"]
+    assert "woodblock" in themes.available_themes(themes.user_themes_dir(fresh_dir))
+    assert [g.name for g in groups.list_groups(fresh_dir)] == ["Just us"]
+
+
+def test_not_now_costs_nothing_but_the_question(fresh_dir):
+    """"Not now" writes the file empty so nobody is asked again. Empty
+    means "no value set here", which falls through to the environment —
+    it must not read as "erase what the environment said"."""
+    client = _client(fresh_dir, TITLE="Le livre de Milo", DEFAULT_LANGUAGE="fr")
+    client.post("/setup", data={"skip": "1"})
+    assert settings.read(fresh_dir) == {}
+    app = create_app(test_config={"STORIES_DIR": fresh_dir, **BASE,
+                                  "TITLE": "Le livre de Milo",
+                                  "DEFAULT_LANGUAGE": "fr"})
+    effective = settings.effective(app.config, fresh_dir)
+    assert effective["TITLE"] == "Le livre de Milo"
+    assert effective["DEFAULT_LANGUAGE"] == "fr"

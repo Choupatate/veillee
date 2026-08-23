@@ -16,7 +16,6 @@ python-frontmatter's transitive PyYAML dependency for something new.
 
 import json
 import logging
-import os
 import re
 import threading
 from dataclasses import dataclass
@@ -26,7 +25,7 @@ from typing import Optional
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from . import people, storage
+from . import jsonstore, people, storage
 
 logger = logging.getLogger(__name__)
 
@@ -104,9 +103,7 @@ def _write_account(people_dir, account: Account) -> None:
         "approved_by": account.approved_by,
         "session_version": account.session_version,
     }
-    tmp_path = path.with_suffix(".json.tmp")
-    tmp_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp_path, path)
+    jsonstore.write_json(path, data)
 
 
 def get_account(people_dir, person_slug: str) -> Optional[Account]:
@@ -399,9 +396,7 @@ def _write_pending(stories_dir, pending_list: list[PendingRequest]) -> None:
         }
         for p in pending_list
     ]
-    tmp_path = path.with_suffix(".json.tmp")
-    tmp_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp_path, path)
+    jsonstore.write_json(path, data)
 
 
 def get_pending(stories_dir, username: str) -> Optional[PendingRequest]:
