@@ -1,8 +1,8 @@
 """Family accounts (FEATURES.md F19): the public request/approve flow,
 admin account management, self-service password change, and delegated
-write-links. Registers onto the same `pages` blueprint `routes_pages.py`
-defines — see that module's docstring/bottom-of-file import for why these
-live in a separate file without a separate blueprint.
+write-links. Registers onto the `pages` blueprint `views.py` defines —
+see that module's docstring for why these live in a separate file without
+a separate blueprint.
 """
 
 import hmac
@@ -21,7 +21,7 @@ from .auth import (
     throttle_key,
     throttled_response,
 )
-from .routes_pages import _people_dir, bp
+from .views import bp, current_people_dir
 
 
 @bp.route("/request-account", methods=["GET", "POST"])
@@ -151,7 +151,7 @@ def admin_invite():
     The raw token is shown exactly once, here, right after creation; only
     its hash is stored, so there is no "show it again" to build later.
     """
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     new_invite_url = None
 
     if request.method == "POST":
@@ -199,7 +199,7 @@ def admin_invite():
 @admin_required
 def admin_revoke_invite(person_slug, invite_id):
     try:
-        invites.revoke_invite(_people_dir(), person_slug, invite_id)
+        invites.revoke_invite(current_people_dir(), person_slug, invite_id)
     except FileNotFoundError:
         abort(404)
     return redirect(url_for("pages.admin_accounts"))
@@ -263,7 +263,7 @@ def _admin_mutate_account(person_slug, mutator, *args, on_success=None):
     `on_success` runs only after a real mutation, for the one route
     (link-person) that also needs to touch the caller's own session."""
     try:
-        mutator(_people_dir(), person_slug, *args)
+        mutator(current_people_dir(), person_slug, *args)
     except (ValueError, FileNotFoundError) as exc:
         flash(_(str(exc)), "error")
     else:
@@ -316,7 +316,7 @@ def admin_reset_password(person_slug):
     for a family member who's forgotten theirs, since this app has no
     email and therefore no self-service reset flow. Unlike a self-service
     change, this never needs the old password."""
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     account = accounts.get_account(people_dir, person_slug)
     if account is None:
         abort(404)
@@ -365,7 +365,7 @@ def _bind_and_create(people_dir, person_slug, new_person_name):
 def admin_new_account():
     """Admin-direct account creation, bypassing the request queue entirely
     — for a family member who won't submit their own request."""
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     unbound_people = [
         p for p in people.list_people(people_dir) if accounts.get_account(people_dir, p.slug) is None
     ]
@@ -463,7 +463,7 @@ def _own_account_or_404():
     set by those. Returns the people_dir for convenience."""
     if not current_app.config["ACCOUNTS_ENABLED"] or not session.get("person_slug"):
         abort(404)
-    return _people_dir()
+    return current_people_dir()
 
 
 @bp.route("/account")
@@ -559,7 +559,7 @@ def revoke_write_link(person_slug, link_id):
     if session.get("role") != "admin" and session.get("person_slug") != person_slug:
         abort(404)
     try:
-        write_links.revoke_link(_people_dir(), person_slug, link_id)
+        write_links.revoke_link(current_people_dir(), person_slug, link_id)
     except FileNotFoundError:
         abort(404)
     if session.get("person_slug") == person_slug:
@@ -575,7 +575,7 @@ def use_write_link(token):
     one, or vice versa."""
     if not current_app.config["ACCOUNTS_ENABLED"]:
         abort(404)
-    link = write_links.find_by_token(_people_dir(), token)
+    link = write_links.find_by_token(current_people_dir(), token)
     if link is None or not write_links.is_link_valid(link):
         return render_template("write_link_invalid.html"), 404
     session.clear()
@@ -605,7 +605,7 @@ def delegate_write():
     flow the real editor needs), no nav into the rest of the book, no
     editing anything after submission — a multi-use link lets someone
     come back and submit another new story, not revise a previous one."""
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     person_slug = session["delegate_person_slug"]
     link_id = session["delegate_link_id"]
     person = people.get_person(people_dir, person_slug)

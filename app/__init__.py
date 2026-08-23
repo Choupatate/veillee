@@ -169,12 +169,29 @@ def create_app(test_config=None):
     app.config["STORIES_DIR"] = Path(app.config["STORIES_DIR"])
     app.config["STORIES_DIR"].mkdir(parents=True, exist_ok=True)
 
-    from . import auth, i18n, routes_api, routes_pages, storage
+    from . import auth, i18n, routes_api, storage, views
+
+    # Every page route registers onto the one `pages` blueprint `views.py`
+    # defines, so which of these six files a route's code sits in never
+    # reaches `url_for("pages.xxx")`. They are imported for that side
+    # effect and nothing else — which is why they are imported here rather
+    # than from the bottom of one of them, where they used to be: a file
+    # that both defines the blueprint and imports everything registering
+    # onto it is a cycle, and it was one.
+    from . import (  # noqa: F401
+        routes_accounts,
+        routes_api_people,
+        routes_groups,
+        routes_pages,
+        routes_people,
+        routes_settings,
+        routes_themes,
+    )
 
     CSRFProtect(app)
 
     app.register_blueprint(auth.bp)
-    app.register_blueprint(routes_pages.bp)
+    app.register_blueprint(views.bp)
     app.register_blueprint(routes_api.bp)
 
     @app.before_request

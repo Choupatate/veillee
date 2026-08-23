@@ -1,15 +1,21 @@
-"""Core story-reading/writing page routes: timeline, story pages, the
-editor, drafts/archived, the book view, and backup export/import.
+"""The core story pages: timeline, story, editor, drafts/archived, the
+book view, help, random, the manifest, and backup export/import.
 
-People/genealogy routes live in `routes_people.py`; family-accounts and
-delegated-write-link routes live in `routes_accounts.py` — both register
-onto the `bp` object defined here rather than declaring their own
-blueprint, so every `url_for("pages.xxx")` reference (in Python and in
-templates) keeps working unchanged regardless of which file a route's
-code actually lives in. They're imported at the bottom of this file
-(after `bp` and the handful of helpers they need — `_people_dir`,
-`_person_ref`, `_other_people_refs`, `_serve_media`, `DEFAULT_AUTHOR_COLOR`
-— already exist) purely for that side effect: registering their routes.
+Registers onto the `pages` blueprint `views.py` defines, alongside
+`routes_people.py`, `routes_accounts.py`, `routes_groups.py`,
+`routes_settings.py` and `routes_themes.py` — so `url_for("pages.xxx")`
+keeps working in Python and in templates regardless of which of the six
+files a route's code sits in. `create_app` imports all six for that
+registration side effect.
+
+The shared view helpers this file used to own — `visible_stories`,
+`get_story_or_404`, `current_people_dir`, `serve_media`, `person_ref` and
+the rest — now live in `views.py`, because five of its siblings import
+them and one file cannot both define a blueprint and be imported by
+everything that registers onto it.
+
+The export helpers below are the exception, and stay: they are the
+`/export` route's own scoping rules, and nothing else calls them.
 """
 
 import random
@@ -18,216 +24,32 @@ import zipfile
 from datetime import date, datetime
 
 from flask import (
-    Blueprint,
-    abort,
     current_app,
-    g,
     jsonify,
     redirect,
     render_template,
     request,
     send_file,
-    send_from_directory,
     session,
     url_for,
 )
 
-from . import accounts, epub, groups, i18n, life_events, people, prompts, settings, storage, themes
+from . import epub, groups, i18n, life_events, people, prompts, settings, storage, themes
 from .auth import admin_required_in_accounts_mode, login_required
 from .rendering import render_markdown
-
-bp = Blueprint("pages", __name__)
-
-# Re-encoded photos (storage.save_image_to always writes .jpg or .png) are
-# never overwritten or reused under a different number, so they're safe to
-# cache for a long time. Voice memos are excluded: delete_memo can free up a
-# number that a later upload then reuses for different audio, so their
-# filename isn't a stable cache key.
-_LONG_CACHE_EXTENSIONS = {"jpg", "png"}
-_LONG_CACHE_MAX_AGE = 31536000  # 1 year
-
-
-def _media_max_age(filename):
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    return _LONG_CACHE_MAX_AGE if ext in _LONG_CACHE_EXTENSIONS else None
-
-
-def _unambiguous_author_name(people_dir, person):
-    """The viewer's display name, or None if some other Person shares it.
-
-    `can_see`'s author rail matches on the author *name* a story carries
-    (F1 stores a name, not a slug), so two People called "Maman" would see
-    each other's scoped stories. Reaching that state takes an admin
-    approving a second Person with a name already in the book — which is
-    what F39's duplicate hints exist to flag — but "unlikely" is not
-    "prevented", and this is an access-control comparison.
-
-    So an ambiguous name simply doesn't get the rail. Compared casefolded,
-    which is deliberately broader than the exact match it guards: erring
-    towards withholding the rail costs a safety net, while erring the other
-    way costs a private story. The real owner still reads their story
-    through the group like everyone else, and an admin renaming one of the
-    two Persons restores the rail for both.
-    """
-    if person is None:
-        return None
-    target = person.name.casefold().strip()
-    for other in people.list_people(people_dir):
-        if other.slug != person.slug and other.name.casefold().strip() == target:
-            return None
-    return person.name
-
-
-def _viewer_scope():
-    """`(group_slugs, author_name)` for whoever is asking — the viewer half
-    of `groups.can_see` (FEATURES.md F40).
-
-    `(None, None)` means "scoping does not apply here": with
-    STORYBOOK_ACCOUNTS off there is one shared password and therefore one
-    identity, so there is nobody to scope a story *away from* and the whole
-    feature is inert. Callers below treat a None group set as "sees
-    everything" rather than "sees nothing" — the safe direction for a
-    single-password install, where every existing story must keep showing.
-
-    Nothing here reads the request. The group set comes from the session's
-    Person and `groups.json` on disk, so there is no field a client could
-    set to claim membership (FEATURES.md F41) — and it is recomputed per
-    request rather than cached in the session, which is what makes adding
-    and removing someone take effect immediately.
-
-    Memoized on `g` for the duration of one request: `story_media` reaches
-    this through `_get_story_or_404` for every single photo on a page, and
-    it now walks the people list.
-    """
-    if not current_app.config["ACCOUNTS_ENABLED"]:
-        return None, None
-    if "viewer_scope" not in g.__dict__:
-        person_slug = session.get("person_slug")
-        people_dir = _people_dir()
-        person = people.get_person(people_dir, person_slug) if person_slug else None
-        g.viewer_scope = (
-            groups.groups_for_person(current_app.config["STORIES_DIR"], person_slug),
-            _unambiguous_author_name(people_dir, person),
-        )
-    return g.viewer_scope
-
-
-def _visible_stories():
-    """Every story the current viewer may see, in `list_stories` order.
-
-    **The only way a page route should reach the story list.** Calling
-    `storage.list_stories` directly from a route is how a scoped story
-    leaks, and `tests/test_groups.py` walks the route files to make sure
-    nothing does.
-    """
-    all_stories = storage.list_stories(current_app.config["STORIES_DIR"])
-    viewer_groups, author_name = _viewer_scope()
-    if viewer_groups is None:
-        return all_stories
-    return groups.visible_stories(all_stories, viewer_groups, author_name)
-
-
-def _available_groups(story=None):
-    """The groups the audience picker offers (FEATURES.md F40 Phase 2).
-
-    Empty outside accounts mode, which makes the picker disappear entirely
-    rather than offering a choice that couldn't mean anything — the same
-    way F1's author chips vanish without STORYBOOK_AUTHORS.
-
-    Every group is offered, not just the writer's own: scoping a story to a
-    group you aren't in is legitimate (writing something for the
-    grandparents), and `can_see` keeps the author's own access either way.
-
-    A story may also name a group this install doesn't have — restore a
-    backup into a fresh book and the stories come back while `groups.json`
-    doesn't. Those orphaned slugs get a chip of their own, labelled with
-    the raw slug, so the editor round-trips them. Without it the picker
-    shows nothing lit, an ordinary save sends an empty audience, and a
-    story that was private quietly becomes public on the next edit — the
-    one failure this whole feature exists to prevent.
-    """
-    if not current_app.config["ACCOUNTS_ENABLED"]:
-        return []
-    all_groups = groups.list_groups(current_app.config["STORIES_DIR"])
-    if story is None:
-        return all_groups
-    known = {g.slug for g in all_groups}
-    orphans = [s for s in (story.audience or []) if s not in known]
-    return all_groups + [groups.Group(slug=s, name=s, members=[]) for s in orphans]
-
-
-def _visible_page_stories():
-    """`storage.readable_page_stories` narrowed to what the viewer may see
-    — the candidate set for anything that turns pages (F15 random, F2
-    reading order). Without the gate here the page-turn arrows and the
-    random button would both hand out the titles of scoped stories."""
-    return [s for s in storage.readable_stories(_visible_stories()) if s.kind == "story"]
-
-
-def _get_story_or_404(stories_dir, story_id):
-    """A single story by id, 404 if it doesn't exist *or* the viewer isn't
-    in its audience — deliberately the same 404 either way, so a scoped
-    story's existence isn't discoverable by URL (the app's existing
-    pattern: `admin_required` 404s a non-admin rather than 403ing)."""
-    s = storage.get_story(stories_dir, story_id)
-    if s is None:
-        abort(404)
-    viewer_groups, author_name = _viewer_scope()
-    if viewer_groups is not None and not groups.can_see(s, viewer_groups, author_name):
-        abort(404)
-    return s
-
-
-def _serve_media(root_dir, id_value, filename):
-    """Validate `id_value`/`filename`, then serve `filename` from
-    `root_dir/id_value` — the shared story_media/person_media pattern
-    (CLAUDE.md: validate, then check existence, then serve). Falls back to
-    the full-size photo when a `.thumb.` filename doesn't exist on disk yet
-    (photos uploaded before thumbnails existed)."""
-    if not storage.is_valid_story_id(id_value) or not storage.is_valid_filename(filename):
-        abort(404)
-    media_dir = root_dir / id_value
-    if not (media_dir / filename).is_file():
-        fallback = storage.original_filename_from_thumb(filename)
-        if not fallback or not (media_dir / fallback).is_file():
-            abort(404)
-        filename = fallback
-    return send_from_directory(media_dir, filename, max_age=_media_max_age(filename))
-
-
-# Fallback color for an account-mode author who hasn't picked their own
-# yet (person.author_color unset) — every entry _authors_and_colors hands
-# to timeline.html's legend/dots needs a real value, since that template
-# (shared with F1) renders `--author-color: {{ a.color }}` unconditionally
-# for legend chips, unlike the per-story byline lookups which already
-# guard on the color being present.
-DEFAULT_AUTHOR_COLOR = "#9c8a6a"
-
-
-def _authors_and_colors():
-    """The (authors, author_colors) pair every timeline/book/story render
-    needs for bylines and the legend. Two sources depending on mode
-    (FEATURES.md F19 Phase 4): in accounts mode, every Person with a bound
-    account — real identity, not config; otherwise the original
-    STORYBOOK_AUTHORS list, untouched."""
-    if current_app.config["ACCOUNTS_ENABLED"]:
-        people_dir = storage.people_dir(current_app.config["STORIES_DIR"])
-        people_by_slug = {p.slug: p for p in people.list_people(people_dir)}
-        authors = []
-        for account in accounts.list_accounts(people_dir):
-            person = people_by_slug.get(account.person_slug)
-            if person:
-                authors.append(
-                    {"name": person.name, "color": person.author_color or DEFAULT_AUTHOR_COLOR}
-                )
-    else:
-        authors = settings.book("AUTHORS") or []
-    author_colors = {a["name"]: a["color"] for a in authors}
-    return authors, author_colors
-
-
-def _author_color(authors, author_colors, name):
-    return author_colors.get(name) if (authors and name) else None
+from .views import (
+    color_for_author,
+    authors_and_colors,
+    available_groups,
+    bp,
+    current_people_dir,
+    get_story_or_404,
+    other_people_refs,
+    serve_media,
+    viewer_scope,
+    visible_page_stories,
+    visible_stories,
+)
 
 
 @bp.route("/")
@@ -241,7 +63,7 @@ def timeline():
         not current_app.config["ACCOUNTS_ENABLED"] or session.get("role") == "admin"
     ):
         return redirect(url_for("pages.setup_page"))
-    all_stories = _visible_stories()
+    all_stories = visible_stories()
     stories = [s for s in all_stories if not s.draft and not s.archived]
     draft_count = sum(1 for s in all_stories if s.draft and not s.archived)
     archived_count = sum(1 for s in all_stories if s.archived)
@@ -249,8 +71,8 @@ def timeline():
     years = {}
     for story in stories:
         years.setdefault(story.date.year, []).append(story)
-    authors, author_colors = _authors_and_colors()
-    all_people = people.list_people(_people_dir())
+    authors, author_colors = authors_and_colors()
+    all_people = people.list_people(current_people_dir())
     people_by_slug = {p.slug: p for p in all_people}
     birthdate = settings.book("BIRTHDATE")
     quiet_months = storage.months_since_last_story(all_stories, today)
@@ -279,7 +101,7 @@ def timeline():
 @bp.route("/growth")
 @login_required
 def growth():
-    all_stories = _visible_stories()
+    all_stories = visible_stories()
     birthdate = settings.book("BIRTHDATE")
     photos = storage.growth_photos(all_stories, birthdate) if birthdate else []
     return render_template("growth.html", photos=photos, birthdate=birthdate)
@@ -288,7 +110,7 @@ def growth():
 @bp.route("/firsts")
 @login_required
 def firsts():
-    all_stories = _visible_stories()
+    all_stories = visible_stories()
     return render_template("firsts.html", firsts=storage.stories_with_milestones(all_stories))
 
 
@@ -308,7 +130,7 @@ def random_page():
     """Open a random readable story (FEATURES.md F15). Drafts, sealed
     letters, and instants (page-turning is for stories) are never chosen;
     `?not=<id>` excludes one story id (e.g. the one you're already on)."""
-    candidates = _visible_page_stories()
+    candidates = visible_page_stories()
     exclude_id = request.args.get("not")
     if exclude_id:
         candidates = [s for s in candidates if s.id != exclude_id]
@@ -355,15 +177,15 @@ def book():
     A year-chapter title page (FEATURES.md F31) precedes the first entry of
     each calendar year, one per year rather than one per story."""
     stories_dir = current_app.config["STORIES_DIR"]
-    readable = storage.readable_stories(_visible_stories())
-    authors, author_colors = _authors_and_colors()
+    readable = storage.readable_stories(visible_stories())
+    authors, author_colors = authors_and_colors()
     birthdate = settings.book("BIRTHDATE")
     entries = []
     prev_year = None
     for s in readable:
         full = storage.get_story(stories_dir, s.id)
         body_html = render_markdown(full.body, f"/story/{full.id}/media")
-        author_color = _author_color(authors, author_colors, full.author)
+        author_color = color_for_author(authors, author_colors, full.author)
         year = full.date.year
         entries.append({
             "story": full, "body_html": body_html, "author_color": author_color,
@@ -371,7 +193,7 @@ def book():
             "chapter_age": i18n.age_label(birthdate, full.date, i18n.current_language()) if birthdate else None,
         })
         prev_year = year
-    people_by_slug = {p.slug: p for p in people.list_people(_people_dir())}
+    people_by_slug = {p.slug: p for p in people.list_people(current_people_dir())}
     return render_template(
         "book.html",
         entries=entries,
@@ -389,7 +211,7 @@ def book_epub():
     """The whole book as a downloadable EPUB (readable in any e-reader app,
     unlike the browser-print PDF flow at /book)."""
     stories_dir = current_app.config["STORIES_DIR"]
-    readable = storage.readable_stories(_visible_stories())
+    readable = storage.readable_stories(visible_stories())
     authors = settings.book("AUTHORS") or []
     entries = []
     for s in readable:
@@ -437,7 +259,7 @@ def _exportable_story_ids():
     is partial, which the import/export page says in as many words rather
     than leaving it to be discovered.
     """
-    viewer_groups, author_name = _viewer_scope()
+    viewer_groups, author_name = viewer_scope()
     if viewer_groups is None:
         return None
     return {s.id for s in groups.visible_stories(
@@ -449,7 +271,7 @@ def _viewer_may_export_credentials():
     """Whether this viewer's zip may contain account files.
 
     Admins only, and everyone outside accounts mode — there, one shared
-    password is one identity, exactly as `_viewer_scope` treats it.
+    password is one identity, exactly as `viewer_scope` treats it.
 
     The hashes are scrypt, so this is not a password handed over. It is an
     *offline* guessing target, which is the part that matters: the login
@@ -508,10 +330,10 @@ def import_page():
 @bp.route("/drafts")
 @login_required
 def drafts():
-    all_stories = _visible_stories()
+    all_stories = visible_stories()
     draft_stories = [s for s in all_stories if s.draft and not s.archived]
     draft_stories.sort(key=lambda s: s.updated or datetime.min, reverse=True)
-    authors, author_colors = _authors_and_colors()
+    authors, author_colors = authors_and_colors()
     return render_template(
         "drafts.html", stories=draft_stories, authors=authors, author_colors=author_colors
     )
@@ -520,10 +342,10 @@ def drafts():
 @bp.route("/archived")
 @login_required
 def archived():
-    all_stories = _visible_stories()
+    all_stories = visible_stories()
     archived_stories = [s for s in all_stories if s.archived]
     archived_stories.sort(key=lambda s: s.updated or datetime.min, reverse=True)
-    authors, author_colors = _authors_and_colors()
+    authors, author_colors = authors_and_colors()
     return render_template(
         "archived.html", stories=archived_stories, authors=authors, author_colors=author_colors
     )
@@ -532,15 +354,15 @@ def archived():
 @bp.route("/story/<story_id>")
 @login_required
 def story(story_id):
-    s = _get_story_or_404(current_app.config["STORIES_DIR"], story_id)
-    authors, author_colors = _authors_and_colors()
-    author_color = _author_color(authors, author_colors, s.author)
+    s = get_story_or_404(current_app.config["STORIES_DIR"], story_id)
+    authors, author_colors = authors_and_colors()
+    author_color = color_for_author(authors, author_colors, s.author)
     if storage.is_sealed(s):
         return render_template("sealed.html", story=s, author_color=author_color)
     body_html = render_markdown(s.body, f"/story/{story_id}/media")
     prev_story, next_story = _reading_order_neighbors(current_app.config["STORIES_DIR"], s)
     memos = storage.list_memos(current_app.config["STORIES_DIR"] / story_id)
-    people_by_slug = {p.slug: p for p in people.list_people(_people_dir())}
+    people_by_slug = {p.slug: p for p in people.list_people(current_people_dir())}
     return render_template(
         "story.html", story=s, body_html=body_html, authors=authors, author_color=author_color,
         prev_story=prev_story, next_story=next_story, memos=memos,
@@ -556,7 +378,7 @@ def _reading_order_neighbors(stories_dir, current):
     stories)."""
     if current.draft or current.archived or current.kind != "story":
         return None, None
-    readable = _visible_page_stories()
+    readable = visible_page_stories()
     for i, r in enumerate(readable):
         if r.id == current.id:
             prev_story = readable[i - 1] if i > 0 else None
@@ -568,7 +390,7 @@ def _reading_order_neighbors(stories_dir, current):
 @bp.route("/story/<story_id>/history")
 @login_required
 def story_history(story_id):
-    s = _get_story_or_404(current_app.config["STORIES_DIR"], story_id)
+    s = get_story_or_404(current_app.config["STORIES_DIR"], story_id)
     versions = storage.list_versions(current_app.config["STORIES_DIR"], story_id)
     return render_template("history.html", story=s, versions=versions)
 
@@ -579,8 +401,8 @@ def story_media(story_id, filename):
     # Gated on the story, not just the filename: without this the page
     # 404s for a non-member but every photo in it stays fetchable by
     # direct URL, which is most of what a scoped story is protecting.
-    _get_story_or_404(current_app.config["STORIES_DIR"], story_id)
-    return _serve_media(current_app.config["STORIES_DIR"], story_id, filename)
+    get_story_or_404(current_app.config["STORIES_DIR"], story_id)
+    return serve_media(current_app.config["STORIES_DIR"], story_id, filename)
 
 
 @bp.route("/new")
@@ -592,7 +414,7 @@ def new_story():
     return render_template(
         "editor.html", story=None, today=date.today(), authors=authors,
         prompts=prompt_list, initial_prompt=initial_prompt, memos=[],
-        all_people=_other_people_refs(), all_groups=_available_groups(),
+        all_people=other_people_refs(), all_groups=available_groups(),
     )
 
 
@@ -602,55 +424,17 @@ def new_instant():
     authors = settings.book("AUTHORS") or []
     return render_template(
         "instant.html", today=date.today(), authors=authors,
-        all_groups=_available_groups(),
+        all_groups=available_groups(),
     )
 
 
 @bp.route("/edit/<story_id>")
 @login_required
 def edit_story(story_id):
-    s = _get_story_or_404(current_app.config["STORIES_DIR"], story_id)
+    s = get_story_or_404(current_app.config["STORIES_DIR"], story_id)
     authors = settings.book("AUTHORS") or []
     memos = storage.list_memos(current_app.config["STORIES_DIR"] / story_id)
     return render_template(
         "editor.html", story=s, today=date.today(), authors=authors, memos=memos,
-        all_people=_other_people_refs(), all_groups=_available_groups(s),
+        all_people=other_people_refs(), all_groups=available_groups(s),
     )
-
-
-def _people_dir():
-    return storage.people_dir(current_app.config["STORIES_DIR"])
-
-
-def _person_ref(people_by_slug, slug):
-    """A lightweight {slug, name, photo_url, photo_sepia} dict for linking
-    to another person in a template — None when the slug isn't a real
-    person."""
-    p = people_by_slug.get(slug)
-    if p is None:
-        return None
-    photo_url = (
-        url_for("pages.person_media", slug=p.slug, filename=storage.thumb_filename(p.photo))
-        if p.photo else None
-    )
-    return {"slug": p.slug, "name": p.name, "photo_url": photo_url, "photo_sepia": p.photo_sepia}
-
-
-def _other_people_refs(exclude_slug=None):
-    all_people = people.list_people(_people_dir())
-    people_by_slug = {p.slug: p for p in all_people}
-    return [
-        _person_ref(people_by_slug, p.slug) for p in all_people if p.slug != exclude_slug
-    ]
-
-
-# Registers routes_people.py's, routes_accounts.py's, routes_groups.py's and
-# routes_themes.py's routes onto `bp` (see module docstring) — must come after every helper
-# they import above.
-from . import (  # noqa: E402,F401
-    routes_accounts,
-    routes_groups,
-    routes_people,
-    routes_settings,
-    routes_themes,
-)

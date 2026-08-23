@@ -97,6 +97,24 @@ def test_shared_password_mode_export_is_unchanged(auth_client, stories_dir):
     assert f"{story_id}/index.md" in zf.namelist()
 
 
+def test_a_write_link_guest_cannot_export_at_all(accounts_app, cast, stories_dir):
+    """The third tier, and the one with no test until the view helpers were
+    split out of routes_pages.py.
+
+    A delegated write link (F19) hands somebody a way to add one story
+    without an account. They are not a reader: `/export` is a way to take
+    the whole book away, and `login_required` has to keep them out of it
+    even while they are legitimately holding a session.
+    """
+    _link, token = write_links.create_link(cast, "papa", label="one page")
+    guest = accounts_app.test_client()
+    assert guest.get(f"/w/{token}").headers["Location"] == "/w/write"
+    assert guest.get("/w/write").status_code == 200, "the guest can write"
+
+    assert guest.get("/export").headers["Location"].startswith("/login")
+    assert guest.get("/").headers["Location"].startswith("/login")
+
+
 def test_family_member_export_still_omits_scoped_stories(accounts_app, cast, stories_dir):
     """F40's rule and F43's rule are independent, and both still hold."""
     group = groups.create_group(stories_dir, "Just us", created_by="papa")

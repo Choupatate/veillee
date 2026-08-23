@@ -90,6 +90,11 @@ the exact `F<N>.` heading text to jump to it.
 - **F51** — Setting the book up from inside it: four questions on a fresh
   install, a Settings page forever after, and nothing asked of a book that
   already exists
+- **F52** — Seeing the colours before saving them: the theme editor's live
+  preview, held to the server's own palette maths by a cross-language test
+- **Housekeeping** — the `pages` blueprint and the shared view helpers
+  leave `routes_pages.py` for `views.py`; one `jsonstore.write_json`
+  replaces seven hand-rolled atomic writes
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7194,4 +7199,102 @@ through to the environment.
 
 Ten tests, all six of the ones describing the two defects run against the
 unfixed code to confirm they fail there. `pytest` (1446) and
+`ruff check .` green.
+
+## Housekeeping: one blueprint file, and one way to write a JSON file
+
+Two structural changes with no user-visible behaviour, taken from a read
+of the codebase looking for where its own conventions had come apart.
+Neither adds a feature; both remove a way to get one wrong later.
+
+### `views.py`: the blueprint and the shared helpers leave `routes_pages.py`
+
+`routes_pages.py` had grown three jobs. It defined the `pages` blueprint,
+it held the view helpers its five sibling route files import, and it
+implemented the timeline/story/book/export pages. The third job is what
+made the first two awkward: every sibling had to import the module that
+imported *them*, so the routes were registered by a side-effect import at
+the bottom of `routes_pages.py`, and `routes_api.py` had to fetch
+`viewer_scope` from inside a function body to stay clear of the cycle.
+
+The tell was in the names. Five modules were importing `_visible_stories`,
+`_people_dir`, `_serve_media`, `_person_ref` and `_other_people_refs`
+across a module boundary — an underscore claiming "private" about names
+that plainly were not.
+
+So the blueprint and those helpers moved to `app/views.py`, and lost the
+underscores on the way. Nothing imports `routes_pages` now except
+`create_app`, which imports all six page-route files purely so their
+routes register. `views.py` imports no route file, so there is nothing to
+cycle. `_people_dir` became `current_people_dir` rather than `people_dir`,
+because half the functions around it already have a local of that name and
+one takes it as a parameter; `_author_color` became `color_for_author` for
+the same reason.
+
+While there, `routes_api.py`'s own copy of `_people_dir` went — it was the
+second of three identical one-liners.
+
+**What did not move, deliberately: `/export`'s scoping rules.**
+`_exportable_story_ids` and `_viewer_may_export_credentials` are the
+export route's own, nothing else calls them, and they are the three-way
+distinction the whole audience feature rests on — a guest gets no export
+at all, a family member gets the stories they can see and no credential
+files, an admin gets everything. Moving them would have been tidiness at
+the expense of keeping an access-control rule next to the route it
+governs.
+
+Verified rather than assumed, because a refactor that touches the audience
+gate has to be:
+
+* the route table is **byte-identical** before and after — 74 rules, same
+  endpoints, same methods, diffed;
+* `/export` probed on a running app as an admin, as a family member inside
+  the group, as one outside it, as a write-link guest holding a real
+  session, and as the single password-holder with accounts off. Same
+  answers as before: `scoped=True/credentials=3`, `scoped=True/0`,
+  `scoped=False/0`, `302 → /login`, `scoped=True/4`;
+* the guest tier had no test at all, and now has one — a write-link holder
+  can reach `/w/write` and cannot reach `/export` or the timeline;
+* a browser pass over all fifteen pages plus a story, its editor and its
+  history: 200 everywhere, no console errors.
+
+Two ratchets came out of it. `test_groups.py`'s unscoped-access count now
+includes `views.py` — the gate moved into a file that list did not know
+about, and the count would have gone green with the gate unwatched — plus
+a new `test_every_route_file_is_counted`, so the *next* file cannot slip
+past the same way. And `tests/test_view_helpers.py` pins the shape: nobody
+imports `routes_pages`, `views.py` imports no route file, one blueprint
+named `pages`, `create_app` imports all six, and twenty named endpoints
+still answer. Both were confirmed to fail when violated.
+
+### `jsonstore.write_json`: the same three lines, seven times, four of them wrong
+
+Write to a `.tmp` beside the target, then `os.replace`. Copied into
+`accounts.py` (twice), `groups.py`, `invites.py`, `write_links.py`,
+`settings.py` and `theme_packs.py` — and four of the copies wrote
+`json.dumps(data, indent=2)` with no `ensure_ascii=False`.
+
+Two of those four carry text somebody typed. An account request's display
+name and note went to disk as `Am\u00e9lie No\u00eblle`, while the same
+name in a group, written by one of the copies that got it right, stayed
+`Amélie Noëlle`. Nothing was broken by it — Python reads both back
+identically — but *plain text, readable long after this app is gone* is
+the promise the whole storage design exists to keep, and escape sequences
+are not what a family should find when they open their own files.
+
+`app/jsonstore.py` is a leaf: it imports nothing from the rest of the app,
+which is what lets `settings.py` use it while keeping the independence it
+is careful about elsewhere. `account.json` and `invites.json` have no
+field a name reaches today; they moved over anyway, because the next field
+added to either is the one that would have found out. `account.json`'s
+contents are pinned by a test either way — `auth.login_required` reads the
+role out of it on every request, and every access rule in the app hangs
+off that.
+
+`test_no_module_hand_rolls_its_own_json_write` is the ratchet: a
+`json.dumps` written to a file anywhere in `app/` other than `jsonstore.py`
+fails the suite. Confirmed by adding one.
+
+Twenty-five tests added. The five content tests were run with
+`ensure_ascii` restored to confirm they fail there. `pytest` (1471) and
 `ruff check .` green.

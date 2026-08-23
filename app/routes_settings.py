@@ -1,7 +1,6 @@
 """Setting the book up from inside it (FEATURES.md F51).
 
-Two pages, registering onto the `pages` blueprint `routes_pages.py`
-defines. `/setup` runs once, on a book nobody has configured yet;
+Two pages, registering onto the `pages` blueprint `views.py` defines. `/setup` runs once, on a book nobody has configured yet;
 `/settings` is the same values, changeable forever after. Both are behind
 `admin_required_in_accounts_mode`, the gate the theme pages and the backup
 restore already use: the admin when accounts are on, the one
@@ -27,7 +26,7 @@ from flask import (
 from . import i18n, people, settings, storage, themes
 from .auth import admin_required_in_accounts_mode
 from .i18n import _
-from .routes_pages import bp
+from .views import bp
 
 
 def _stories_dir():

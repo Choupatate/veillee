@@ -5,10 +5,12 @@ Person/family API routes live in `routes_api_people.py` — it registers
 onto the `bp` object defined here rather than declaring its own
 blueprint, so every `url_for("api.xxx")` reference keeps working
 unchanged regardless of which file a route's code actually lives in.
-It's imported at the bottom of this file (after `bp` and the handful of
-helpers it needs — `_error`, `_parse_date`, `_people_dir`,
-`_validate_media_filename`, `_validate_slug_list`, `_validate_sources` —
-already exist) purely for that side effect: registering its routes.
+`create_app` imports it for that side effect.
+
+The viewer helpers come from `views.py`, which imports no route file.
+`viewer_scope` used to be fetched from inside `_readable_story_or_error`'s
+body, because reaching for it at module scope meant importing the module
+that imported this one. There is no cycle to dodge any more.
 """
 
 import zipfile
@@ -20,6 +22,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 
 from . import groups, people, settings, storage
 from .auth import admin_required_in_accounts_mode, login_required
+from .views import current_people_dir, viewer_scope
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -35,10 +38,6 @@ def _parse_date(value):
         return date_cls.fromisoformat(value)
     except (TypeError, ValueError):
         return None
-
-
-def _people_dir():
-    return storage.people_dir(current_app.config["STORIES_DIR"])
 
 
 def _validate_author(data):
@@ -181,7 +180,7 @@ def _validate_story_people(data):
     """Resolve and validate the optional 'people' field: person slugs
     appearing in the story. None means absent ('leave unchanged' on
     update)."""
-    valid_slugs = {p.slug for p in people.list_people(_people_dir())}
+    valid_slugs = {p.slug for p in people.list_people(current_people_dir())}
     return _validate_slug_list(data, "people", valid_slugs, self_slug=None)
 
 
@@ -294,16 +293,12 @@ def _readable_story_or_error(story_id):
     is a way to overwrite, or simply read back, something scoped away from
     you. Returns (story, None) or (None, error_response).
     """
-    # Imported here rather than at module scope: routes_pages imports this
-    # module's blueprint siblings, and the viewer helpers live there.
-    from .routes_pages import _viewer_scope
-
     if not storage.is_valid_story_id(story_id):
         return None, _error("Story not found.", 404)
     story = storage.get_story(current_app.config["STORIES_DIR"], story_id)
     if story is None:
         return None, _error("Story not found.", 404)
-    viewer_groups, author_name = _viewer_scope()
+    viewer_groups, author_name = viewer_scope()
     if viewer_groups is not None and not groups.can_see(story, viewer_groups, author_name):
         return None, _error("Story not found.", 404)
     return story, None
@@ -523,8 +518,3 @@ def delete_memo(story_id, filename):
         return _error("Memo not found.", 404)
 
     return "", 204
-
-
-# Registers routes_api_people.py's routes onto `bp` (see module docstring)
-# — must come after every helper it imports above.
-from . import routes_api_people  # noqa: E402,F401

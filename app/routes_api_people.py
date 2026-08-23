@@ -13,19 +13,19 @@ from .auth import login_required
 from .routes_api import (
     _error,
     _parse_date,
-    _people_dir,
     _validate_media_filename,
     _validate_slug_list,
     _validate_sources,
     bp,
 )
+from .views import current_people_dir
 
 
 def _validate_person_photo(data, slug):
     """Resolve and validate the optional 'photo' field on person update.
     Same rules as a story's `cover` (FEATURES.md F14)."""
     return _validate_media_filename(
-        data, "photo", _people_dir() / slug, "photo", "Photo not found."
+        data, "photo", current_people_dir() / slug, "photo", "Photo not found."
     )
 
 
@@ -158,7 +158,7 @@ def _validate_person_family(data, self_slug):
     resolved values (each None if absent from the payload) plus the
     all-people list and graph already built (so callers can reuse them for
     partner symmetry), or (None, None, error_response)."""
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     all_people = people.list_people(people_dir)
     valid_slugs = {p.slug for p in all_people}
 
@@ -266,7 +266,7 @@ def create_person():
     if error:
         return error
 
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     slug = people.create_person(
         people_dir, name, relation=relation, body=markdown,
         parents=fields["parents"], partners=fields["partners"],
@@ -311,7 +311,7 @@ def update_person(slug):
     if error:
         return error
 
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     existing = people.get_person(people_dir, slug)
     if existing is None:
         return _error("Person not found.", 404)
@@ -363,7 +363,7 @@ def upload_person_image(slug):
     styling round)."""
     if not storage.is_valid_story_id(slug):
         return _error("Person not found.", 404)
-    person_dir = _people_dir() / slug
+    person_dir = current_people_dir() / slug
     if not person_dir.is_dir():
         return _error("Person not found.", 404)
 
@@ -392,7 +392,7 @@ def upload_person_photo(slug):
     server does not perform or store any separate crop/focus data."""
     if not storage.is_valid_story_id(slug):
         return _error("Person not found.", 404)
-    existing = people.get_person(_people_dir(), slug)
+    existing = people.get_person(current_people_dir(), slug)
     if existing is None:
         return _error("Person not found.", 404)
 
@@ -401,12 +401,12 @@ def upload_person_photo(slug):
         return _error("No image file provided.", 400)
 
     try:
-        filename = storage.save_image_to(_people_dir() / slug, file_storage)
+        filename = storage.save_image_to(current_people_dir() / slug, file_storage)
     except Exception:
         return _error("Could not process image.", 400)
 
     people.update_person(
-        _people_dir(), slug, existing.name, relation=existing.relation,
+        current_people_dir(), slug, existing.name, relation=existing.relation,
         body=existing.body or "", photo=filename,
         photo_sepia=people.DEFAULT_PHOTO_SEPIA,
     )
@@ -422,7 +422,7 @@ def upload_person_photo(slug):
 def api_tree():
     """The Layer-2/3 contract for FEATURES.md F18 — the seam future
     renderers plug into. See README.md for the documented shape."""
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     all_people = people.list_people(people_dir)
     graph = kinship.build_graph(all_people)
     anchor = kinship.resolve_anchor(settings.book("CHILD_SLUG"), graph)

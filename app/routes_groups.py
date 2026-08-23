@@ -1,7 +1,7 @@
 """Audience-group management (FEATURES.md F40, opened up in F41): create a
-group, rename it, choose who's in it. Registers onto the same `pages`
-blueprint `routes_pages.py` defines — see that module's docstring for why
-these live in a separate file without a separate blueprint.
+group, rename it, choose who's in it. Registers onto the `pages`
+blueprint `views.py` defines — see that module's docstring for why these
+live in a separate file without a separate blueprint.
 
 404 throughout unless accounts mode is on: with one shared password there
 is one identity, so a group would have nobody to scope a story away from.
@@ -33,7 +33,7 @@ from flask import (
 from . import accounts, groups, people, storage
 from .i18n import _
 from .auth import login_required
-from .routes_pages import _people_dir, bp
+from .views import bp, current_people_dir
 
 
 def _groups_enabled_or_404():
@@ -45,7 +45,7 @@ def _groups_enabled_or_404():
 def _viewer():
     """(person slug, display name, is_admin) for whoever is asking."""
     person_slug = session.get("person_slug")
-    person = people.get_person(_people_dir(), person_slug) if person_slug else None
+    person = people.get_person(current_people_dir(), person_slug) if person_slug else None
     return person_slug, (person.name if person else None), session.get("role") == "admin"
 
 
@@ -86,7 +86,7 @@ def groups_page():
         else:
             return redirect(url_for("pages.group_page", slug=group.slug))
 
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     people_by_slug = {p.slug: p for p in people.list_people(people_dir)}
     all_stories = storage.list_stories(stories_dir)
     rows = []
@@ -109,7 +109,7 @@ def group_page(slug):
     group = groups.get_group(stories_dir, slug)
     if group is None:
         abort(404)
-    people_dir = _people_dir()
+    people_dir = current_people_dir()
     person_slug, viewer_name, is_admin = _viewer()
     can_manage = groups.can_manage(group, person_slug, is_admin)
 
