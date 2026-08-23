@@ -79,11 +79,24 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
 
 - `app/storage.py` — **all filesystem read/write for stories lives here**:
   `Story` dataclass, `list_stories`/`get_story`/`create_story`/`save_story`,
-  image/memo upload and re-encoding, `.versions/` snapshot+restore, backup
-  zip import. Also home to several small pure date-math helpers used by the
-  timeline (`on_this_day`, `growth_photos` F29, `months_since_last_story`
-  F30). This is the module to read before touching how stories/people/
-  images are persisted.
+  image/memo upload and re-encoding, `.versions/` snapshot+restore. Also
+  home to several small pure date-math helpers used by the timeline
+  (`on_this_day`, `growth_photos` F29, `months_since_last_story` F30).
+  This is the module to read before touching how stories/people/images are
+  persisted.
+- `app/backup.py` — **both halves of the backup round trip**:
+  `write_backup` (what `/export` streams) and `import_backup` (what
+  `/import` restores), plus `CREDENTIAL_FILENAMES` and `ImportCollision`.
+  They belong together because they are one contract — which files go out
+  has to match which files may come back, and while export lived in a
+  route and import in `storage.py`, nothing held them to each other and
+  the tests had written their own export twice to cope. **Who may export
+  what is deliberately not here**: `write_backup` takes `allowed_ids` and
+  `with_credentials` as arguments, and `routes_pages.py`'s
+  `_exportable_story_ids`/`_viewer_may_export_credentials` decide them
+  from the session, beside the route they guard. A guest never reaches
+  `/export`; a family member gets the stories they can see and no
+  credential files; an admin gets everything.
 - `app/people.py` — the "cast of the book" (F14): `Person` dataclass
   (including F27's `born`/`died`/`unions`), `list_people`/`get_person`/
   `create_person`/`update_person`. Mirrors `storage.py`'s shape.
@@ -269,10 +282,12 @@ Frontend:
   atomicity, and `save_story` snapshots the previous version into
   `.versions/` first. Preserve both properties in any code that writes story
   content.
-- Zip extraction (`import_backup`) validates every member path before
-  extracting anything (zip-slip protection) and is all-or-nothing (a
+- Zip extraction (`backup.import_backup`) validates every member path
+  before extracting anything (zip-slip protection) and is all-or-nothing (a
   collision aborts with nothing written). Keep that all-or-nothing guarantee
-  if you touch import/export.
+  if you touch import/export — and change the two halves together, which is
+  why they share a module. `tests/test_backup_roundtrip.py` exercises them
+  as a pair; never hand-roll a zip in a test to stand in for the export.
 - `story_media`/`person_media` set a one-year `Cache-Control` max-age on
   `.jpg`/`.png` files (`_media_max_age` in `routes_pages.py`), safe only
   because `save_image_to` never overwrites or reuses a photo's filename.

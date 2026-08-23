@@ -19,8 +19,6 @@ The export helpers below are the exception, and stay: they are the
 """
 
 import random
-import tempfile
-import zipfile
 from datetime import date, datetime
 
 from flask import (
@@ -34,7 +32,7 @@ from flask import (
     url_for,
 )
 
-from . import epub, groups, i18n, life_events, people, prompts, settings, storage, themes
+from . import backup, epub, groups, i18n, life_events, people, prompts, settings, storage
 from .auth import admin_required_in_accounts_mode, login_required
 from .rendering import render_markdown
 from .views import (
@@ -291,32 +289,18 @@ def _viewer_may_export_credentials():
 def export():
     """Stream a zip of the stories directory (FEATURES.md F8), minus any
     story the viewer isn't in the audience for (F40) and, unless they are an
-    admin, minus every account file (F43)."""
-    stories_dir = current_app.config["STORIES_DIR"]
-    allowed_ids = _exportable_story_ids()
-    with_credentials = _viewer_may_export_credentials()
-    tmp = tempfile.TemporaryFile()
-    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:
-        for path in sorted(stories_dir.rglob("*")):
-            if path.is_dir() or path.name.endswith(".tmp"):
-                continue
-            if not with_credentials and path.name in storage.CREDENTIAL_FILENAMES:
-                continue
-            relative = path.relative_to(stories_dir)
-            # The first path segment is the story id for anything under a
-            # story folder; people/, themes/ (F50), groups.json and the
-            # other root-level files aren't stories and are never
-            # audience-scoped.
-            top = relative.parts[0]
-            if (
-                allowed_ids is not None
-                and top not in ("people", themes.USER_THEMES_DIRNAME, groups.GROUPS_FILENAME)
-                and (stories_dir / top).is_dir()
-                and top not in allowed_ids
-            ):
-                continue
-            zf.write(path, relative)
-    tmp.seek(0)
+    admin, minus every account file (F43).
+
+    The two `_`-prefixed calls are the whole of the access control, and
+    they stay here rather than in `backup.py` on purpose: reading the
+    session is what makes them policy, and a rule about who may see what
+    is easier to audit beside the route it guards.
+    """
+    tmp = backup.write_backup(
+        current_app.config["STORIES_DIR"],
+        allowed_ids=_exportable_story_ids(),
+        with_credentials=_viewer_may_export_credentials(),
+    )
     filename = f"storybook-backup-{date.today().isoformat()}.zip"
     return send_file(tmp, mimetype="application/zip", as_attachment=True, download_name=filename)
 

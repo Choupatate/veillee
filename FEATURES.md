@@ -95,6 +95,9 @@ the exact `F<N>.` heading text to jump to it.
 - **Housekeeping** — the `pages` blueprint and the shared view helpers
   leave `routes_pages.py` for `views.py`; one `jsonstore.write_json`
   replaces seven hand-rolled atomic writes
+- **Housekeeping 2** — `write_backup` and `import_backup` move in together
+  as `backup.py`, so the two ends of the backup contract can finally be
+  tested as a pair
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7298,3 +7301,63 @@ fails the suite. Confirmed by adding one.
 Twenty-five tests added. The five content tests were run with
 `ensure_ascii` restored to confirm they fail there. `pytest` (1471) and
 `ruff check .` green.
+
+## Housekeeping 2: the backup's two halves move in together
+
+`/export` wrote a zip in thirty lines inside a route. `import_backup` read
+one back in a hundred and fifty inside `storage.py`. They are two ends of
+a single contract — which files go out has to match which files may come
+back — and they were in different layers, unable to see each other.
+
+Three things had already gone wrong because of it.
+
+`storage.py` had to reach *up*. Restoring a backup means knowing about
+settings (F51), made theme packs (F50) and the catalogue that says which
+picture filenames are legitimate — so the data layer every other module
+leans on imported `settings`, `themes` and `theme_catalog` from inside a
+function body, with a comment explaining that keeping the imports local
+kept the dependency arrow presentable. It was a workaround for the
+function being in the wrong file.
+
+**The test suite had written its own export. Twice.** `tests/test_import.py`
+and `tests/test_backup_credentials.py` each carried a byte-identical
+`_export_zip`/`_backup_of` helper that walked the directory and zipped
+everything it found. Neither skipped `.tmp` leftovers. Neither applied the
+credential filter. So every import test in the app was restoring a zip the
+app would never have produced, and the one property most worth checking —
+that what export writes, import reads — had no test at all, because
+nothing could call both.
+
+And there was nowhere for a round-trip test to live.
+
+`app/backup.py` now holds `write_backup`, `import_backup`,
+`CREDENTIAL_FILENAMES` and `ImportCollision`. `storage.py` loses 183 lines
+and all three upward imports. The `/export` route is down to the two calls
+that decide what the viewer may have, and one call that builds it.
+
+**What deliberately did not move: who may export what.** `write_backup`
+takes `allowed_ids` and `with_credentials` and does not decide either.
+`_exportable_story_ids` and `_viewer_may_export_credentials` read the
+session and stay beside the route they govern — this module is the
+mechanism, the route is the policy, and an access-control rule is easier
+to audit next to the thing it guards than one import away.
+
+Both test helpers are now one line calling the real export, and
+`tests/test_backup_roundtrip.py` checks the thing that matters to a
+family: **the backup you took is the book you get back**, and for a viewer
+who cannot see everything, exactly the part they could see and no more.
+Twelve tests, including the three tiers restoring into a fresh book, and
+the rule that has to hold on all of them at once — an admin's zip
+legitimately *contains* credential files, and a restore still must not put
+them back, or a zip becomes a way to install your admins into somebody
+else's book.
+
+Verified by breaking each property in turn and watching the right test
+fail: export stops skipping `.tmp` → one failure; import stops dropping
+credential files → the admin tier fails; export stops scoping to the
+viewer → three fail. And the export tiers were re-probed on a running app
+either side of the move, unchanged: admin `scoped/3 credentials`, member
+in the group `scoped/0`, member outside it `public only/0`, write-link
+guest `302 → /login`, single password-holder `everything/4`.
+
+`pytest` (1483) and `ruff check .` green.
