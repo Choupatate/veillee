@@ -15,10 +15,15 @@ editor and a file browser.
 Read these before making non-trivial changes, in this order:
 - `README.md` — how to run it, configuration, feature tour.
 - `PLAN.md` — the original design spec the app was built from.
-- `FEATURES.md` — the running log of every feature added since, in F-number
-  order (F0, F1, F2, ...). Each entry documents the feature, the design
-  decisions, and often the edge cases handled. **This is the most detailed
-  and current source of truth for how a given feature actually behaves.**
+- `FEATURES.md` — the running log of every feature added since. Each entry
+  documents the feature, the design decisions, and often the edge cases
+  handled. **This is the most detailed and current source of truth for how
+  a given feature actually behaves.** The file is *not* in F-number order
+  and is not going to be — its specs use `##` for their own internal
+  structure, so sorting the headings would tear them apart. The index at
+  the top is in order instead; find your feature there, then search for the
+  exact `F<N>.` heading text. `tests/test_features_index.py` fails if that
+  index falls behind, so it can be trusted to be complete.
 - `REVIEW.md` — a past production-readiness audit and the fixes it drove.
   Historical record, not necessarily reflecting the current code.
 - `IMAGE-PROMPTS.md` — the house style and per-asset prompts for the
@@ -29,7 +34,9 @@ Read these before making non-trivial changes, in this order:
   now complete. Its 13 icons are **drawn**, by `scripts/draw_orbit_icons.py`
   in Pillow, rather than generated — read that file's header before
   changing any of them, and redraw the whole set rather than hand-editing
-  a PNG. A house style belongs to one
+  a PNG. (`scripts/process_orbit_icons.py` is the superseded generate-and-key
+  pipeline, kept only as a record of what went wrong with it; anything it
+  produced now fails `tests/test_orbit_icons.py`.) A house style belongs to one
   art direction: never mix the two files' style rules.
 
   Both files are **hand-written prompts for one specific pack**, and are

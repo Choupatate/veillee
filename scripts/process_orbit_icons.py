@@ -1,5 +1,17 @@
 """Process the orbit theme pack's generated icons (FEATURES.md F46).
 
+**Superseded, and kept only as a record.** Orbit's thirteen icons are no
+longer generated and keyed — they are drawn in Pillow by
+`draw_orbit_icons.py`, which is their source and the thing to change if an
+icon needs changing. `tests/test_orbit_icons.py` compares every committed
+PNG against what that script draws, so anything this file produced would
+now fail the suite.
+
+It stays because the framing rules below (160x160, transparent, no plate,
+bold enough to survive 20px) are what `draw_orbit_icons.py` matches, and
+because the four passes are the record of what went wrong keying a
+generated icon — read it before reaching for a generator again.
+
 The illustrations go through `process_orbit_plates.py`; icons are a
 different shape of problem and follow F22's rules instead — transparent
 PNG, no plate, 160x160, bold enough to survive 20px.

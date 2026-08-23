@@ -1,10 +1,22 @@
 ## Index
 
-Every feature shipped so far, in numeric order (the file below is *not* in
-this order — features were written up as they landed, and a few earlier
-batches predate F-numbering being sequential across the whole file). Use
-this to find which section covers something without scrolling; search for
-the exact `F<N>.` heading text to jump to it.
+Every feature shipped so far, in numeric order. **The file below is not**,
+and will not be: features were written up as they landed, a few early
+batches predate F-numbering being sequential, and the specs use `##` for
+their own internal structure — F18 alone has `## Layer 1`, `## API`,
+`## Tests` and `## Definition of done`. Sorting the top-level headings
+would tear those specs apart and interleave their subsections with
+unrelated features. This index is what makes the order not matter.
+
+Use it to find which section covers something without scrolling, then
+search for the exact `F<N>.` heading text to jump to it. Five of the older
+features are `#` rather than `##`; searching the heading text finds them
+either way.
+
+`tests/test_features_index.py` fails if a feature lands here without a
+line in this list, if a line here points at a section that is gone, or if
+two features claim the same number — so this list can be trusted to be
+complete rather than merely intended to be.
 
 - **F0** — Groundwork: story visibility (draft/sealed/archived filtering
   used by F2/F4/F5/F6/F10)
@@ -104,6 +116,8 @@ the exact `F<N>.` heading text to jump to it.
 - **Housekeeping 4** — `crop-logic.js` and `draft-logic.js` come out of
   `editor.js`; the cropper's preview and saved JPEG become one calculation,
   and crash recovery stops discarding drafts it should have offered back
+- **Housekeeping 5** — this index becomes a tested promise rather than an
+  intention, and the plan to sort the file is abandoned with reasons
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7494,3 +7508,43 @@ change, the order of `people` and `sources` is, and anything else that
 turns up in that localStorage key is not a draft at all.
 
 `pytest` (1491) and `ruff check .` green.
+
+## Housekeeping 5: the index earns its trust
+
+The plan for this one was to sort FEATURES.md into F-number order. Reading
+the file properly showed that was the wrong idea, so it did not happen.
+
+Its feature specs use `##` for their own internal structure. F18 alone has
+`## Layer 1`, `## API`, `## Person pages`, `## Tests` and `## Definition of
+done`; F19 and the original PLAN-era sections do the same. Five features
+are `#` rather than `##`. A mechanical sort of the top-level headings would
+tear those specs apart and interleave their subsections with unrelated
+features — a worse file, arrived at confidently.
+
+The index is what makes the order not matter, and the index turned out to
+be in better shape than the diagnosis assumed: all fifty-three features
+were already listed, none stale, none duplicated. What it lacked was any
+reason to believe that would stay true.
+
+`tests/test_features_index.py` supplies it. Six checks: every feature
+heading has an index line, every index line has a heading, no duplicates,
+no two features claiming the same number, the newest feature is listed, and
+the one instruction that makes an unordered file navigable — search the
+heading text — survives edits to the preamble. Confirmed to fail both ways
+by appending a feature with no index line and by adding a second `## F50`.
+
+It is the same shape of guard as the i18n test, which fails when a
+`_("...")` lands with no French line. A convention nobody can forget beats
+a convention everybody is asked to remember.
+
+The index's own preamble now says all of this, including why the file will
+not be sorted, so the next person to have this idea can save the afternoon.
+
+Also: `scripts/process_orbit_icons.py` is marked superseded at the top. Its
+generate-and-key pipeline was replaced by `draw_orbit_icons.py`, and
+anything it produced today would fail `tests/test_orbit_icons.py`. It stays
+because its four keying passes are the record of what went wrong with
+generated icons, and the framing rules in it are the ones the drawing
+script matches.
+
+`pytest` (1497) and `ruff check .` green.
