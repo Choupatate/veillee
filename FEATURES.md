@@ -6895,3 +6895,63 @@ Also corrected while here: the interface still said a theme was
 thirty-seven pictures. It has been thirty-five since the two un-tiled maps
 left the catalogue (F50 follow-up), in the editor's own hint, the French
 translation of it, README, and four comments and docstrings.
+
+## F46 follow-up: orbit's icons, drawn rather than generated
+
+> I thought you had a command to generate images within Claude code
+
+There is no image generator here — but eleven of orbit's thirteen icons
+were still borrowed from the ranch, so a book kept in orbit had a lasso and
+a branding iron on its buttons. Those eleven are the part of a pack that
+least needs a generator, and it took saying "I can't generate these" out
+loud to notice why.
+
+An icon in this project is four flat colours, a dark keyline and one
+silhouette that has to survive being drawn at twenty pixels. That is
+geometry, not illustration — and it is precisely what a generator is worst
+at: it softens small shapes, forgets the outline between one image and the
+next, and will not hold thirteen drawings to one style. So
+`scripts/draw_orbit_icons.py` draws them, in Pillow, from the subject table
+in IMAGE-PROMPTS-ORBIT.md. Pillow is already a pinned dependency, so the
+set is reproducible from `requirements.txt` alone: change a colour in the
+script and all thirteen redraw. The generated plates have never been
+reproducible in that sense, and never can be.
+
+The two icons that *did* come from the generator were redrawn with the
+rest, which IMAGE-PROMPTS-ORBIT.md had already said should happen once the
+others arrived — they predated the outline rule, and a half-outlined set
+looks like a mistake.
+
+**What drawing them taught, beyond what generating them had.** The pack's
+existing rule is that every shape carries a dark navy outline, because
+nothing in the palette reads on both the night side and the day side —
+starlight is 14.5:1 on one and 1.11:1 on the other. Drawing added a
+corollary a generator would never have surfaced: **a line cannot simply
+*be* the keyline.** A navy stroke disappears at night exactly as a navy
+fill does, so every stroke here is drawn twice, a fat navy keyline under a
+lighter core. Filled shapes need one pass; strokes need two.
+
+Two more, both about composition, and both cost several attempts each:
+
+- **Three heads inside an oval is a face.** In a triangle it is
+  unmistakably one; in a row it becomes a pod. `icon-group` only worked
+  inverted — the enclosing shape filled dark, three light silhouettes
+  inside it, no per-figure outline at all. Which is what the catalogue asks
+  for in words; the drawing had to catch up with the sentence.
+- **A dark oval centred in a pale disc is an eye.** `icon-new-person`'s
+  visor read as one until it became a band across the helmet.
+- And one that is just a fact about Pillow: an arc's rounded end caps read
+  as *bolts* when the arc is long enough to be a rim, so `arc()` takes
+  `caps=False` for the hatch and the dashed orbit.
+
+Five passes, and the honest record is that the first one produced six
+usable icons out of thirteen. What was wrong was never the colour or the
+keyline — it was that a shape which reads at 160 pixels can mean something
+else entirely at 20.
+
+`pytest` (1360) and `ruff check .` green. Verified in Chromium against a
+running book with `STORYBOOK_THEME=orbit`: the editor requests
+`/static/themes/orbit/img/icon-{new-story,instant,seal,draft,archive,source,record,save}.png`
+with no 404 and no ranch fallback, and every one reads on both
+`data-theme="dark"` and `data-theme="light"` — which is the test the
+keyline exists to pass.

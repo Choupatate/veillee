@@ -9,16 +9,27 @@ file is how a pack drifts.
 Generate externally, process locally, commit the result under
 `app/static/themes/orbit/img/` — the app never fetches an image at runtime.
 
-**Status: all 17 illustrations are generated, processed and committed.**
-Of the 13 icons, **2 are in** (`icon-new-story`, `icon-instant`) and 11 are
-not, so most buttons still show the ranch's western icon on a blue page.
+**Status: complete.** All 17 illustrations are generated, processed and
+committed, and all 13 icons are in.
 
-The first icon batch also taught the rule now at the head of the icon
-section: **every icon needs a dark navy outline**, because no single colour
-in the pack's palette is legible on both the night side and the day side.
-The two that are committed predate that rule and read acceptably without
-it; when the rest arrive outlined, regenerating those two to match is
-worth it — a half-outlined icon set looks like a mistake.
+**The icons are drawn, not generated** — `scripts/draw_orbit_icons.py`,
+in Pillow, from the subject table at the end of this file. That was not the
+original plan and it is worth saying why it changed. An icon here is four
+flat colours, a dark keyline and one silhouette that has to survive being
+shown at twenty pixels: that is geometry rather than illustration, and it
+is the thing a generator does worst — it softens small shapes, forgets the
+outline between one image and the next, and will not hold thirteen drawings
+to a single style. Drawing them also makes the set reproducible, which the
+plates are not: change a colour in the script and all thirteen redraw.
+
+The two icons that came from the generator (`icon-new-story`,
+`icon-instant`) predated the outline rule below and were redrawn with the
+rest, as this file previously said they should be — a half-outlined icon
+set looks like a mistake.
+
+The prompts in the icon section are kept as-is. They are still the right
+brief, they are what the drawing follows, and they are what anyone making a
+*different* pack should start from.
 
 **Nothing here is blocking.** The orbit pack works with any subset: its
 palette is complete, and any picture it hasn't drawn falls back to the
@@ -679,9 +690,14 @@ background, bold flat shapes that survive being drawn at 20 pixels. The
 pack's signature shape is the **ring** — a tilted ellipse around a body —
 because it is the one silhouette that stays legible that small.
 
-Generate at 512×512 on a plain mid-grey background, then run
-`scripts/process_orbit_icons.py`, which keys the background out, trims to
-content, pads by 2% and downscales to 160×160.
+These are drawn by `scripts/draw_orbit_icons.py` rather than generated —
+see the status note at the top of this file for why. Run it to redraw the
+set after changing a colour; pass a filename to redo just one.
+
+`scripts/process_orbit_icons.py` remains for a *generated* icon: it keys a
+mid-grey background out, trims to content, pads by 2% and downscales to
+160×160. The drawing script frames its output the same way, so drawn and
+generated icons sit in the same box.
 
 ### The rule the first batch taught: every icon needs a dark outline
 
@@ -705,6 +721,23 @@ So: **every shape carries a dark navy `#17253f` outline, thick enough to
 survive 20 pixels**, with cyan and pale starlight as the fills inside it.
 The prompt below says so; do not drop it, and check a generation against
 the day side before accepting it.
+
+Drawing them taught a corollary the prompts do not state, because a
+generator would never hit it: **a line cannot simply *be* the keyline.** A
+navy stroke is invisible at night for the same reason a navy fill is, so
+every stroke in the set is drawn twice — a fat navy keyline with a lighter
+core on top. Filled shapes need only the outline; strokes need both.
+
+Two more things drawing them taught, both about composition rather than
+colour, and both cost several attempts:
+
+- **Three heads inside an oval is a face.** Arranged in a triangle it is
+  unmistakably one; in a row it becomes a pod. `icon-group` only worked
+  when it was inverted — the enclosing shape filled dark, the three
+  figures light silhouettes inside it, no per-figure outline at all. That
+  is also what the catalogue asks for in words.
+- **A dark oval centred in a pale disc is an eye.** `icon-new-person`'s
+  visor had to become a band across the helmet before it read as a helmet.
 
 The other thing the first batch taught: *the subject line has to name a
 shape, not a concept*. "A ringed planet inside a downward chevron" came

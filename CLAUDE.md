@@ -26,7 +26,10 @@ Read these before making non-trivial changes, in this order:
   adding or placing any ranch illustration, and add finished assets to
   F17's table.
 - `IMAGE-PROMPTS-ORBIT.md` — the same thing for the *orbit* pack (F46),
-  most of whose icons are still to be drawn. A house style belongs to one
+  now complete. Its 13 icons are **drawn**, by `scripts/draw_orbit_icons.py`
+  in Pillow, rather than generated — read that file's header before
+  changing any of them, and redraw the whole set rather than hand-editing
+  a PNG. A house style belongs to one
   art direction: never mix the two files' style rules.
 
   Both files are **hand-written prompts for one specific pack**, and are
