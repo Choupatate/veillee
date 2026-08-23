@@ -7146,3 +7146,52 @@ that script draws, and to nothing else. It is not a rule the ranch is
 held to, and it should not become one without the same conversation.
 
 `pytest` (1436) and `ruff check .` green.
+
+## F51 follow-up 3: the wizard cannot dismiss a book
+
+> please make sure that the wizard cannot dismiss an entire portfolio
+
+Asked after the wizard had already been caught erasing two settings it
+never showed. Audited rather than reasoned about, and the answer was: it
+cannot delete anything, but it could still take a book's *identity* away.
+
+**What it can and cannot do.** Every path through `/setup` writes exactly
+one file — `settings.json` — and may create one Person. No path deletes a
+story, a person, a theme, a group or an account. That is now a test rather
+than a claim.
+
+**What it could still do.** `is_configured` recognised an existing book by
+its *stories*, so a family who spent an evening adding the cast, making a
+theme and deciding who may read what — before writing the first entry —
+still met the wizard. Measured on exactly that book: one submit with the
+fields cleared took away the title, the birth date, the narrators and the
+language. The content survived; the book's identity did not.
+
+Two independent guards, because the interesting failure is the one neither
+can see:
+
+**A book is more than its stories.** `is_configured` now also counts made
+themes and audience groups. Neither exists unless somebody deliberately
+made it. People are still *not* counted, and that exclusion is now pinned
+by a test of its own: in accounts mode the first account creates a Person
+before a single story is written, so counting them would meet every
+genuinely new book with a redirect away from its own setup wizard.
+
+**A blank field on the wizard means "skip this", not "erase that".**
+`/settings` keeps the power to clear — it is a page someone returns to,
+and clearing a box is how a title comes back off a book. The wizard does
+not. It is a one-time flow a family may meet on a book that already has a
+name, and there an empty box is far more likely to mean "I did not fill
+this in".
+
+The second guard is what makes the first one's accuracy stop mattering,
+which is the point of having both: **a stories volume that failed to mount
+looks exactly like a new book, and always will.** Nothing in the app can
+tell that case from a genuine first run. What it can do is make finishing
+the wizard on top of it cost nothing — and now it does, because there is
+no value present to be cleared and the file it writes falls straight
+through to the environment.
+
+Ten tests, all six of the ones describing the two defects run against the
+unfixed code to confirm they fail there. `pytest` (1446) and
+`ruff check .` green.

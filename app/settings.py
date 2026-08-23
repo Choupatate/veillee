@@ -85,13 +85,48 @@ def is_configured(stories_dir) -> bool:
     that plainly already exists. Their settings came from environment
     variables and still work; there is nothing to ask them.
 
-    Stories rather than people, deliberately — in accounts mode the first
+    **A book is more than its stories.** A family can spend an evening
+    adding the cast, making a theme and setting up who can read what
+    before anybody writes the first entry — and that book is plainly not
+    new. Counting only stories meant the wizard could still be reached on
+    it, and one submit with the fields cleared took away its title, its
+    narrators, its birth date and its language. The content survived; the
+    book's identity did not.
+
+    Made themes and audience groups are counted for that reason: neither
+    exists unless somebody deliberately made it.
+
+    People are still *not* counted, and that exclusion is the reason this
+    is not simply "is the folder empty" — in accounts mode the first
     account creates a Person before a single story is written, so people
-    would make every new book look like an old one.
+    would make every genuinely new book look like an old one. The wizard's
+    own refusal to clear a value it was not given (see
+    `routes_settings._form_values`) is what covers a book that has only a
+    cast, and what covers the case nothing here can detect: a stories
+    volume that failed to mount looks exactly like a new book, and always
+    will.
     """
     if settings_path(stories_dir).is_file():
         return True
-    return has_stories(stories_dir)
+    return has_stories(stories_dir) or has_made_content(stories_dir)
+
+
+def has_made_content(stories_dir) -> bool:
+    """Whether somebody has made a theme or an audience group here.
+
+    Read off the filesystem rather than through `themes` and `groups`, to
+    keep this module's habit of importing nothing from the rest of the app
+    — it is the thing every request reads, and it stays a leaf.
+    """
+    stories_dir = Path(stories_dir)
+    themes_root = stories_dir / "themes"
+    if themes_root.is_dir() and any(e.is_dir() for e in themes_root.iterdir()):
+        return True
+    try:
+        data = json.loads((stories_dir / "groups.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return bool(isinstance(data, list) and data)
 
 
 def has_stories(stories_dir) -> bool:
