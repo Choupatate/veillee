@@ -2,27 +2,27 @@
 
 from datetime import date
 
-from app import storage
+from app import storage, timeline
 
 
-# --- storage.is_sealed / readable_stories -----------------------------------
+# --- timeline.is_sealed / readable_stories -----------------------------------
 
 
 def test_is_sealed_true_when_unlock_in_future(make_story):
     story = make_story("x", date(2026, 1, 1), title="T", unlock=date(2030, 1, 1))
-    assert storage.is_sealed(story, today=date(2026, 1, 1)) is True
+    assert timeline.is_sealed(story, today=date(2026, 1, 1)) is True
 
 
 def test_is_sealed_false_when_unlock_in_past_or_today(make_story):
     past = make_story("x", date(2026, 1, 1), title="T", unlock=date(2020, 1, 1))
     today_unlock = make_story("y", date(2026, 1, 1), title="T", unlock=date(2026, 1, 1))
-    assert storage.is_sealed(past, today=date(2026, 1, 1)) is False
-    assert storage.is_sealed(today_unlock, today=date(2026, 1, 1)) is False
+    assert timeline.is_sealed(past, today=date(2026, 1, 1)) is False
+    assert timeline.is_sealed(today_unlock, today=date(2026, 1, 1)) is False
 
 
 def test_is_sealed_false_when_no_unlock(make_story):
     story = make_story("x", date(2026, 1, 1), title="T")
-    assert storage.is_sealed(story, today=date(2026, 1, 1)) is False
+    assert timeline.is_sealed(story, today=date(2026, 1, 1)) is False
 
 
 def test_readable_stories_excludes_drafts_and_sealed(make_story):
@@ -30,7 +30,7 @@ def test_readable_stories_excludes_drafts_and_sealed(make_story):
     published = make_story("a", date(2025, 1, 1), title="Published")
     draft = make_story("b", date(2025, 2, 1), title="Draft", draft=True)
     sealed = make_story("c", date(2025, 3, 1), title="Sealed", unlock=date(2030, 1, 1))
-    result = storage.readable_stories([published, draft, sealed], today=today)
+    result = timeline.readable_stories([published, draft, sealed], today=today)
     assert [s.id for s in result] == ["a"]
 
 
@@ -38,7 +38,7 @@ def test_readable_stories_sorted_date_ascending(make_story):
     today = date(2026, 1, 1)
     later = make_story("later", date(2025, 6, 1), title="Later")
     earlier = make_story("earlier", date(2025, 1, 1), title="Earlier")
-    result = storage.readable_stories([later, earlier], today=today)
+    result = timeline.readable_stories([later, earlier], today=today)
     assert [s.id for s in result] == ["earlier", "later"]
 
 

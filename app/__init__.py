@@ -169,7 +169,7 @@ def create_app(test_config=None):
     app.config["STORIES_DIR"] = Path(app.config["STORIES_DIR"])
     app.config["STORIES_DIR"].mkdir(parents=True, exist_ok=True)
 
-    from . import auth, i18n, routes_api, storage, views
+    from . import auth, i18n, routes_api, storage, timeline, views
 
     # Every page route registers onto the one `pages` blueprint `views.py`
     # defines, so which of these six files a route's code sits in never
@@ -244,7 +244,7 @@ def create_app(test_config=None):
         return url_for("static", filename=f"themes/{pack}/img/{name}")
 
     app.jinja_env.globals["theme_img"] = theme_img
-    app.jinja_env.globals["is_sealed"] = storage.is_sealed
+    app.jinja_env.globals["is_sealed"] = timeline.is_sealed
     app.jinja_env.globals["thumb_filename"] = storage.thumb_filename
     app.jinja_env.globals["_"] = i18n._
     app.jinja_env.globals["_n"] = i18n._n

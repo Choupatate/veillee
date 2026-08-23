@@ -79,11 +79,18 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
 
 - `app/storage.py` — **all filesystem read/write for stories lives here**:
   `Story` dataclass, `list_stories`/`get_story`/`create_story`/`save_story`,
-  image/memo upload and re-encoding, `.versions/` snapshot+restore. Also
-  home to several small pure date-math helpers used by the timeline
-  (`on_this_day`, `growth_photos` F29, `months_since_last_story` F30).
-  This is the module to read before touching how stories/people/images are
-  persisted.
+  image/memo upload and re-encoding, `.versions/` snapshot+restore. Five
+  banner-separated sections, in that order. The module to read before
+  touching how stories/people/images are persisted — and the one with the
+  highest fan-in in the app, so **if something new does not read or write
+  a story folder, it belongs in `timeline.py` or `backup.py` instead.**
+- `app/timeline.py` — pure functions over `list[storage.Story]` and a date,
+  no filesystem: `readable_stories` (the canonical pages of the book — not
+  an access-control gate, see `groups.py` for that), `on_this_day` (F5),
+  `stories_with_milestones` (F28), `growth_photos` (F29),
+  `months_since_last_story` (F30), `is_sealed`. They were the "also home
+  to several small pure date-math helpers" hedge in `storage.py`'s entry
+  here, which is usually a file boundary asking to be drawn.
 - `app/backup.py` — **both halves of the backup round trip**:
   `write_backup` (what `/export` streams) and `import_backup` (what
   `/import` restores), plus `CREDENTIAL_FILENAMES` and `ImportCollision`.
@@ -147,7 +154,11 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   use it without giving up its independence.
 - `app/dates.py`, `app/prompts.py`, `app/rendering.py`, `app/epub.py` — age-
   label computation, the writing-prompts list, markdown-to-HTML rendering,
-  and EPUB export, respectively.
+  and EPUB export, respectively. `dates.same_day_of_year` is also where the
+  Feb 29 → Mar 1 makeup rule lives: a leap-day story and a leap-day
+  birthday have to surface on the same day, and they cannot while
+  `timeline.py` and `life_events.py` each carry their own copy of it —
+  which they did, along with a third inside `growth_photos`.
 - `app/themes.py` — theme packs (F46). A pack is a folder under
   `app/static/themes/<name>/`: a `theme.css` of colour variables and an
   `img/` folder. **No template ever names an image folder** — they call the

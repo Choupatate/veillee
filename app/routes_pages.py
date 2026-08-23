@@ -33,6 +33,19 @@ from flask import (
 )
 
 from . import backup, epub, groups, i18n, life_events, people, prompts, settings, storage
+
+# By name rather than `from . import timeline`: the timeline *page* route
+# below is `def timeline()`, and its endpoint is `pages.timeline` in a
+# dozen templates. The module import would shadow it.
+from .timeline import (
+    QUIET_SPELL_MONTHS,
+    growth_photos,
+    is_sealed,
+    months_since_last_story,
+    on_this_day,
+    readable_stories,
+    stories_with_milestones,
+)
 from .auth import admin_required_in_accounts_mode, login_required
 from .rendering import render_markdown
 from .views import (
@@ -73,8 +86,8 @@ def timeline():
     all_people = people.list_people(current_people_dir())
     people_by_slug = {p.slug: p for p in all_people}
     birthdate = settings.book("BIRTHDATE")
-    quiet_months = storage.months_since_last_story(all_stories, today)
-    if quiet_months is None or quiet_months < storage.QUIET_SPELL_MONTHS:
+    quiet_months = months_since_last_story(all_stories, today)
+    if quiet_months is None or quiet_months < QUIET_SPELL_MONTHS:
         quiet_months = None
     return render_template(
         "timeline.html",
@@ -86,12 +99,12 @@ def timeline():
         archived_count=archived_count,
         today=today,
         birthdate=birthdate,
-        on_this_day=storage.on_this_day(all_stories, today),
+        on_this_day=on_this_day(all_stories, today),
         birthdays_today=life_events.birthdays_today(all_people, today),
         union_anniversaries_today=life_events.union_anniversaries_today(all_people, today),
         people_by_slug=people_by_slug,
-        has_firsts=bool(storage.stories_with_milestones(all_stories)),
-        has_growth=bool(birthdate and storage.growth_photos(all_stories, birthdate, today)),
+        has_firsts=bool(stories_with_milestones(all_stories)),
+        has_growth=bool(birthdate and growth_photos(all_stories, birthdate, today)),
         quiet_months=quiet_months,
     )
 
@@ -101,7 +114,7 @@ def timeline():
 def growth():
     all_stories = visible_stories()
     birthdate = settings.book("BIRTHDATE")
-    photos = storage.growth_photos(all_stories, birthdate) if birthdate else []
+    photos = growth_photos(all_stories, birthdate) if birthdate else []
     return render_template("growth.html", photos=photos, birthdate=birthdate)
 
 
@@ -109,7 +122,7 @@ def growth():
 @login_required
 def firsts():
     all_stories = visible_stories()
-    return render_template("firsts.html", firsts=storage.stories_with_milestones(all_stories))
+    return render_template("firsts.html", firsts=stories_with_milestones(all_stories))
 
 
 @bp.route("/help")
@@ -175,7 +188,7 @@ def book():
     A year-chapter title page (FEATURES.md F31) precedes the first entry of
     each calendar year, one per year rather than one per story."""
     stories_dir = current_app.config["STORIES_DIR"]
-    readable = storage.readable_stories(visible_stories())
+    readable = readable_stories(visible_stories())
     authors, author_colors = authors_and_colors()
     birthdate = settings.book("BIRTHDATE")
     entries = []
@@ -209,7 +222,7 @@ def book_epub():
     """The whole book as a downloadable EPUB (readable in any e-reader app,
     unlike the browser-print PDF flow at /book)."""
     stories_dir = current_app.config["STORIES_DIR"]
-    readable = storage.readable_stories(visible_stories())
+    readable = readable_stories(visible_stories())
     authors = settings.book("AUTHORS") or []
     entries = []
     for s in readable:
@@ -341,7 +354,7 @@ def story(story_id):
     s = get_story_or_404(current_app.config["STORIES_DIR"], story_id)
     authors, author_colors = authors_and_colors()
     author_color = color_for_author(authors, author_colors, s.author)
-    if storage.is_sealed(s):
+    if is_sealed(s):
         return render_template("sealed.html", story=s, author_color=author_color)
     body_html = render_markdown(s.body, f"/story/{story_id}/media")
     prev_story, next_story = _reading_order_neighbors(current_app.config["STORIES_DIR"], s)

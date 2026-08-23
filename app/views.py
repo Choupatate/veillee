@@ -37,7 +37,7 @@ from flask import (
     url_for,
 )
 
-from . import accounts, groups, people, settings, storage
+from . import accounts, groups, people, settings, storage, timeline
 
 
 bp = Blueprint("pages", __name__)
@@ -165,7 +165,7 @@ def visible_page_stories():
     — the candidate set for anything that turns pages (F15 random, F2
     reading order). Without the gate here the page-turn arrows and the
     random button would both hand out the titles of scoped stories."""
-    return [s for s in storage.readable_stories(visible_stories()) if s.kind == "story"]
+    return [s for s in timeline.readable_stories(visible_stories()) if s.kind == "story"]
 
 
 def get_story_or_404(stories_dir, story_id):

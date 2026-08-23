@@ -49,7 +49,7 @@ from urllib.parse import urlparse
 
 from mcp.server.fastmcp import FastMCP
 
-from . import dates, kinship, life_events, people, prompts, settings, storage
+from . import dates, kinship, life_events, people, prompts, settings, storage, timeline
 
 mcp = FastMCP(
     "storybook",
@@ -351,7 +351,7 @@ def _sync_union_symmetry(people_dir: Path, slug: str, old_unions: list, new_unio
 def _story_summary(s: storage.Story) -> dict:
     return {
         "id": s.id, "title": s.title, "date": s.date.isoformat(), "kind": s.kind,
-        "draft": s.draft, "sealed": storage.is_sealed(s), "archived": s.archived,
+        "draft": s.draft, "sealed": timeline.is_sealed(s), "archived": s.archived,
         "milestone": s.milestone, "tags": s.tags, "people": s.people, "author": s.author,
     }
 
@@ -400,7 +400,7 @@ def list_stories(tag: Optional[str] = None, person_slug: Optional[str] = None,
     until_date = _validate_date(until, "until") if until else None
     result = []
     for s in stories:
-        if s.archived or storage.is_sealed(s):
+        if s.archived or timeline.is_sealed(s):
             continue
         if s.draft and not include_drafts:
             continue
@@ -452,10 +452,10 @@ def get_journal_context() -> dict:
     stories_dir = _stories_dir()
     all_stories = storage.list_stories(stories_dir)
     all_people = people.list_people(_people_dir())
-    readable = storage.readable_stories(all_stories)
+    readable = timeline.readable_stories(all_stories)
     today = date_cls.today()
 
-    quiet_months = storage.months_since_last_story(all_stories, today)
+    quiet_months = timeline.months_since_last_story(all_stories, today)
     most_recent = max(all_stories, key=lambda s: s.date) if all_stories else None
 
     birthdate = _configured_birthdate()
@@ -468,8 +468,8 @@ def get_journal_context() -> dict:
         "draft_count": sum(1 for s in all_stories if s.draft and not s.archived),
         "most_recent_story": _story_summary(most_recent) if most_recent else None,
         "months_since_last_story": quiet_months,
-        "quiet_spell": quiet_months is not None and quiet_months >= storage.QUIET_SPELL_MONTHS,
-        "firsts_count": len(storage.stories_with_milestones(all_stories)),
+        "quiet_spell": quiet_months is not None and quiet_months >= timeline.QUIET_SPELL_MONTHS,
+        "firsts_count": len(timeline.stories_with_milestones(all_stories)),
         "todays_birthdays": [
             {"slug": p.slug, "name": p.name, "turning": today.year - p.born.year}
             for p in life_events.birthdays_today(all_people, today)

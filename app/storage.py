@@ -3,6 +3,18 @@
 Every function takes the stories root directory as its first argument (no
 hidden global state), which keeps this module pure and easy to test against a
 tmp directory.
+
+Five jobs, banner-separated below: validating the strings that become
+paths, reading a folder into a `Story`, writing one back, the `.versions/`
+snapshots, and media. Two things that used to be here are not any more —
+the backup format is `backup.py`, and the pure date maths over a list of
+stories (`on_this_day`, `growth_photos`, `readable_stories`) is
+`timeline.py`. Both left because they needed to know about settings,
+themes or nothing-at-all, and neither is filesystem read/write for
+stories. **If something new here does not read or write a story folder, it
+probably belongs beside them rather than in this file** — it is the module
+with the highest fan-in in the app, and everything added to it is added to
+everyone's mental load.
 """
 
 import logging
@@ -82,6 +94,9 @@ class Story:
             self.audience = []
 
 
+# --- names and paths: what may become a filename ------------------------------
+
+
 def is_valid_story_id(story_id: str) -> bool:
     return bool(story_id) and ".." not in story_id and bool(STORY_ID_RE.match(story_id))
 
@@ -129,6 +144,9 @@ def people_dir(stories_dir) -> Path:
     """The "cast of the book" (FEATURES.md F14) lives in a fixed
     subdirectory of the stories root, same as every other story folder."""
     return Path(stories_dir) / PEOPLE_DIRNAME
+
+
+# --- reading: frontmatter in, Story out ---------------------------------------
 
 
 def _parse_post(story_id: str, post: frontmatter.Post, include_body: bool) -> Story:
@@ -278,106 +296,6 @@ def list_stories(stories_dir) -> list[Story]:
     return stories
 
 
-def stories_with_milestones(stories: list[Story]) -> list[Story]:
-    """Readable stories with a `milestone` set, date-ascending (FEATURES.md
-    F28) — the register of firsts, in the order they actually happened."""
-    return [s for s in readable_stories(stories) if s.milestone]
-
-
-def growth_photos(stories: list[Story], birthdate: date_cls,
-                   today: Optional[date_cls] = None) -> list[dict]:
-    """For every birthday from birth to today (FEATURES.md F29), the
-    readable story with a cover photo whose date lands closest to that
-    birthday — "watch them grow" in one glance. Empty if no readable story
-    has a cover yet. Each entry is `{"age", "birthday", "story"}`."""
-    if today is None:
-        today = date_cls.today()
-    candidates = [s for s in readable_stories(stories, today) if s.cover]
-    if not candidates:
-        return []
-
-    result = []
-    age = 0
-    while True:
-        try:
-            birthday = birthdate.replace(year=birthdate.year + age)
-        except ValueError:
-            # Feb 29 birthdate, non-leap year -> Mar 1, same makeup rule on_this_day uses.
-            birthday = date_cls(birthdate.year + age, 3, 1)
-        if birthday > today:
-            break
-        nearest = min(candidates, key=lambda s: abs((s.date - birthday).days))
-        result.append({"age": age, "birthday": birthday, "story": nearest})
-        age += 1
-    return result
-
-
-QUIET_SPELL_MONTHS = 3
-
-
-def months_since_last_story(stories: list[Story], today: Optional[date_cls] = None) -> Optional[int]:
-    """Whole months since the most recently *written* story, by `created`
-    rather than the story's own `date` (FEATURES.md F30) — writing about
-    an old memory today shouldn't itself count as "nothing new since
-    then." None when there are no stories yet at all — a brand-new book
-    isn't nagged before it's even begun. Includes drafts/instants: any of
-    them is genuine writing activity worth recognizing."""
-    if today is None:
-        today = date_cls.today()
-    created_dates = [s.created for s in stories if s.created]
-    if not created_dates:
-        return None
-    latest = max(created_dates).date()
-    months = (today.year - latest.year) * 12 + (today.month - latest.month)
-    if today.day < latest.day:
-        months -= 1
-    return max(months, 0)
-
-
-def is_sealed(story: Story, today: Optional[date_cls] = None) -> bool:
-    """True while a story's unlock date is still in the future."""
-    if today is None:
-        today = date_cls.today()
-    return story.unlock is not None and story.unlock > today
-
-
-def readable_stories(stories: list[Story], today: Optional[date_cls] = None) -> list[Story]:
-    """Published, unsealed, unarchived stories, date-ascending — the
-    canonical "pages of the book" used by reading order, on-this-day, and
-    the book view."""
-    if today is None:
-        today = date_cls.today()
-    result = [s for s in stories if not s.draft and not s.archived and not is_sealed(s, today)]
-    result.sort(key=lambda s: (s.date, s.created or datetime.min))
-    return result
-
-
-def _is_leap_year(year: int) -> bool:
-    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
-
-
-def on_this_day(stories: list[Story], today: Optional[date_cls] = None) -> list[Story]:
-    """Readable stories from a previous year whose month/day matches `today`
-    (FEATURES.md F5), newest first, capped at 3. A Feb 29 story surfaces on
-    Mar 1 in non-leap years, since Feb 29 doesn't occur that year."""
-    if today is None:
-        today = date_cls.today()
-    matches = []
-    for s in readable_stories(stories, today):
-        if s.date.year >= today.year:
-            continue
-        same_day = s.date.month == today.month and s.date.day == today.day
-        feb29_makeup = (
-            s.date.month == 2 and s.date.day == 29
-            and today.month == 3 and today.day == 1
-            and not _is_leap_year(today.year)
-        )
-        if same_day or feb29_makeup:
-            matches.append(s)
-    matches.sort(key=lambda s: s.date.year, reverse=True)
-    return matches[:3]
-
-
 def get_story(stories_dir, story_id: str) -> Optional[Story]:
     """Full story including raw markdown body. None if missing/invalid/malformed."""
     if not is_valid_story_id(story_id):
@@ -391,6 +309,9 @@ def get_story(stories_dir, story_id: str) -> Optional[Story]:
     except Exception:
         logger.warning("Failed to load story: %s", story_id, exc_info=True)
         return None
+
+
+# --- writing: Story out, frontmatter in ---------------------------------------
 
 
 def _write_index(stories_dir, story_id: str, title: str, story_date: date_cls,
@@ -511,6 +432,9 @@ def save_story(stories_dir, story_id: str, title: str, story_date: date_cls,
                  milestone=milestone, audience=audience)
 
 
+# --- .versions/: every save keeps the one before it ---------------------------
+
+
 def _versions_dir(stories_dir, story_id: str) -> Path:
     return _story_dir(stories_dir, story_id) / VERSIONS_DIRNAME
 
@@ -596,6 +520,9 @@ def restore_version(stories_dir, story_id: str, version_id: str) -> None:
         # audience deliberately omitted -> save_story carries the current
         # one over. See the docstring above.
     )
+
+
+# --- media: photos re-encoded through Pillow, memos by extension --------------
 
 
 def _next_photo_number(dir_path: Path) -> int:

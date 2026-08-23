@@ -9,7 +9,7 @@ from datetime import date
 
 from flask import abort, render_template
 
-from . import i18n, kinship, life_events, people, settings, storage
+from . import i18n, kinship, life_events, people, settings, timeline
 from .auth import login_required
 from .rendering import render_markdown
 from .views import (
@@ -109,7 +109,7 @@ def person_page(slug):
     # Not storage.stories_featuring: "Appears in" must list only what this
     # viewer may read, or a scoped story's title shows up on a person page
     # (FEATURES.md F40).
-    appears_in = storage.readable_stories(
+    appears_in = timeline.readable_stories(
         [s for s in visible_stories() if slug in s.people]
     )
 

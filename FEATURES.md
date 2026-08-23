@@ -98,6 +98,9 @@ the exact `F<N>.` heading text to jump to it.
 - **Housekeeping 2** — `write_backup` and `import_backup` move in together
   as `backup.py`, so the two ends of the backup contract can finally be
   tested as a pair
+- **Housekeeping 3** — the pure date maths leaves `storage.py` for
+  `timeline.py`, and the Feb 29 rule that three call sites each wrote out
+  becomes one `dates.same_day_of_year`
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7361,3 +7364,62 @@ in the group `scoped/0`, member outside it `public only/0`, write-link
 guest `302 → /login`, single password-holder `everything/4`.
 
 `pytest` (1483) and `ruff check .` green.
+
+## Housekeeping 3: storage.py stops being five modules
+
+906 lines, the highest fan-in in the app — fifteen modules import it — and
+the only large file in the repo with no section banners. It held five
+jobs: validating the strings that become paths, reading a folder into a
+`Story`, writing one back, `.versions/`, and media. Plus two that were not
+filesystem read/write for stories at all.
+
+`backup.py` took the first (above). This takes the second. CLAUDE.md's own
+entry for the module had been hedging about it for a while — *"Also home
+to several small pure date-math helpers used by the timeline"* — and a
+hedge in a one-line description is usually a file boundary asking to be
+drawn.
+
+`app/timeline.py` now holds `readable_stories`, `on_this_day` (F5),
+`stories_with_milestones` (F28), `growth_photos` (F29),
+`months_since_last_story` (F30) and `is_sealed`. Pure functions over a
+list of stories and a date: no filesystem, no Flask, nothing to set up to
+test. `storage.py` goes 906 → 650 and gains the five banners.
+
+One thing worth saying plainly in the new module's docstring, because the
+name invites the wrong assumption: **`readable_stories` is not an
+access-control gate.** It decides which pages of the book you are *shown* —
+published, unsealed, unarchived. Audience scoping is `groups.can_see`,
+reached through `views.visible_stories`, and everything here is always
+handed a list that has already been through it.
+
+### The Feb 29 rule, which was written three times
+
+Extracting the functions made the duplication visible. A leap-day
+anniversary has to come round on Mar 1 in a non-leap year, and that rule
+existed in three places:
+
+* `on_this_day`'s `feb29_makeup`, for stories;
+* `life_events._matches_today`, for birthdays and wedding anniversaries —
+  whose docstring said, in as many words, "the same Feb 29 → Mar 1
+  non-leap-year makeup rule as storage.on_this_day";
+* the `except ValueError` branch inside `growth_photos`, arriving at the
+  same answer from the other direction — there is no Feb 29 to land on, so
+  it is Mar 1.
+
+The first two were the same boolean expression, byte for byte. They are
+now one `dates.same_day_of_year`, and the test that matters is the one
+that could not have been written before: **a leap-day story and a leap-day
+birthday surface on the same day**, and neither surfaces on Feb 28. While
+each module carried its own copy, one drifting and not the other was a
+silent, once-every-four-years bug — the kind nobody would ever catch by
+reading.
+
+The pure-list tests moved out of `test_storage.py` into
+`tests/test_timeline.py` with the code, since they build `Story` objects in
+memory and never touch a directory — which is what said the functions were
+not really storage. `test_visibility.py` (F0) and `test_on_this_day.py`
+(F5) also test this module and stayed where they are: this suite is one
+file per feature area, not one per module, and both are named for their
+feature.
+
+`pytest` (1489) and `ruff check .` green.
