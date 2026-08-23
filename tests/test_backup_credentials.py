@@ -12,7 +12,7 @@ from io import BytesIO
 
 import pytest
 
-from app import accounts, groups, invites, people, storage, write_links
+from app import accounts, backup, groups, invites, people, storage, write_links
 from tests.conftest import _login
 
 
@@ -50,14 +50,14 @@ def _zip_for(accounts_app, username, password):
 
 
 def test_credential_filenames_match_the_modules_that_write_them():
-    """`storage.CREDENTIAL_FILENAMES` is the list both the export filter and
+    """`backup.CREDENTIAL_FILENAMES` is the list both the export filter and
     the import filter read. Rename a file in the module that owns it without
     updating that set and password hashes start travelling again, silently,
     which is exactly the kind of drift a test has to catch."""
-    assert accounts.ACCOUNT_FILENAME in storage.CREDENTIAL_FILENAMES
-    assert accounts.PENDING_FILENAME in storage.CREDENTIAL_FILENAMES
-    assert invites.INVITES_FILENAME in storage.CREDENTIAL_FILENAMES
-    assert write_links.WRITE_LINKS_FILENAME in storage.CREDENTIAL_FILENAMES
+    assert accounts.ACCOUNT_FILENAME in backup.CREDENTIAL_FILENAMES
+    assert accounts.PENDING_FILENAME in backup.CREDENTIAL_FILENAMES
+    assert invites.INVITES_FILENAME in backup.CREDENTIAL_FILENAMES
+    assert write_links.WRITE_LINKS_FILENAME in backup.CREDENTIAL_FILENAMES
 
 
 # --- export ------------------------------------------------------------------
@@ -68,7 +68,7 @@ def test_family_member_export_has_no_credential_files(accounts_app, cast, storie
     zf = _zip_for(accounts_app, "mamie", "mamiepass1")
     names = zf.namelist()
 
-    assert not [n for n in names if n.rsplit("/", 1)[-1] in storage.CREDENTIAL_FILENAMES]
+    assert not [n for n in names if n.rsplit("/", 1)[-1] in backup.CREDENTIAL_FILENAMES]
     # ...and nothing that merely looks like one either
     blob = b"".join(zf.read(n) for n in names)
     assert b"password_hash" not in blob
@@ -132,14 +132,10 @@ def test_family_member_export_still_omits_scoped_stories(accounts_app, cast, sto
 
 
 def _backup_of(source_dir):
-    buf = BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        for path in sorted(source_dir.rglob("*")):
-            if path.is_dir():
-                continue
-            zf.write(path, path.relative_to(source_dir))
-    buf.seek(0)
-    return buf
+    """The real export, with credentials in it — the widest zip an import
+    ever has to refuse. Second of two byte-identical hand-rolled walks
+    that both predated `backup.write_backup` existing."""
+    return backup.write_backup(source_dir)
 
 
 def test_import_restores_people_into_a_book_that_already_has_some(tmp_path, stories_dir):
@@ -153,7 +149,7 @@ def test_import_restores_people_into_a_book_that_already_has_some(tmp_path, stor
 
     people.create_person(stories_dir / "people", "Mamie")
 
-    count = storage.import_backup(stories_dir, _backup_of(source))
+    count = backup.import_backup(stories_dir, _backup_of(source))
 
     assert count == 1
     assert sorted(p.slug for p in people.list_people(stories_dir / "people")) == ["mamie", "papa"]
@@ -168,7 +164,7 @@ def test_import_keeps_the_person_already_here(tmp_path, stories_dir):
     storage.create_story(source, "Restored", date(2026, 1, 1), "body")
 
     people.create_person(stories_dir / "people", "Mamie", relation="the current one")
-    storage.import_backup(stories_dir, _backup_of(source))
+    backup.import_backup(stories_dir, _backup_of(source))
 
     assert people.get_person(stories_dir / "people", "mamie").relation == "the current one"
 
@@ -184,7 +180,7 @@ def test_import_never_restores_credentials(tmp_path, stories_dir):
     accounts.create_pending_request(source, "cousin", "cousinpass1", "Cousin", "")
     storage.create_story(source, "Restored", date(2026, 1, 1), "body")
 
-    storage.import_backup(stories_dir, _backup_of(source))
+    backup.import_backup(stories_dir, _backup_of(source))
 
     assert people.get_person(stories_dir / "people", "papa") is not None
     assert accounts.get_account(stories_dir / "people", "papa") is None
@@ -201,8 +197,8 @@ def test_import_still_aborts_wholly_on_a_story_collision(tmp_path, stories_dir):
     story_id = storage.create_story(source, "Same day", date(2026, 1, 1), "theirs")
     storage.create_story(stories_dir, "Same day", date(2026, 1, 1), "ours")
 
-    with pytest.raises(storage.ImportCollision):
-        storage.import_backup(stories_dir, _backup_of(source))
+    with pytest.raises(backup.ImportCollision):
+        backup.import_backup(stories_dir, _backup_of(source))
 
     assert people.get_person(stories_dir / "people", "papa") is None
     assert storage.get_story(stories_dir, story_id).body.strip() == "ours"
@@ -218,7 +214,7 @@ def test_import_ignores_odd_shapes_under_people(tmp_path, stories_dir):
         zf.writestr("people/Not A Slug/index.md", "nope")
     buf.seek(0)
 
-    storage.import_backup(stories_dir, buf)
+    backup.import_backup(stories_dir, buf)
 
     assert not (stories_dir / "people" / "loose.md").exists()
     assert not (stories_dir / "people" / "Not A Slug").exists()

@@ -505,14 +505,15 @@
   var cropCancelBtn = document.getElementById("editor-photo-crop-cancel");
   var cropConfirmBtn = document.getElementById("editor-photo-crop-confirm");
 
-  var MAX_ZOOM_MULT = 3; // how far past "fits the frame" the slider can zoom
-  var OUTPUT_SIZE = 900; // final square crop resolution, in px
+  // Every number below comes from CropLogic (crop-logic.js), which is also
+  // what rasterizeCrop uses — the preview and the saved JPEG are the same
+  // arithmetic asked at two scales, not two copies of it.
+  var Crop = window.CropLogic;
 
   var cropObjectUrl = null;
   var stageSize = 0;
   var naturalW = 0;
   var naturalH = 0;
-  var fitScale = 1;
   var zoomPct = 0;
   var panX = 0;
   var panY = 0;
@@ -525,32 +526,29 @@
   var pinchStartDist = null;
   var pinchStartZoom = 0;
 
-  function currentScale() {
-    return fitScale * (1 + (MAX_ZOOM_MULT - 1) * (zoomPct / 100));
+  function cropState() {
+    return {
+      naturalW: naturalW, naturalH: naturalH, stageSize: stageSize,
+      zoomPct: zoomPct, panX: panX, panY: panY,
+    };
   }
 
   function clampPan() {
-    var scale = currentScale();
-    var dispW = naturalW * scale;
-    var dispH = naturalH * scale;
-    var maxX = Math.max(0, (dispW - stageSize) / 2);
-    var maxY = Math.max(0, (dispH - stageSize) / 2);
-    panX = Math.max(-maxX, Math.min(maxX, panX));
-    panY = Math.max(-maxY, Math.min(maxY, panY));
+    var clamped = Crop.clampPan(cropState());
+    panX = clamped.panX;
+    panY = clamped.panY;
   }
 
   function updateCropTransform() {
-    var scale = currentScale();
-    var dispW = naturalW * scale;
-    var dispH = naturalH * scale;
-    cropperImg.style.width = dispW + "px";
-    cropperImg.style.height = dispH + "px";
-    cropperImg.style.left = (stageSize / 2 - dispW / 2 + panX) + "px";
-    cropperImg.style.top = (stageSize / 2 - dispH / 2 + panY) + "px";
+    var box = Crop.placement(cropState());
+    cropperImg.style.width = box.width + "px";
+    cropperImg.style.height = box.height + "px";
+    cropperImg.style.left = box.left + "px";
+    cropperImg.style.top = box.top + "px";
   }
 
   function setZoom(value) {
-    zoomPct = Math.max(0, Math.min(100, value));
+    zoomPct = Crop.clampZoom(value);
     if (zoomRange) zoomRange.value = zoomPct;
     clampPan();
     updateCropTransform();
@@ -570,12 +568,6 @@
     zoomInBtn.addEventListener("click", function () {
       setZoom(zoomPct + 10);
     });
-  }
-
-  function pointerDistance(a, b) {
-    var dx = a.x - b.x;
-    var dy = a.y - b.y;
-    return Math.sqrt(dx * dx + dy * dy);
   }
 
   function beginDragFrom(x, y) {
@@ -602,7 +594,7 @@
       } else if (ids.length === 2) {
         dragging = false;
         var pts = ids.map(function (id) { return activePointers[id]; });
-        pinchStartDist = pointerDistance(pts[0], pts[1]);
+        pinchStartDist = Crop.distance(pts[0], pts[1]);
         pinchStartZoom = zoomPct;
       }
       event.preventDefault();
@@ -614,12 +606,17 @@
       var ids = Object.keys(activePointers);
       if (ids.length === 2 && pinchStartDist) {
         var pts = ids.map(function (id) { return activePointers[id]; });
-        var dist = pointerDistance(pts[0], pts[1]);
-        var ratio = dist / pinchStartDist;
-        setZoom(pinchStartZoom + (ratio - 1) * 100);
+        setZoom(Crop.pinchZoom(
+          pinchStartZoom, pinchStartDist, Crop.distance(pts[0], pts[1])
+        ));
       } else if (dragging) {
-        panX = panStartX + (event.clientX - dragStartX);
-        panY = panStartY + (event.clientY - dragStartY);
+        var panned = Crop.dragPan(
+          { panX: panStartX, panY: panStartY },
+          { x: dragStartX, y: dragStartY },
+          { x: event.clientX, y: event.clientY }
+        );
+        panX = panned.panX;
+        panY = panned.panY;
         clampPan();
         updateCropTransform();
       }
@@ -658,7 +655,6 @@
         closeCropper();
         return;
       }
-      fitScale = Math.max(stageSize / naturalW, stageSize / naturalH);
       setZoom(0);
     };
     cropperImg.onerror = function () {
@@ -717,17 +713,14 @@
   function rasterizeCrop() {
     return new Promise(function (resolve, reject) {
       var canvas = document.createElement("canvas");
-      canvas.width = OUTPUT_SIZE;
-      canvas.height = OUTPUT_SIZE;
+      canvas.width = Crop.OUTPUT_SIZE;
+      canvas.height = Crop.OUTPUT_SIZE;
       var ctx = canvas.getContext("2d");
-      var k = OUTPUT_SIZE / stageSize;
-      var scale = currentScale();
-      var dispW = naturalW * scale;
-      var dispH = naturalH * scale;
-      var left = stageSize / 2 - dispW / 2 + panX;
-      var top = stageSize / 2 - dispH / 2 + panY;
+      // The same placement the preview is drawn from, asked for in output
+      // pixels instead of stage pixels. One function, two scales.
+      var box = Crop.placement(cropState(), Crop.outputScale(stageSize));
       try {
-        ctx.drawImage(cropperImg, left * k, top * k, dispW * k, dispH * k);
+        ctx.drawImage(cropperImg, box.left, box.top, box.width, box.height);
       } catch (e) {
         reject(new Error("Could not process that photo. Try a different one."));
         return;
@@ -1510,8 +1503,6 @@
   var recoveryRestoreBtn = document.getElementById("editor-recovery-restore");
   var recoveryDiscardBtn = document.getElementById("editor-recovery-discard");
   var autosaveTimer = null;
-  var initialTitle = titleInput.value;
-  var initialMarkdown = sourceTextarea.value;
 
   function currentDraftPayload() {
     var payload = buildStoryPayload(titleInput.value.trim(), editor.getMarkdown());
@@ -1566,13 +1557,17 @@
     markDirty();
   }
 
+  // What this page would submit untouched, built the same way the autosave
+  // was — so the comparison below is like for like across every field,
+  // not just the two it used to look at. See draft-logic.js.
+  var baselineDraft = buildStoryPayload(titleInput.value.trim(), sourceTextarea.value);
+
   var pendingDraft = readAutosave();
   if (pendingDraft) {
-    var hasRecoverableChanges =
-      (pendingDraft.title || "") !== initialTitle ||
-      (pendingDraft.markdown || "") !== initialMarkdown;
-    if (hasRecoverableChanges && recoveryBanner) {
-      recoveryTimeEl.textContent = new Date(pendingDraft.savedAt).toLocaleString();
+    if (recoveryBanner && window.DraftLogic.hasRecoverableChanges(pendingDraft, baselineDraft)) {
+      recoveryTimeEl.textContent = window.DraftLogic.savedAtLabel(
+        pendingDraft, function (when) { return when.toLocaleString(); }
+      );
       recoveryBanner.hidden = false;
     } else {
       clearAutosave();

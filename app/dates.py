@@ -38,3 +38,27 @@ def age_label(birthdate: date, on_date: date) -> str:
     unit, amount = parts
     plural = "" if amount == 1 else "s"
     return f"{amount} {unit}{plural} old"
+
+
+def is_leap_year(year: int) -> bool:
+    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+
+
+def same_day_of_year(anniversary: date, today: date) -> bool:
+    """Whether `anniversary`'s month and day fall on `today`, with the
+    Feb 29 makeup rule: in a non-leap year, Feb 29 comes round on Mar 1.
+
+    Here because it was written three times — `timeline.on_this_day`'s
+    `feb29_makeup`, `life_events._matches_today`, and the `except
+    ValueError` branch in `timeline.growth_photos` that lands a Feb 29
+    birthday on Mar 1. A story that surfaces on the wrong day and a
+    birthday that surfaces on the wrong day are the same bug, and this is
+    the one place to fix it.
+    """
+    if anniversary.month == today.month and anniversary.day == today.day:
+        return True
+    return (
+        anniversary.month == 2 and anniversary.day == 29
+        and today.month == 3 and today.day == 1
+        and not is_leap_year(today.year)
+    )

@@ -3,15 +3,25 @@
 Every function takes the stories root directory as its first argument (no
 hidden global state), which keeps this module pure and easy to test against a
 tmp directory.
+
+Five jobs, banner-separated below: validating the strings that become
+paths, reading a folder into a `Story`, writing one back, the `.versions/`
+snapshots, and media. Two things that used to be here are not any more —
+the backup format is `backup.py`, and the pure date maths over a list of
+stories (`on_this_day`, `growth_photos`, `readable_stories`) is
+`timeline.py`. Both left because they needed to know about settings,
+themes or nothing-at-all, and neither is filesystem read/write for
+stories. **If something new here does not read or write a story folder, it
+probably belongs beside them rather than in this file** — it is the module
+with the highest fan-in in the app, and everything added to it is added to
+everyone's mental load.
 """
 
-import json
 import logging
 import os
 import re
 import shutil
 import unicodedata
-import zipfile
 from dataclasses import dataclass
 from datetime import date as date_cls
 from datetime import datetime
@@ -39,41 +49,12 @@ PEOPLE_DIRNAME = "people"
 MAX_VERSIONS = 20
 MEMO_ALLOWED_EXTENSIONS = ("webm", "m4a", "mp3", "ogg")
 
-# Files under stories/ that hold credentials rather than memories: password
-# hashes, and the token hashes behind invite and write links. Named here
-# because this module owns the on-disk layout, but each file is written by
-# the module that owns the feature — `accounts.ACCOUNT_FILENAME`,
-# `accounts.PENDING_FILENAME`, `invites.INVITES_FILENAME`,
-# `write_links.WRITE_LINKS_FILENAME`, cross-checked by
-# `tests/test_backup_credentials.py` so the two can't drift apart.
-#
-# They never travel in a backup zip in either direction (F43): a non-admin's
-# export leaves them out, and an import never restores them. A zip carries
-# memories and people; logins stay where they were made.
-CREDENTIAL_FILENAMES = frozenset({
-    "account.json",
-    "pending_accounts.json",
-    "invites.json",
-    "write_links.json",
-})
-
-
 class InvalidStoryId(ValueError):
     pass
 
 
 class InvalidVersionId(ValueError):
     pass
-
-
-class ImportCollision(ValueError):
-    """Raised when a backup zip contains a story id that already exists on
-    disk. Nothing is written when this is raised — see import_backup()."""
-
-    def __init__(self, colliding_ids: list[str]):
-        self.colliding_ids = colliding_ids
-        noun = "story" if len(colliding_ids) == 1 else "stories"
-        super().__init__(f"{len(colliding_ids)} {noun} already exist: {', '.join(colliding_ids)}")
 
 
 @dataclass
@@ -111,6 +92,9 @@ class Story:
             self.sources = []
         if self.audience is None:
             self.audience = []
+
+
+# --- names and paths: what may become a filename ------------------------------
 
 
 def is_valid_story_id(story_id: str) -> bool:
@@ -160,6 +144,9 @@ def people_dir(stories_dir) -> Path:
     """The "cast of the book" (FEATURES.md F14) lives in a fixed
     subdirectory of the stories root, same as every other story folder."""
     return Path(stories_dir) / PEOPLE_DIRNAME
+
+
+# --- reading: frontmatter in, Story out ---------------------------------------
 
 
 def _parse_post(story_id: str, post: frontmatter.Post, include_body: bool) -> Story:
@@ -309,106 +296,6 @@ def list_stories(stories_dir) -> list[Story]:
     return stories
 
 
-def stories_with_milestones(stories: list[Story]) -> list[Story]:
-    """Readable stories with a `milestone` set, date-ascending (FEATURES.md
-    F28) — the register of firsts, in the order they actually happened."""
-    return [s for s in readable_stories(stories) if s.milestone]
-
-
-def growth_photos(stories: list[Story], birthdate: date_cls,
-                   today: Optional[date_cls] = None) -> list[dict]:
-    """For every birthday from birth to today (FEATURES.md F29), the
-    readable story with a cover photo whose date lands closest to that
-    birthday — "watch them grow" in one glance. Empty if no readable story
-    has a cover yet. Each entry is `{"age", "birthday", "story"}`."""
-    if today is None:
-        today = date_cls.today()
-    candidates = [s for s in readable_stories(stories, today) if s.cover]
-    if not candidates:
-        return []
-
-    result = []
-    age = 0
-    while True:
-        try:
-            birthday = birthdate.replace(year=birthdate.year + age)
-        except ValueError:
-            # Feb 29 birthdate, non-leap year -> Mar 1, same makeup rule on_this_day uses.
-            birthday = date_cls(birthdate.year + age, 3, 1)
-        if birthday > today:
-            break
-        nearest = min(candidates, key=lambda s: abs((s.date - birthday).days))
-        result.append({"age": age, "birthday": birthday, "story": nearest})
-        age += 1
-    return result
-
-
-QUIET_SPELL_MONTHS = 3
-
-
-def months_since_last_story(stories: list[Story], today: Optional[date_cls] = None) -> Optional[int]:
-    """Whole months since the most recently *written* story, by `created`
-    rather than the story's own `date` (FEATURES.md F30) — writing about
-    an old memory today shouldn't itself count as "nothing new since
-    then." None when there are no stories yet at all — a brand-new book
-    isn't nagged before it's even begun. Includes drafts/instants: any of
-    them is genuine writing activity worth recognizing."""
-    if today is None:
-        today = date_cls.today()
-    created_dates = [s.created for s in stories if s.created]
-    if not created_dates:
-        return None
-    latest = max(created_dates).date()
-    months = (today.year - latest.year) * 12 + (today.month - latest.month)
-    if today.day < latest.day:
-        months -= 1
-    return max(months, 0)
-
-
-def is_sealed(story: Story, today: Optional[date_cls] = None) -> bool:
-    """True while a story's unlock date is still in the future."""
-    if today is None:
-        today = date_cls.today()
-    return story.unlock is not None and story.unlock > today
-
-
-def readable_stories(stories: list[Story], today: Optional[date_cls] = None) -> list[Story]:
-    """Published, unsealed, unarchived stories, date-ascending — the
-    canonical "pages of the book" used by reading order, on-this-day, and
-    the book view."""
-    if today is None:
-        today = date_cls.today()
-    result = [s for s in stories if not s.draft and not s.archived and not is_sealed(s, today)]
-    result.sort(key=lambda s: (s.date, s.created or datetime.min))
-    return result
-
-
-def _is_leap_year(year: int) -> bool:
-    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
-
-
-def on_this_day(stories: list[Story], today: Optional[date_cls] = None) -> list[Story]:
-    """Readable stories from a previous year whose month/day matches `today`
-    (FEATURES.md F5), newest first, capped at 3. A Feb 29 story surfaces on
-    Mar 1 in non-leap years, since Feb 29 doesn't occur that year."""
-    if today is None:
-        today = date_cls.today()
-    matches = []
-    for s in readable_stories(stories, today):
-        if s.date.year >= today.year:
-            continue
-        same_day = s.date.month == today.month and s.date.day == today.day
-        feb29_makeup = (
-            s.date.month == 2 and s.date.day == 29
-            and today.month == 3 and today.day == 1
-            and not _is_leap_year(today.year)
-        )
-        if same_day or feb29_makeup:
-            matches.append(s)
-    matches.sort(key=lambda s: s.date.year, reverse=True)
-    return matches[:3]
-
-
 def get_story(stories_dir, story_id: str) -> Optional[Story]:
     """Full story including raw markdown body. None if missing/invalid/malformed."""
     if not is_valid_story_id(story_id):
@@ -422,6 +309,9 @@ def get_story(stories_dir, story_id: str) -> Optional[Story]:
     except Exception:
         logger.warning("Failed to load story: %s", story_id, exc_info=True)
         return None
+
+
+# --- writing: Story out, frontmatter in ---------------------------------------
 
 
 def _write_index(stories_dir, story_id: str, title: str, story_date: date_cls,
@@ -542,6 +432,9 @@ def save_story(stories_dir, story_id: str, title: str, story_date: date_cls,
                  milestone=milestone, audience=audience)
 
 
+# --- .versions/: every save keeps the one before it ---------------------------
+
+
 def _versions_dir(stories_dir, story_id: str) -> Path:
     return _story_dir(stories_dir, story_id) / VERSIONS_DIRNAME
 
@@ -627,6 +520,9 @@ def restore_version(stories_dir, story_id: str, version_id: str) -> None:
         # audience deliberately omitted -> save_story carries the current
         # one over. See the docstring above.
     )
+
+
+# --- media: photos re-encoded through Pillow, memos by extension --------------
 
 
 def _next_photo_number(dir_path: Path) -> int:
@@ -752,155 +648,3 @@ def delete_memo(stories_dir, story_id: str, filename: str) -> bool:
     if sidecar.is_file():
         sidecar.unlink()
     return True
-
-
-def import_backup(stories_dir, zip_file) -> int:
-    """Restore a backup zip produced by the /export download.
-
-    Extracts entries shaped like `<valid-story-id>/...`, plus the people in
-    `people/<slug>/...` (see below). If ANY of the zip's story ids already
-    exist on disk, raises ImportCollision and writes nothing — an import
-    either fully succeeds or has no effect at all. Returns the number of
-    story folders imported; restored people are not counted, since a
-    restore is about the memories and the cast comes along with them.
-
-    Unsafe paths (absolute, or containing `..`) still abort the whole
-    import. Other root-level entries are *skipped* rather than rejected,
-    which is what lets a real backup be restored at all: since F19 an
-    export can contain `pending_accounts.json`, and since F40 `groups.json`
-    too, and aborting on the first one made every accounts-mode backup
-    un-importable — a one-tap backup you cannot restore being the exact
-    failure this app exists to avoid.
-
-    Skipped, not imported, deliberately: those files are live operational
-    state (who is waiting for an account, who is in which group), and
-    silently overwriting them from an old zip would be worse than leaving
-    them alone. A consequence worth knowing: a restored story can reference
-    a group this install doesn't have. `groups.can_see` treats an unknown
-    group as "nobody but the author", so that fails private rather than
-    public.
-
-    **People are additive, never a collision (F43).** `people` matches
-    `is_valid_story_id`, so it used to be treated as one enormous story
-    folder — which meant any backup from a book with a cast could not be
-    restored into a book that already had one: the collision check saw
-    `people` on both sides and aborted everything. Every person in the zip
-    whose folder is already here is now simply skipped, and the rest are
-    restored. Skipped rather than merged because the living folder is the
-    newer truth, and a person's `index.md` carries edges (parents,
-    partners) that a half-old copy would contradict.
-
-    **Made themes come back, additively (F50).** A theme pack under
-    `themes/<name>/` is made content — someone described a world and
-    generated thirty-five pictures for it — so it is restored like a
-    person rather than skipped like operational state. A pack whose folder
-    is already here is left alone, and only the two shapes this app writes
-    (`theme.json`, and pictures the catalogue names) are extracted, so a
-    zip cannot use a theme folder as a way to drop arbitrary files into the
-    stories directory.
-
-    **The book's own settings come back on a fresh restore (F51).** They
-    are family content, not operational state — the book's name, whose
-    childhood it is, who writes in it — and the Settings page says in so
-    many words that they travel with the backup. Restored the way a person
-    or a theme is: only when this book has none of its own, so a zip can
-    never overwrite a live title with an older one. Read through
-    `settings.KEYS` rather than extracted verbatim, for the same reason a
-    theme folder is: a zip may only put back shapes this app writes.
-
-    **Credentials never come back.** `CREDENTIAL_FILENAMES` are dropped from
-    a person's folder on the way in. A zip is a portable file: restoring one
-    from another book would otherwise silently install its accounts —
-    including its admins — into this one. Losing logins on a restore is an
-    inconvenience an admin can fix with an invite; gaining someone else's is
-    not.
-    """
-    stories_dir = Path(stories_dir)
-    people_root = people_dir(stories_dir)
-    # Imported here rather than at module scope: storage.py is the data
-    # layer every other module leans on, and theme_catalog leans back on
-    # nothing, but keeping the import local keeps that arrow one-way.
-    from . import settings as book_settings
-    from .theme_catalog import BY_FILENAME
-    from .themes import USER_THEMES_DIRNAME
-
-    with zipfile.ZipFile(zip_file) as zf:
-        members = []
-        story_ids = set()
-        person_members = []
-        theme_members = []
-        settings_member = None
-        for info in zf.infolist():
-            name = info.filename
-            if name.endswith("/"):
-                continue
-            if name.startswith("/") or ".." in Path(name).parts:
-                raise ValueError(f"Unsafe path in backup: {name!r}")
-            parts = Path(name).parts
-            top = parts[0] if parts else ""
-            if top == PEOPLE_DIRNAME:
-                # people/<slug>/<file>; anything else under people/ is a
-                # shape this app never writes, so it isn't restored.
-                if len(parts) < 3 or not is_valid_story_id(parts[1]):
-                    continue
-                if Path(name).name in CREDENTIAL_FILENAMES:
-                    continue
-                if (people_root / parts[1]).exists():
-                    continue
-                person_members.append(info)
-                continue
-            if top == USER_THEMES_DIRNAME:
-                # themes/<pack>/theme.json, or themes/<pack>/img/<picture>.
-                if len(parts) < 3 or not is_valid_story_id(parts[1]):
-                    continue
-                if (stories_dir / USER_THEMES_DIRNAME / parts[1]).exists():
-                    continue
-                if parts[2:] == ("theme.json",) or (
-                    len(parts) == 4 and parts[2] == "img" and parts[3] in BY_FILENAME
-                ):
-                    theme_members.append(info)
-                continue
-            if len(parts) == 1 and top == book_settings.SETTINGS_FILENAME:
-                settings_member = info
-                continue
-            if not is_valid_story_id(top):
-                continue
-            story_ids.add(top)
-            members.append(info)
-
-        if not members:
-            raise ValueError("Backup contains no stories.")
-
-        colliding = sorted(sid for sid in story_ids if (stories_dir / sid).exists())
-        if colliding:
-            raise ImportCollision(colliding)
-
-        for info in members + person_members + theme_members:
-            zf.extract(info, stories_dir)
-
-        # After the extraction, and only into a book that has none of its
-        # own: an install that has already been configured keeps what it
-        # is doing, exactly as it keeps its own people and themes.
-        if settings_member and not book_settings.settings_path(stories_dir).is_file():
-            _restore_settings(zf, settings_member, stories_dir, book_settings)
-
-    return len(story_ids)
-
-
-def _restore_settings(zf, info, stories_dir, book_settings) -> None:
-    """The settings out of a backup, filtered to the keys this app writes.
-
-    Never raises: a zip whose `settings.json` is unreadable costs the
-    restored settings and not the restore. Losing a title on the way back
-    from a dead server would be a nuisance; losing the stories would be
-    the thing this app exists to prevent.
-    """
-    try:
-        data = json.loads(zf.read(info).decode("utf-8"))
-    except (OSError, ValueError, KeyError, UnicodeDecodeError):
-        return
-    if not isinstance(data, dict):
-        return
-    kept = {key: data[key] for key in book_settings.KEYS if key in data}
-    if kept:
-        book_settings.save(stories_dir, kept)

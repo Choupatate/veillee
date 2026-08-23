@@ -5,7 +5,7 @@ their direct URL, same philosophy as drafts and sealed letters."""
 
 from datetime import date
 
-from app import storage
+from app import storage, timeline
 
 
 # --- storage round-trip -------------------------------------------------------
@@ -38,7 +38,7 @@ def test_readable_stories_excludes_archived(make_story):
     today = date(2026, 1, 1)
     published = make_story("a", date(2025, 1, 1), title="Published")
     archived = make_story("b", date(2025, 2, 1), title="Archived", archived=True)
-    result = storage.readable_stories([published, archived], today=today)
+    result = timeline.readable_stories([published, archived], today=today)
     assert [s.id for s in result] == ["a"]
 
 
@@ -163,7 +163,7 @@ def test_book_excludes_archived_stories(auth_client, stories_dir):
 def test_on_this_day_excludes_archived(make_story):
     today = date(2026, 6, 18)
     archived = make_story("a", date(2023, 6, 18), title="Archived", archived=True)
-    result = storage.on_this_day([archived], today=today)
+    result = timeline.on_this_day([archived], today=today)
     assert result == []
 
 

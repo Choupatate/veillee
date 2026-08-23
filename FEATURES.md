@@ -1,10 +1,22 @@
 ## Index
 
-Every feature shipped so far, in numeric order (the file below is *not* in
-this order — features were written up as they landed, and a few earlier
-batches predate F-numbering being sequential across the whole file). Use
-this to find which section covers something without scrolling; search for
-the exact `F<N>.` heading text to jump to it.
+Every feature shipped so far, in numeric order. **The file below is not**,
+and will not be: features were written up as they landed, a few early
+batches predate F-numbering being sequential, and the specs use `##` for
+their own internal structure — F18 alone has `## Layer 1`, `## API`,
+`## Tests` and `## Definition of done`. Sorting the top-level headings
+would tear those specs apart and interleave their subsections with
+unrelated features. This index is what makes the order not matter.
+
+Use it to find which section covers something without scrolling, then
+search for the exact `F<N>.` heading text to jump to it. Five of the older
+features are `#` rather than `##`; searching the heading text finds them
+either way.
+
+`tests/test_features_index.py` fails if a feature lands here without a
+line in this list, if a line here points at a section that is gone, or if
+two features claim the same number — so this list can be trusted to be
+complete rather than merely intended to be.
 
 - **F0** — Groundwork: story visibility (draft/sealed/archived filtering
   used by F2/F4/F5/F6/F10)
@@ -95,6 +107,17 @@ the exact `F<N>.` heading text to jump to it.
 - **Housekeeping** — the `pages` blueprint and the shared view helpers
   leave `routes_pages.py` for `views.py`; one `jsonstore.write_json`
   replaces seven hand-rolled atomic writes
+- **Housekeeping 2** — `write_backup` and `import_backup` move in together
+  as `backup.py`, so the two ends of the backup contract can finally be
+  tested as a pair
+- **Housekeeping 3** — the pure date maths leaves `storage.py` for
+  `timeline.py`, and the Feb 29 rule that three call sites each wrote out
+  becomes one `dates.same_day_of_year`
+- **Housekeeping 4** — `crop-logic.js` and `draft-logic.js` come out of
+  `editor.js`; the cropper's preview and saved JPEG become one calculation,
+  and crash recovery stops discarding drafts it should have offered back
+- **Housekeeping 5** — this index becomes a tested promise rather than an
+  intention, and the plan to sort the file is abandoned with reasons
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7298,3 +7321,230 @@ fails the suite. Confirmed by adding one.
 Twenty-five tests added. The five content tests were run with
 `ensure_ascii` restored to confirm they fail there. `pytest` (1471) and
 `ruff check .` green.
+
+## Housekeeping 2: the backup's two halves move in together
+
+`/export` wrote a zip in thirty lines inside a route. `import_backup` read
+one back in a hundred and fifty inside `storage.py`. They are two ends of
+a single contract — which files go out has to match which files may come
+back — and they were in different layers, unable to see each other.
+
+Three things had already gone wrong because of it.
+
+`storage.py` had to reach *up*. Restoring a backup means knowing about
+settings (F51), made theme packs (F50) and the catalogue that says which
+picture filenames are legitimate — so the data layer every other module
+leans on imported `settings`, `themes` and `theme_catalog` from inside a
+function body, with a comment explaining that keeping the imports local
+kept the dependency arrow presentable. It was a workaround for the
+function being in the wrong file.
+
+**The test suite had written its own export. Twice.** `tests/test_import.py`
+and `tests/test_backup_credentials.py` each carried a byte-identical
+`_export_zip`/`_backup_of` helper that walked the directory and zipped
+everything it found. Neither skipped `.tmp` leftovers. Neither applied the
+credential filter. So every import test in the app was restoring a zip the
+app would never have produced, and the one property most worth checking —
+that what export writes, import reads — had no test at all, because
+nothing could call both.
+
+And there was nowhere for a round-trip test to live.
+
+`app/backup.py` now holds `write_backup`, `import_backup`,
+`CREDENTIAL_FILENAMES` and `ImportCollision`. `storage.py` loses 183 lines
+and all three upward imports. The `/export` route is down to the two calls
+that decide what the viewer may have, and one call that builds it.
+
+**What deliberately did not move: who may export what.** `write_backup`
+takes `allowed_ids` and `with_credentials` and does not decide either.
+`_exportable_story_ids` and `_viewer_may_export_credentials` read the
+session and stay beside the route they govern — this module is the
+mechanism, the route is the policy, and an access-control rule is easier
+to audit next to the thing it guards than one import away.
+
+Both test helpers are now one line calling the real export, and
+`tests/test_backup_roundtrip.py` checks the thing that matters to a
+family: **the backup you took is the book you get back**, and for a viewer
+who cannot see everything, exactly the part they could see and no more.
+Twelve tests, including the three tiers restoring into a fresh book, and
+the rule that has to hold on all of them at once — an admin's zip
+legitimately *contains* credential files, and a restore still must not put
+them back, or a zip becomes a way to install your admins into somebody
+else's book.
+
+Verified by breaking each property in turn and watching the right test
+fail: export stops skipping `.tmp` → one failure; import stops dropping
+credential files → the admin tier fails; export stops scoping to the
+viewer → three fail. And the export tiers were re-probed on a running app
+either side of the move, unchanged: admin `scoped/3 credentials`, member
+in the group `scoped/0`, member outside it `public only/0`, write-link
+guest `302 → /login`, single password-holder `everything/4`.
+
+`pytest` (1483) and `ruff check .` green.
+
+## Housekeeping 3: storage.py stops being five modules
+
+906 lines, the highest fan-in in the app — fifteen modules import it — and
+the only large file in the repo with no section banners. It held five
+jobs: validating the strings that become paths, reading a folder into a
+`Story`, writing one back, `.versions/`, and media. Plus two that were not
+filesystem read/write for stories at all.
+
+`backup.py` took the first (above). This takes the second. CLAUDE.md's own
+entry for the module had been hedging about it for a while — *"Also home
+to several small pure date-math helpers used by the timeline"* — and a
+hedge in a one-line description is usually a file boundary asking to be
+drawn.
+
+`app/timeline.py` now holds `readable_stories`, `on_this_day` (F5),
+`stories_with_milestones` (F28), `growth_photos` (F29),
+`months_since_last_story` (F30) and `is_sealed`. Pure functions over a
+list of stories and a date: no filesystem, no Flask, nothing to set up to
+test. `storage.py` goes 906 → 650 and gains the five banners.
+
+One thing worth saying plainly in the new module's docstring, because the
+name invites the wrong assumption: **`readable_stories` is not an
+access-control gate.** It decides which pages of the book you are *shown* —
+published, unsealed, unarchived. Audience scoping is `groups.can_see`,
+reached through `views.visible_stories`, and everything here is always
+handed a list that has already been through it.
+
+### The Feb 29 rule, which was written three times
+
+Extracting the functions made the duplication visible. A leap-day
+anniversary has to come round on Mar 1 in a non-leap year, and that rule
+existed in three places:
+
+* `on_this_day`'s `feb29_makeup`, for stories;
+* `life_events._matches_today`, for birthdays and wedding anniversaries —
+  whose docstring said, in as many words, "the same Feb 29 → Mar 1
+  non-leap-year makeup rule as storage.on_this_day";
+* the `except ValueError` branch inside `growth_photos`, arriving at the
+  same answer from the other direction — there is no Feb 29 to land on, so
+  it is Mar 1.
+
+The first two were the same boolean expression, byte for byte. They are
+now one `dates.same_day_of_year`, and the test that matters is the one
+that could not have been written before: **a leap-day story and a leap-day
+birthday surface on the same day**, and neither surfaces on Feb 28. While
+each module carried its own copy, one drifting and not the other was a
+silent, once-every-four-years bug — the kind nobody would ever catch by
+reading.
+
+The pure-list tests moved out of `test_storage.py` into
+`tests/test_timeline.py` with the code, since they build `Story` objects in
+memory and never touch a directory — which is what said the functions were
+not really storage. `test_visibility.py` (F0) and `test_on_this_day.py`
+(F5) also test this module and stayed where they are: this suite is one
+file per feature area, not one per module, and both are named for their
+feature.
+
+`pytest` (1489) and `ruff check .` green.
+
+## Housekeeping 4: two pure modules out of editor.js, and a bug in the second
+
+`editor.js` is 1,650 lines and the only large piece of front-end code that
+had never been through this codebase's own extraction pattern — ten UMD
+modules with plain-Node tests, and none of them from the biggest file.
+Two of its eleven sections are pure arithmetic hiding behind a browser.
+
+This is not a line-count exercise. `editor.js` is barely shorter
+afterwards, because the code was replaced by calls rather than deleted.
+What changed is that two things that could quietly be wrong now cannot.
+
+### `crop-logic.js`: the preview and the saved photo were computed twice
+
+The pan/zoom cropper worked out where the photo sits in two places:
+`updateCropTransform`, in CSS pixels against the on-screen stage, and
+`rasterizeCrop`, in canvas pixels against a 900px square. The same
+arithmetic, written out separately — and the failure mode if they ever
+drifted is the worst kind this app has. **The photo a parent framed would
+not be the photo their book keeps, and nothing on screen would say so.**
+
+`placement(state, k)` is that arithmetic now. `k` is 1 for the preview and
+`900 / stageSize` for the canvas, and it is the entire difference between
+the two callers. Nineteen checks, including the one the two copies were
+always supposed to satisfy and nothing tested: for five different photo
+shapes, zooms and pans, the canvas placement equals the preview placement
+times `k`. Introducing a one-pixel drift at output scale fails it.
+
+Two smaller things the extraction turned up and fixed: a pinch whose two
+pointers arrive at the same coordinates used to divide by zero and set the
+zoom to `NaN`, which the slider cannot come back from; and clamping a
+negative drag against a limit of zero yields `-0` in JavaScript, which
+survives JSON and comparisons.
+
+Verified in a real browser as well as in Node — a 1200×800 photo on a
+256px stage, zoomed to 50 and dragged 60px left, produced exactly the
+placement `CropLogic` predicts, and the saved 900×900 JPEG contained
+exactly the predicted region of the source image (green band left, yellow
+right, the marker ellipse where the maths said it would be).
+
+### `draft-logic.js`: crash recovery was throwing drafts away
+
+This one is a defect, not a refactor.
+
+`applyDraft` restores fourteen fields — the date, the sealed-until date,
+the draft and archived toggles, the people, the tags, the sources, the
+audience, the family pickers, the sepia dial. The question *"is there
+anything to restore?"* compared **two**: the title and the markdown.
+
+So a parent who opened the editor, set the date, chose who the story was
+for, tagged it, and then lost the tab got no banner and no draft. The
+autosave had run and written all of it. The recovery read it back,
+decided nothing had changed, and called `clearAutosave()`.
+
+Reproduced in a browser before fixing it, and again after putting the old
+comparison back: with two fields, a date-only edit and a tags-only edit
+both come back `banner=false`; with the whole payload compared, both are
+`banner=true`, and a genuinely unchanged page still shows nothing.
+
+The comparison is now over every field either side mentions, which also
+means a field added to the payload later is picked up with no change here.
+Fifteen checks, including the nine "only this changed" cases that used to
+be discarded, and the ones that guard the other direction: `false` and `0`
+and `""` are values rather than absences, key order in an object is not a
+change, the order of `people` and `sources` is, and anything else that
+turns up in that localStorage key is not a draft at all.
+
+`pytest` (1491) and `ruff check .` green.
+
+## Housekeeping 5: the index earns its trust
+
+The plan for this one was to sort FEATURES.md into F-number order. Reading
+the file properly showed that was the wrong idea, so it did not happen.
+
+Its feature specs use `##` for their own internal structure. F18 alone has
+`## Layer 1`, `## API`, `## Person pages`, `## Tests` and `## Definition of
+done`; F19 and the original PLAN-era sections do the same. Five features
+are `#` rather than `##`. A mechanical sort of the top-level headings would
+tear those specs apart and interleave their subsections with unrelated
+features — a worse file, arrived at confidently.
+
+The index is what makes the order not matter, and the index turned out to
+be in better shape than the diagnosis assumed: all fifty-three features
+were already listed, none stale, none duplicated. What it lacked was any
+reason to believe that would stay true.
+
+`tests/test_features_index.py` supplies it. Six checks: every feature
+heading has an index line, every index line has a heading, no duplicates,
+no two features claiming the same number, the newest feature is listed, and
+the one instruction that makes an unordered file navigable — search the
+heading text — survives edits to the preamble. Confirmed to fail both ways
+by appending a feature with no index line and by adding a second `## F50`.
+
+It is the same shape of guard as the i18n test, which fails when a
+`_("...")` lands with no French line. A convention nobody can forget beats
+a convention everybody is asked to remember.
+
+The index's own preamble now says all of this, including why the file will
+not be sorted, so the next person to have this idea can save the afternoon.
+
+Also: `scripts/process_orbit_icons.py` is marked superseded at the top. Its
+generate-and-key pipeline was replaced by `draw_orbit_icons.py`, and
+anything it produced today would fail `tests/test_orbit_icons.py`. It stays
+because its four keying passes are the record of what went wrong with
+generated icons, and the framing rules in it are the ones the drawing
+script matches.
+
+`pytest` (1497) and `ruff check .` green.

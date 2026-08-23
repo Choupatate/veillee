@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, current_app, jsonify, request, session
 
-from . import groups, people, settings, storage
+from . import backup, groups, people, settings, storage
 from .auth import admin_required_in_accounts_mode, login_required
 from .views import current_people_dir, viewer_scope
 
@@ -445,8 +445,8 @@ def import_backup():
         return _error("No backup file provided.", 400)
 
     try:
-        count = storage.import_backup(current_app.config["STORIES_DIR"], file_storage.stream)
-    except storage.ImportCollision as e:
+        count = backup.import_backup(current_app.config["STORIES_DIR"], file_storage.stream)
+    except backup.ImportCollision as e:
         shown = ", ".join(e.colliding_ids[:5])
         more = f" and {len(e.colliding_ids) - 5} more" if len(e.colliding_ids) > 5 else ""
         return _error(

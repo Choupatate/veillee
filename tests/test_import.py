@@ -3,22 +3,23 @@
 import zipfile
 from datetime import date
 from io import BytesIO
-from pathlib import Path
 
 import pytest
 
-from app import storage
+from app import backup, storage
 
 
 def _export_zip(source_dir):
-    buf = BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        for path in sorted(Path(source_dir).rglob("*")):
-            if path.is_dir():
-                continue
-            zf.write(path, path.relative_to(source_dir))
-    buf.seek(0)
-    return buf
+    """The real export, not a lookalike.
+
+    This used to be a hand-rolled walk that zipped everything under
+    `source_dir` — which skipped neither `.tmp` leftovers nor credential
+    files, so every test below restored a zip the app would never have
+    produced. `backup.write_backup` is what `/export` calls; the defaults
+    are the admin/single-password answer (every story, credentials
+    included), which is the widest zip a restore ever has to survive.
+    """
+    return backup.write_backup(source_dir)
 
 
 # --- storage.import_backup ----------------------------------------------------
@@ -29,7 +30,7 @@ def test_import_backup_restores_into_empty_dir(tmp_path, stories_dir):
     source_dir.mkdir()
     story_id = storage.create_story(source_dir, "Restored story", date(2026, 1, 1), "body")
 
-    count = storage.import_backup(stories_dir, _export_zip(source_dir))
+    count = backup.import_backup(stories_dir, _export_zip(source_dir))
 
     assert count == 1
     story = storage.get_story(stories_dir, story_id)
@@ -44,8 +45,8 @@ def test_import_backup_rejects_on_collision_writes_nothing(tmp_path, stories_dir
     storage.create_story(stories_dir, "Story", date(2026, 1, 1), "existing body")
 
     zip_buf = _export_zip(source_dir)
-    with pytest.raises(storage.ImportCollision) as exc_info:
-        storage.import_backup(stories_dir, zip_buf)
+    with pytest.raises(backup.ImportCollision) as exc_info:
+        backup.import_backup(stories_dir, zip_buf)
     assert story_id in exc_info.value.colliding_ids
 
     # Nothing was written: the one story folder that was here is still the
@@ -62,7 +63,7 @@ def test_import_backup_rejects_path_traversal(stories_dir):
         zf.writestr("../evil.txt", "pwned")
     buf.seek(0)
     with pytest.raises(ValueError):
-        storage.import_backup(stories_dir, buf)
+        backup.import_backup(stories_dir, buf)
 
 
 def test_import_backup_skips_unexpected_root_files(stories_dir):
@@ -73,7 +74,7 @@ def test_import_backup_skips_unexpected_root_files(stories_dir):
         zf.writestr("readme.txt", "hi")
     buf.seek(0)
     with pytest.raises(ValueError, match="no stories"):
-        storage.import_backup(stories_dir, buf)
+        backup.import_backup(stories_dir, buf)
     assert not (stories_dir / "readme.txt").exists()
 
 
@@ -95,7 +96,7 @@ def test_a_real_accounts_mode_backup_can_be_restored(stories_dir):
     # One story. `people/` used to be counted as a second "story folder",
     # which is the same mistake that made a backup un-restorable into a book
     # that already had a cast (F43) — people now ride along uncounted.
-    assert storage.import_backup(stories_dir, buf) == 1
+    assert backup.import_backup(stories_dir, buf) == 1
     assert (stories_dir / "2026-05-01-a-day-out" / "index.md").is_file()
     assert (stories_dir / "people" / "papa" / "index.md").is_file()
     # Live operational state is never overwritten from an old zip.
@@ -113,7 +114,7 @@ def test_import_still_aborts_on_an_unsafe_path(stories_dir):
         zf.writestr("../evil.txt", "pwned")
     buf.seek(0)
     with pytest.raises(ValueError, match="Unsafe path"):
-        storage.import_backup(stories_dir, buf)
+        backup.import_backup(stories_dir, buf)
     assert not (stories_dir / "2026-05-01-fine").exists()
 
 
@@ -123,13 +124,13 @@ def test_import_backup_rejects_empty_zip(stories_dir):
         pass
     buf.seek(0)
     with pytest.raises(ValueError):
-        storage.import_backup(stories_dir, buf)
+        backup.import_backup(stories_dir, buf)
 
 
 def test_import_backup_rejects_bad_zip(stories_dir):
     buf = BytesIO(b"not a zip file")
     with pytest.raises(zipfile.BadZipFile):
-        storage.import_backup(stories_dir, buf)
+        backup.import_backup(stories_dir, buf)
 
 
 def test_import_backup_includes_images(tmp_path, stories_dir, jpeg_bytes):
@@ -142,7 +143,7 @@ def test_import_backup_includes_images(tmp_path, stories_dir, jpeg_bytes):
         source_dir, story_id, FileStorage(stream=jpeg_bytes(color="blue", size=(50, 50)), filename="p.jpg")
     )
 
-    storage.import_backup(stories_dir, _export_zip(source_dir))
+    backup.import_backup(stories_dir, _export_zip(source_dir))
 
     assert (stories_dir / story_id / filename).is_file()
 

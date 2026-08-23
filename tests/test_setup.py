@@ -12,7 +12,7 @@ from datetime import date
 
 import pytest
 
-from app import create_app, settings, storage
+from app import backup, create_app, settings, storage
 
 BASE = {"PASSWORD": "test-password", "SECRET_KEY": "test-secret", "WTF_CSRF_ENABLED": False}
 
@@ -217,11 +217,11 @@ def test_settings_travel_in_the_backup(auth_client, stories_dir, fresh_dir):
         "language": "fr",
         "authors": [{"name": "Papa", "color": "#d9a441"}],
     })
-    backup = auth_client.get("/export").data
-    with zipfile.ZipFile(io.BytesIO(backup)) as zf:
+    zip_bytes = auth_client.get("/export").data
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         assert "settings.json" in zf.namelist()
 
-    storage.import_backup(fresh_dir, io.BytesIO(backup))
+    backup.import_backup(fresh_dir, io.BytesIO(zip_bytes))
     restored = settings.read(fresh_dir)
     assert restored["title"] == "Milo's book"
     assert restored["language"] == "fr"
@@ -238,10 +238,10 @@ def test_a_restore_never_overwrites_a_book_that_is_already_set_up(
 
     storage.create_story(stories_dir, "A story", date(2026, 1, 1), "body")
     settings.save(stories_dir, {"title": "The old name"})
-    backup = auth_client.get("/export").data
+    zip_bytes = auth_client.get("/export").data
 
     settings.save(fresh_dir, {"title": "The name it has now"})
-    storage.import_backup(fresh_dir, io.BytesIO(backup))
+    backup.import_backup(fresh_dir, io.BytesIO(zip_bytes))
     assert settings.read(fresh_dir)["title"] == "The name it has now"
 
 
@@ -260,7 +260,7 @@ def test_a_backup_may_only_put_back_settings_this_app_writes(fresh_dir):
             "title": "Restored", "SECRET_KEY": "nope", "stories_dir": "/etc",
         }))
     buf.seek(0)
-    storage.import_backup(fresh_dir, buf)
+    backup.import_backup(fresh_dir, buf)
     assert settings.read(fresh_dir) == {"title": "Restored"}
 
 
@@ -277,7 +277,7 @@ def test_an_unreadable_settings_file_in_a_backup_costs_the_settings_not_the_rest
         zf.writestr("2026-01-01-a-story/index.md", "---\ntitle: A story\n---\nbody\n")
         zf.writestr("settings.json", "{ this is not json")
     buf.seek(0)
-    assert storage.import_backup(fresh_dir, buf) == 1
+    assert backup.import_backup(fresh_dir, buf) == 1
     assert (fresh_dir / "2026-01-01-a-story" / "index.md").is_file()
 
 

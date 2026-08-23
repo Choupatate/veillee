@@ -17,7 +17,7 @@ from datetime import date
 import pytest
 from PIL import Image
 
-from app import palette, storage, theme_catalog, theme_packs, themes
+from app import backup, palette, storage, theme_catalog, theme_packs, themes
 
 DARK = {"bg": "#101822", "text": "#e8e2d9", "accent": "#d9a441"}
 LIGHT = {"bg": "#faf6ef", "text": "#2a2520", "accent": "#a9701c"}
@@ -350,7 +350,7 @@ def test_a_made_theme_comes_back_from_a_backup(stories_dir, user_dir):
         zf.writestr("themes/woodblock/img/evil.svg", "<svg/>")
         zf.writestr("themes/woodblock/notes.txt", "nope")
     buf.seek(0)
-    storage.import_backup(stories_dir, buf)
+    backup.import_backup(stories_dir, buf)
     assert (user_dir / "woodblock" / "theme.json").is_file()
     assert (user_dir / "woodblock" / "img" / "icon-save.png").is_file()
     assert not (user_dir / "woodblock" / "img" / "evil.svg").exists()
@@ -364,7 +364,7 @@ def test_a_restored_theme_never_overwrites_one_of_the_same_name(stories_dir, use
         zf.writestr("2026-01-01-a-story/index.md", "---\ntitle: A story\n---\nbody\n")
         zf.writestr("themes/woodblock/theme.json", json.dumps({"label": "Theirs"}))
     buf.seek(0)
-    storage.import_backup(stories_dir, buf)
+    backup.import_backup(stories_dir, buf)
     assert (user_dir / made / "theme.json").read_text() == before
 
 

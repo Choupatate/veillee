@@ -1,26 +1,16 @@
 """Pure date-math for FEATURES.md F27 life dates: birthdays and union
 anniversaries surfaced quietly on the timeline, plus the almanac's full
-year-round listing. No framework dependencies, mirroring dates.py and
-storage.py's on_this_day.
+year-round listing. No framework dependencies; the same shape as
+`timeline.py`, which does this for stories rather than people, and sharing
+its calendar rule through `dates.same_day_of_year`.
 """
 
 from datetime import date
 
-
-def _is_leap_year(year: int) -> bool:
-    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
-
-
-def _matches_today(month_day_date: date, today: date) -> bool:
-    """True when `month_day_date`'s month/day matches `today`'s, with the
-    same Feb 29 -> Mar 1 non-leap-year makeup rule as storage.on_this_day."""
-    if month_day_date.month == today.month and month_day_date.day == today.day:
-        return True
-    return (
-        month_day_date.month == 2 and month_day_date.day == 29
-        and today.month == 3 and today.day == 1
-        and not _is_leap_year(today.year)
-    )
+# The Feb 29 -> Mar 1 makeup rule used to be written out here as well as in
+# `timeline.on_this_day`. A birthday landing on the wrong day and a story
+# landing on the wrong day are the same bug, so there is one copy now.
+from .dates import same_day_of_year as _matches_today
 
 
 def birthdays_today(all_people: list, today: date = None) -> list:

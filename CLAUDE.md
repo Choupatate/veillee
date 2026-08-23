@@ -15,10 +15,15 @@ editor and a file browser.
 Read these before making non-trivial changes, in this order:
 - `README.md` — how to run it, configuration, feature tour.
 - `PLAN.md` — the original design spec the app was built from.
-- `FEATURES.md` — the running log of every feature added since, in F-number
-  order (F0, F1, F2, ...). Each entry documents the feature, the design
-  decisions, and often the edge cases handled. **This is the most detailed
-  and current source of truth for how a given feature actually behaves.**
+- `FEATURES.md` — the running log of every feature added since. Each entry
+  documents the feature, the design decisions, and often the edge cases
+  handled. **This is the most detailed and current source of truth for how
+  a given feature actually behaves.** The file is *not* in F-number order
+  and is not going to be — its specs use `##` for their own internal
+  structure, so sorting the headings would tear them apart. The index at
+  the top is in order instead; find your feature there, then search for the
+  exact `F<N>.` heading text. `tests/test_features_index.py` fails if that
+  index falls behind, so it can be trusted to be complete.
 - `REVIEW.md` — a past production-readiness audit and the fixes it drove.
   Historical record, not necessarily reflecting the current code.
 - `IMAGE-PROMPTS.md` — the house style and per-asset prompts for the
@@ -29,7 +34,9 @@ Read these before making non-trivial changes, in this order:
   now complete. Its 13 icons are **drawn**, by `scripts/draw_orbit_icons.py`
   in Pillow, rather than generated — read that file's header before
   changing any of them, and redraw the whole set rather than hand-editing
-  a PNG. A house style belongs to one
+  a PNG. (`scripts/process_orbit_icons.py` is the superseded generate-and-key
+  pipeline, kept only as a record of what went wrong with it; anything it
+  produced now fails `tests/test_orbit_icons.py`.) A house style belongs to one
   art direction: never mix the two files' style rules.
 
   Both files are **hand-written prompts for one specific pack**, and are
@@ -79,11 +86,31 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
 
 - `app/storage.py` — **all filesystem read/write for stories lives here**:
   `Story` dataclass, `list_stories`/`get_story`/`create_story`/`save_story`,
-  image/memo upload and re-encoding, `.versions/` snapshot+restore, backup
-  zip import. Also home to several small pure date-math helpers used by the
-  timeline (`on_this_day`, `growth_photos` F29, `months_since_last_story`
-  F30). This is the module to read before touching how stories/people/
-  images are persisted.
+  image/memo upload and re-encoding, `.versions/` snapshot+restore. Five
+  banner-separated sections, in that order. The module to read before
+  touching how stories/people/images are persisted — and the one with the
+  highest fan-in in the app, so **if something new does not read or write
+  a story folder, it belongs in `timeline.py` or `backup.py` instead.**
+- `app/timeline.py` — pure functions over `list[storage.Story]` and a date,
+  no filesystem: `readable_stories` (the canonical pages of the book — not
+  an access-control gate, see `groups.py` for that), `on_this_day` (F5),
+  `stories_with_milestones` (F28), `growth_photos` (F29),
+  `months_since_last_story` (F30), `is_sealed`. They were the "also home
+  to several small pure date-math helpers" hedge in `storage.py`'s entry
+  here, which is usually a file boundary asking to be drawn.
+- `app/backup.py` — **both halves of the backup round trip**:
+  `write_backup` (what `/export` streams) and `import_backup` (what
+  `/import` restores), plus `CREDENTIAL_FILENAMES` and `ImportCollision`.
+  They belong together because they are one contract — which files go out
+  has to match which files may come back, and while export lived in a
+  route and import in `storage.py`, nothing held them to each other and
+  the tests had written their own export twice to cope. **Who may export
+  what is deliberately not here**: `write_backup` takes `allowed_ids` and
+  `with_credentials` as arguments, and `routes_pages.py`'s
+  `_exportable_story_ids`/`_viewer_may_export_credentials` decide them
+  from the session, beside the route they guard. A guest never reaches
+  `/export`; a family member gets the stories they can see and no
+  credential files; an admin gets everything.
 - `app/people.py` — the "cast of the book" (F14): `Person` dataclass
   (including F27's `born`/`died`/`unions`), `list_people`/`get_person`/
   `create_person`/`update_person`. Mirrors `storage.py`'s shape.
@@ -134,7 +161,11 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   use it without giving up its independence.
 - `app/dates.py`, `app/prompts.py`, `app/rendering.py`, `app/epub.py` — age-
   label computation, the writing-prompts list, markdown-to-HTML rendering,
-  and EPUB export, respectively.
+  and EPUB export, respectively. `dates.same_day_of_year` is also where the
+  Feb 29 → Mar 1 makeup rule lives: a leap-day story and a leap-day
+  birthday have to surface on the same day, and they cannot while
+  `timeline.py` and `life_events.py` each carry their own copy of it —
+  which they did, along with a third inside `growth_photos`.
 - `app/themes.py` — theme packs (F46). A pack is a folder under
   `app/static/themes/<name>/`: a `theme.css` of colour variables and an
   `img/` folder. **No template ever names an image folder** — they call the
@@ -230,6 +261,19 @@ Frontend:
   in the same commit. Two details that port badly and are commented at
   length there: Python rounds halves to even and JS rounds them up, and
   both back-off loops are iterative on purpose (a closed form drifts).
+- `app/static/js/crop-logic.js` — the photo cropper's pan/zoom geometry.
+  Extracted because `editor.js` worked out where the photo sits **twice** —
+  once in CSS pixels for the preview, once in canvas pixels for the JPEG —
+  and if those ever disagreed, the photo a parent framed is not the photo
+  their book keeps, with nothing on screen to say so. `placement(state, k)`
+  is that arithmetic; `k` is the only difference between the two callers,
+  and `tests/js/crop_logic_test.mjs` asserts they agree.
+- `app/static/js/draft-logic.js` — whether an autosaved draft is worth
+  offering back after a crash (F31). The comparison used to be two fields
+  while `applyDraft` restored fourteen, so a draft whose only change was
+  the date, the audience, the tags or a toggle was silently deleted on the
+  next load. It compares the whole payload now; keep it that way, and add
+  new payload fields nowhere special — they are picked up automatically.
 - `app/static/js/theme-logic.js` — the scheme cycle and the press rules
   behind F49's theme menu (a tap cycles, a hold opens it, and the click a
   long press leaves behind must not also cycle). Pure, so those three
@@ -269,10 +313,12 @@ Frontend:
   atomicity, and `save_story` snapshots the previous version into
   `.versions/` first. Preserve both properties in any code that writes story
   content.
-- Zip extraction (`import_backup`) validates every member path before
-  extracting anything (zip-slip protection) and is all-or-nothing (a
+- Zip extraction (`backup.import_backup`) validates every member path
+  before extracting anything (zip-slip protection) and is all-or-nothing (a
   collision aborts with nothing written). Keep that all-or-nothing guarantee
-  if you touch import/export.
+  if you touch import/export — and change the two halves together, which is
+  why they share a module. `tests/test_backup_roundtrip.py` exercises them
+  as a pair; never hand-roll a zip in a test to stand in for the export.
 - `story_media`/`person_media` set a one-year `Cache-Control` max-age on
   `.jpg`/`.png` files (`_media_max_age` in `routes_pages.py`), safe only
   because `save_image_to` never overwrites or reuses a photo's filename.
