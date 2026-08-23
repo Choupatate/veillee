@@ -7129,9 +7129,20 @@ below the same floor:
 
 Orbit's weakest is 9.5%. These are thin-line drawings that dissolve at
 button size — the catalogue's own "no stroke thinner than a tenth of the
-icon's width" is the rule they miss. Not fixed because redrawing the
-default pack's identity is a decision, not a bug fix, and because the
-ranch's icons are generated artwork with no script behind them. Worth
-deciding on rather than discovering.
+icon's width" is the rule they miss.
+
+**Raised, decided, and deliberately left alone.** The numbers were put to
+the book's owner and the answer was that the ranch's icons are fine as
+they are. That is a taste call and it is theirs: the ranch is the app's
+own hand, the drawings have character a measurement cannot see, and the
+alternative — thickening four of them, or giving the ranch a drawing
+script the way orbit now has one — would trade that character for a
+number. Recorded here so it reads as a decision that was made rather than
+a defect nobody noticed, and so the next person to run the same
+measurement does not re-open it.
+
+The floor in `tests/test_orbit_icons.py` therefore applies to the icons
+that script draws, and to nothing else. It is not a rule the ranch is
+held to, and it should not become one without the same conversation.
 
 `pytest` (1436) and `ruff check .` green.
