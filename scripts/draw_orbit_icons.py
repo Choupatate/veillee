@@ -76,6 +76,27 @@ def _s(value):
     return value * SCALE
 
 
+def _inset(box, amount):
+    """A bounding box pulled in on every side.
+
+    Pillow draws an arc's or an ellipse's stroke *inward* from its
+    bounding box, not centred on it. So a keyline and a light core sharing
+    one box both hug the box's outer edge, and the core ends up drawn on
+    top of the outer half of the keyline — the light on the outside, the
+    dark within. That is the exact inverse of the rule this pack is built
+    on, and it is invisible at 160px and fatal at 20: on the pale page the
+    shape loses its outer edge entirely.
+
+    Insetting the core's box by half the difference puts the two bands
+    concentric, which is what "a keyline with a core" was supposed to mean
+    all along. `line()` is already centred on its path, so `stroke()` never
+    had this problem — which is why it took a radial measurement rather
+    than a look to find.
+    """
+    return [box[0] + _s(amount), box[1] + _s(amount),
+            box[2] - _s(amount), box[3] - _s(amount)]
+
+
 def disc(draw, cx, cy, r, fill, key=KEY):
     """A filled circle inside the keyline."""
     half = key / 2
@@ -125,7 +146,8 @@ def ring(im, cx, cy, rx, ry, angle, colour=STAR, key=KEY + 3.6, core=CORE + 1.0,
         pen.ellipse(box, fill=fill)
     pen.ellipse(box, outline=NAVY, width=round(_s(key)))
     if fill is None:
-        pen.ellipse(box, outline=colour, width=round(_s(core)))
+        pen.ellipse(_inset(box, (key - core) / 2), outline=colour,
+                    width=round(_s(core)))
     layer = layer.rotate(angle, resample=Image.BICUBIC, center=(_s(cx), _s(cy)))
     im.alpha_composite(layer)
 
@@ -163,12 +185,16 @@ def arc(draw, cx, cy, r, start, end, colour, key=KEY + 3.4, core=CORE + 1.4,
 
     box = [_s(cx - r), _s(cy - r), _s(cx + r), _s(cy + r)]
     draw.arc(box, start, end, fill=NAVY, width=round(_s(key)))
-    draw.arc(box, start, end, fill=colour, width=round(_s(core)))
+    draw.arc(_inset(box, (key - core) / 2), start, end, fill=colour,
+             width=round(_s(core)))
     if not caps:
         return
+    # The caps sit on the keyline's mid-radius, which is where the core
+    # now runs — not on the bounding box's radius.
+    mid = r - key / 2
     for angle in (start, end):
-        ex = cx + r * math.cos(math.radians(angle))
-        ey = cy + r * math.sin(math.radians(angle))
+        ex = cx + mid * math.cos(math.radians(angle))
+        ey = cy + mid * math.sin(math.radians(angle))
         draw.ellipse([_s(ex - key / 2), _s(ey - key / 2),
                       _s(ex + key / 2), _s(ey + key / 2)], fill=NAVY)
         draw.ellipse([_s(ex - core / 2), _s(ey - core / 2),
@@ -210,8 +236,8 @@ def icon_new_story(im, draw):
     # subject and the orbit stays a line drawn over it.
     ring(im, 28, 35, 27, 8, 22, key=KEY + 1.6, core=CORE - 0.4)
     pen = ImageDraw.Draw(im)
-    stroke(pen, [(43, 19), (55, 7)], STAR, key=KEY + 4.6, core=CORE + 2.6)
-    disc(pen, 56, 6, 3.6, RUST, key=KEY - 1.6)
+    stroke(pen, [(41, 21), (52, 10)], STAR, key=KEY + 4.6, core=CORE + 2.6)
+    disc(pen, 53, 9, 3.4, RUST, key=KEY - 1.6)
 
 
 def icon_instant(im, draw):
@@ -235,8 +261,15 @@ def icon_save(im, draw):
 
 
 def icon_draft(im, draw):
-    """A ringed planet whose body is four thick dashes with wide gaps
-    between them, the ring solid and unbroken."""
+    """A whole planet inside an unfinished orbit: the ring drawn as four
+    thick dashes with wide gaps, the body solid.
+
+    The catalogue asks for this the other way round — a dashed body inside
+    a solid ring — and two attempts at that came back as a solid rim once
+    the dashes' keylines closed up. Dashing the orbit says "not finished
+    yet" just as plainly and survives 20px, so the drawing won and this
+    line was corrected to match it rather than the other way about.
+    """
     # Four thick dashes with wide gaps — at r=15 they came out as beads,
     # so the radius is bigger and each dash is a 58-degree run.
     # Two attempts at a dashed *body* both read as a solid rim once the
@@ -298,7 +331,7 @@ def icon_import(im, draw):
     # No caps — on a rim they read as bolts.
     arc(draw, 35, 33, 20, -56, 56, CYAN, key=KEY + 5, core=CORE + 2.8, caps=False)
     arc(draw, 35, 33, 20, 124, 236, CYAN, key=KEY + 5, core=CORE + 2.8, caps=False)
-    stroke(draw, [(4, 33), (26, 33)], STAR, key=KEY + 5, core=CORE + 2.8)
+    stroke(draw, [(7, 33), (26, 33)], STAR, key=KEY + 5, core=CORE + 2.8)
     polygon(draw, [(25, 23), (44, 33), (25, 43)], CYAN)
 
 
@@ -323,8 +356,8 @@ def icon_new_person(im, draw):
     # an empty visor is for.
     draw.rounded_rectangle([_s(11), _s(29), _s(37), _s(43)],
                            radius=_s(6), fill=NAVY)
-    stroke(draw, [(52, 6), (52, 22)], RUST, key=KEY + 5, core=CORE + 2.6)
-    stroke(draw, [(44, 14), (60, 14)], RUST, key=KEY + 5, core=CORE + 2.6)
+    stroke(draw, [(51, 8), (51, 22)], RUST, key=KEY + 5, core=CORE + 2.6)
+    stroke(draw, [(44, 15), (58, 15)], RUST, key=KEY + 5, core=CORE + 2.6)
 
 
 def icon_group(im, draw):
@@ -371,9 +404,24 @@ ICONS = {
 }
 
 
-def render(name):
+def draw_raw(name):
+    """The icon on its full 64x64 grid, before any cropping.
+
+    Separate from `render` so a test can see what `render` would throw
+    away. The crop-and-pad below trims to content and then adds a margin,
+    which means a shape drawn past the edge of the grid comes back
+    *looking* fine — its flat, un-keylined cut sits inside the padded
+    frame rather than on the image border, where anyone would notice it.
+    `icon-new-person`'s plus arm reached x=65.7 on a 64-wide grid for
+    exactly that reason.
+    """
     im, draw = _canvas()
     ICONS[name](im, draw)
+    return im
+
+
+def render(name):
+    im = draw_raw(name)
 
     # Same framing as process_orbit_icons.py, so a drawn icon and a
     # generated one sit in the same box.
