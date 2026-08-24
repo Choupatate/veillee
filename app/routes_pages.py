@@ -20,6 +20,7 @@ The export helpers below are the exception, and stay: they are the
 
 import random
 from datetime import date, datetime
+from pathlib import Path
 
 from flask import (
     current_app,
@@ -123,6 +124,99 @@ def growth():
 def firsts():
     all_stories = visible_stories()
     return render_template("firsts.html", firsts=stories_with_milestones(all_stories))
+
+
+# The three third-party bundles under `app/static/vendor/` are served to
+# every visitor's browser, and serving them is redistribution — so their
+# copyright and permission notices have to travel with them (F53).
+# `path` points at the upstream licence text vendored beside each bundle,
+# and the page renders *that file*, never a copy pasted into a template, so
+# the notice on screen cannot drift from the notice in the repository.
+# `tests/test_vendored_licences.py` is what keeps those files present.
+VENDORED_LICENCES = (
+    {
+        "name": "Toast UI Editor",
+        "version": "3.2.2",
+        "purpose": "the editor you write stories in",
+        "url": "https://github.com/nhn/tui.editor",
+        "path": "vendor/toastui/LICENSE",
+    },
+    {
+        "name": "family-chart",
+        "version": "0.9.0",
+        "purpose": "draws the family tree",
+        "url": "https://github.com/donatso/family-chart",
+        "path": "vendor/familychart/LICENSE",
+    },
+    {
+        "name": "D3",
+        "version": "7.9.0",
+        "purpose": "the graphics library the family tree is built on",
+        "url": "https://d3js.org",
+        "path": "vendor/d3/LICENSE",
+    },
+)
+
+# Installed from PyPI and run on the server only — never sent to a browser,
+# so no notice obligation attaches to them. Listed for transparency, not
+# for compliance. Kept in step with `requirements.txt` by
+# `tests/test_licences.py`, which fails when a pinned package is missing
+# from here.
+SERVER_LICENCES = (
+    ("Flask, Werkzeug, Jinja2, Click, itsdangerous", "BSD-3-Clause"),
+    ("Flask-WTF, WTForms", "BSD-3-Clause"),
+    ("Python-Markdown", "BSD-3-Clause"),
+    ("PyMdown Extensions", "MIT"),
+    ("python-frontmatter, PyYAML", "MIT"),
+    ("Pillow", "MIT-CMU"),
+    ("pillow-heif", "BSD-3-Clause (its bundled codecs are LGPLv3/GPLv2)"),
+    ("Waitress", "ZPL 2.1"),
+    ("MCP Python SDK", "MIT"),
+    ("faster-whisper (optional, transcription only)", "MIT"),
+)
+
+
+def _vendored_licences():
+    """Each vendored bundle's licence text, read off disk once per process.
+
+    Cached on the app rather than with `functools.lru_cache`, so a test app
+    pointed at a different static folder cannot inherit another app's text.
+    """
+    cached = current_app.extensions.get("vendored_licences")
+    if cached is not None:
+        return cached
+    static_dir = Path(current_app.static_folder)
+    entries = []
+    for library in VENDORED_LICENCES:
+        try:
+            text = (static_dir / library["path"]).read_text(encoding="utf-8").strip()
+        except OSError:
+            # A missing licence file is a packaging bug worth surfacing, and
+            # `tests/test_vendored_licences.py` fails on it — but it is not
+            # worth 500-ing a page whose whole job is to be readable.
+            text = ""
+        entries.append({**library, "text": text})
+    current_app.extensions["vendored_licences"] = entries
+    return entries
+
+
+@bp.route("/licences")
+@login_required
+def licences_page():
+    """Third-party notices for everything this book is built on (F53).
+
+    The vendored JS and CSS is served to browsers, so its licences are
+    reproduced here in full; the server-side packages are listed for
+    transparency only. Behind `login_required` like every other page — the
+    obligation is discharged by the notices shipping with the code and by
+    being readable to whoever receives the app, not by being on the open
+    internet.
+    """
+    return render_template(
+        "licences.html",
+        vendored=_vendored_licences(),
+        server_licences=SERVER_LICENCES,
+    )
 
 
 @bp.route("/help")

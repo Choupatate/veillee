@@ -1,12 +1,48 @@
-# Storybook
+# Veillée
 
-A private, self-hosted memory journal. A parent writes stories (text + photos) for
-their child; the family reads them later as a chronological timeline and as
-book-like story pages.
+> *la veillée* — the evening when the family gathered by the fire, and
+> someone told the stories worth keeping.
+
+A **private, self-hosted family memory journal**. A parent writes dated
+stories — words and photographs — for a child to read years from now. The
+family reads them back as a chronological timeline, as book-like printed
+pages, or as an EPUB on an e-reader.
+
+It is deliberately not a social network. No feed, no reactions, no comment
+threads, nothing engineered to be scrolled. A book, written slowly, for a
+handful of people who already love each other.
 
 Everything is stored as plain **markdown files and images on disk** — no database.
 If you delete the app entirely and keep the `stories/` folder, every story is still
-fully readable with nothing more than a file browser and a text editor.
+fully readable with nothing more than a file browser and a text editor. The data is
+meant to outlive the software that wrote it.
+
+### What's in it
+
+- **Stories and Instants** — a full dated entry with photos, or just a picture
+  and one line for the small moments.
+- **The cast** — everyone in the book, with a **family tree** that works out
+  "great-aunt" by itself, plus birthdays, weddings, deaths and a
+  month-by-month almanac.
+- **Sealed letters** — write something today that stays locked, even to you,
+  until a date you choose.
+- **Firsts and Growing up** — a register of milestones, and the photo nearest
+  each birthday laid side by side.
+- **Voice memos** — a child's actual voice, kept next to the words.
+- **Who reads what** — family accounts, invitations, and audience groups for
+  the stories that aren't for everyone.
+- **Reading it back** — timeline, printable book view, EPUB export, one-tap zip
+  backup, optional offline transcription.
+- **Yours alone** — self-hosted on your own machine, no cloud service, no
+  analytics, no tracking, and **zero network requests at runtime**. Python and
+  Flask, mobile-first, no build step, no JavaScript framework.
+
+> **A note on the name.** The project is *Veillée*; the application still
+> calls itself Storybook internally — every setting is `STORYBOOK_*`, and the
+> site title defaults to "Storybook" until you set one. Set the book's title
+> on the Settings page (or `STORYBOOK_TITLE`) to whatever your family's book
+> should be called. Renaming the internals is a separate, larger change and
+> hasn't been done.
 
 A colour toggle sits in the top-left corner. Tapping it cycles the schemes
 the current theme offers — for the one the app ships with, that's dark (the
@@ -1009,13 +1045,20 @@ Dev-only (`requirements.txt`'s `# dev` section): `pytest` (test runner),
 
 No JavaScript build step and no `package.json` — the browser code is plain
 `<script>` tags plus three vendored, pinned third-party bundles under
-`app/static/vendor/` (each with a banner comment or `VENDORED.md`
-documenting its version/provenance/no-network audit): the
-[Toast UI Editor](https://github.com/nhn/tui.editor) (3.2.2, the WYSIWYG
-markdown editor), and [family-chart](https://www.npmjs.com/package/family-chart)
-0.9.0 + [D3](https://d3js.org) 7.9.0 (the family tree renderer, F18). The
-two JS test files (`tests/js/*.mjs`) run directly via `node`, no test
-framework or `node_modules` needed.
+`app/static/vendor/` (each with its `LICENSE`, a `VENDORED.md` recording
+version, provenance and no-network audit, and a licence banner in every file
+served to a browser — `tests/test_vendored_licences.py` fails without all
+three): the [Toast UI Editor](https://github.com/nhn/tui.editor) (3.2.2, the
+WYSIWYG markdown editor), and
+[family-chart](https://www.npmjs.com/package/family-chart) 0.9.0 +
+[D3](https://d3js.org) 7.9.0 (the family tree renderer, F18). The JS test
+files (`tests/js/*.mjs`) run directly via `node`, no test framework or
+`node_modules` needed.
+
+The app reproduces all of those notices at **`/licences`**, linked from the
+Help page — the vendored bundles' licence text in full (read from the files
+above at request time, so the page cannot drift from the repository), and the
+server-side packages listed for transparency. Veillée itself is Apache-2.0.
 
 ## Philosophy
 

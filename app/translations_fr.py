@@ -895,6 +895,56 @@ TRANSLATIONS_FR = {
     "Family accounts": "Comptes de famille",
     "Keeping it safe": "Le garder en sécurité",
 
+    # --- the licences page (F53) ---
+    "Licences": "Licences",
+    "Where it came from": "D'où cela vient",
+    "This app is built on work other people gave away for free.":
+        "Cette application repose sur le travail que d'autres ont donné "
+        "gratuitement.",
+    "The licences are here.": "Les licences sont ici.",
+    "This book runs on a lot of work that other people gave away. Here is all "
+    "of it, and the terms they gave it away under.":
+        "Ce livre repose sur beaucoup de travail que d'autres ont donné. Le "
+        "voici en entier, avec les conditions dans lesquelles il a été donné.",
+    "This app itself": "L'application elle-même",
+    "Licensed under the Apache License 2.0. You're free to run it, change it "
+    "and share it, as long as the notices stay intact.":
+        "Sous licence Apache 2.0. Vous êtes libre de l'utiliser, de la "
+        "modifier et de la partager, tant que les mentions restent intactes.",
+    "Sent to your browser": "Envoyé à votre navigateur",
+    "These are part of the page you are reading right now, so their licences "
+    "are reproduced in full — that is what those licences ask for.":
+        "Ces éléments font partie de la page que vous lisez en ce moment : "
+        "leurs licences sont donc reproduites intégralement — c'est ce que "
+        "ces licences demandent.",
+    "Licence text unavailable — see this file in the source:":
+        "Texte de licence indisponible — voir ce fichier dans les sources :",
+    "Running on the server": "Fonctionnant sur le serveur",
+    "These never leave the server, so no notice is required — they are listed "
+    "because knowing what you depend on is part of depending on it.":
+        "Ces éléments ne quittent jamais le serveur : aucune mention n'est "
+        "donc requise. Ils sont listés parce que savoir de quoi l'on dépend "
+        "fait partie du fait d'en dépendre.",
+    "Fonts and pictures": "Polices et images",
+    "No webfonts are downloaded — the text you are reading is set in whatever "
+    "your own device already had. The illustrations and icons were made for "
+    "this project: the ranch pack was generated and then processed by hand, "
+    "the orbit pack is drawn in code. No stock imagery or icon set is used "
+    "anywhere, and any theme your family makes stays on your own machine.":
+        "Aucune police n'est téléchargée — le texte que vous lisez utilise "
+        "celles que votre appareil possédait déjà. Les illustrations et les "
+        "icônes ont été faites pour ce projet : le thème ranch a été généré "
+        "puis retouché à la main, le thème orbit est dessiné en code. Aucune "
+        "banque d'images ni jeu d'icônes du commerce n'est utilisé, et tout "
+        "thème créé par votre famille reste sur votre propre machine.",
+    # Passed through `_()` as a variable, so the template scanner cannot see
+    # these — they still need a line each or the page is half-translated.
+    "the editor you write stories in":
+        "l'éditeur dans lequel vous écrivez les histoires",
+    "draws the family tree": "dessine l'arbre généalogique",
+    "the graphics library the family tree is built on":
+        "la bibliothèque graphique sur laquelle repose l'arbre généalogique",
+
     # --- strings only static/js/i18n.js reads (see i18n.py's JS_STRINGS) ---
     "Turn the firelight off": "Éteindre la lueur du feu",
     "Turn the firelight on": "Allumer la lueur du feu",

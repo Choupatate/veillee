@@ -50,6 +50,7 @@ def test_no_french_entry_is_identical_to_its_english_key():
         "PACS", "Photo", "Photos", "Instant", "+ Instant",
         "Parents", "Union", "Unions", "union", "Sources",
         "Pause", "Zoom", "Date", "https://...", "Invitation",
+        "Licences",
     }
     lazy = [
         k for k, v in TRANSLATIONS_FR.items()

@@ -125,5 +125,13 @@
       <dd>{{ _("Plain text and photos in folders — readable with or without this app, on any computer.") }}</dd>
     </dl>
   </section>
+
+  <section class="help__section">
+    <h2>{{ _("Where it came from") }}</h2>
+    <p>
+      {{ _("This app is built on work other people gave away for free.") }}
+      <a href="{{ url_for('pages.licences_page') }}">{{ _("The licences are here.") }}</a>
+    </p>
+  </section>
 </div>
 {% endblock %}
