@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Licences") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-licences{% endblock %}
+{% block content %}
+<div class="help licences">
+  <p class="help__back"><a href="{{ url_for('pages.help_page') }}">&lsaquo; {{ _("Help") }}</a></p>
+  <h1 class="help__title">{{ _("Licences") }}</h1>
+  <hr class="story__flourish help__flourish" aria-hidden="true">
+  <p class="help__intro">
+    {{ _("This book runs on a lot of work that other people gave away. Here is all of it, and the terms they gave it away under.") }}
+  </p>
+
+  <section class="help__section">
+    <h2>{{ _("This app itself") }}</h2>
+    <p>
+      {{ _("Licensed under the Apache License 2.0. You're free to run it, change it and share it, as long as the notices stay intact.") }}
+    </p>
+  </section>
+
+  <section class="help__section">
+    <h2>{{ _("Sent to your browser") }}</h2>
+    <p>
+      {{ _("These are part of the page you are reading right now, so their licences are reproduced in full — that is what those licences ask for.") }}
+    </p>
+    {% for lib in vendored %}
+    <div class="licences__item">
+      <h3 class="licences__name">
+        <a href="{{ lib.url }}" rel="noreferrer noopener">{{ lib.name }}</a>
+        <span class="licences__version">{{ lib.version }}</span>
+      </h3>
+      <p class="licences__purpose">{{ _(lib.purpose) }}</p>
+      {% if lib.text %}
+      <pre class="licences__text">{{ lib.text }}</pre>
+      {% else %}
+      <p class="licences__purpose">
+        {{ _("Licence text unavailable — see this file in the source:") }} <code>{{ lib.path }}</code>
+      </p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="help__section">
+    <h2>{{ _("Running on the server") }}</h2>
+    <p>
+      {{ _("These never leave the server, so no notice is required — they are listed because knowing what you depend on is part of depending on it.") }}
+    </p>
+    <ul class="licences__list">
+      {% for name, licence in server_licences %}
+      <li><strong>{{ name }}</strong> — {{ licence }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="help__section">
+    <h2>{{ _("Fonts and pictures") }}</h2>
+    <p>
+      {{ _("No webfonts are downloaded — the text you are reading is set in whatever your own device already had. The illustrations and icons were made for this project: the ranch pack was generated and then processed by hand, the orbit pack is drawn in code. No stock imagery or icon set is used anywhere, and any theme your family makes stays on your own machine.") }}
+    </p>
+  </section>
+</div>
+{% endblock %}

@@ -233,6 +233,11 @@ side effect; **no route file imports another**.
   management, the family tree and person pages, audience groups, the
   first-run wizard and Settings (F51), and the theme-making pages (F50) —
   the last two behind `admin_required_in_accounts_mode`. `routes_pages.py`
+  also owns `/licences` (F53) and the two lists behind it: `VENDORED_LICENCES`
+  names each browser-served bundle and the path to its licence file, which
+  the page **reads at request time** so the notice on screen cannot drift
+  from the one in the repository; `SERVER_LICENCES` is the PyPI side, kept
+  in step with `requirements.txt` by `tests/test_licences.py`. `routes_pages.py`
   also owns `/export`'s own scoping rules (`_exportable_story_ids`,
   `_viewer_may_export_credentials`), which decide what a backup contains
   for a guest, a family member and an admin respectively.

@@ -118,6 +118,9 @@ complete rather than merely intended to be.
   and crash recovery stops discarding drafts it should have offered back
 - **Housekeeping 5** — this index becomes a tested promise rather than an
   intention, and the plan to sort the file is abandoned with reasons
+- **F53** — The licences, where a reader can actually see them: `/licences`
+  reproduces the vendored bundles' notices from the files on disk, and the
+  README is reframed around Veillée
 - **Housekeeping 6** — Toast UI gets the `LICENSE` it never had, and a test
   that catches the next vendored file served without a copyright notice
 
@@ -7600,3 +7603,79 @@ The guard was confirmed to fail three ways: a library folder with no
 owns it, and the banner taken off again.
 
 `pytest` (1508) and `ruff check .` green.
+
+## F53. The licences, where a reader can actually see them
+
+Housekeeping 6 put the licence *files* in the repository, which is what
+discharges the obligation. This is the other half: a page inside the book
+that shows them to whoever ends up running it.
+
+Reached from Help, at `/licences`, behind `login_required` like every other
+page. Being on the open internet was never the point — the notices have to
+travel with the copy and be readable by whoever receives it, and a family's
+book is not a public website.
+
+Three sections, and the distinction between the first two is the whole
+reason the page is worth building rather than pasting a list into a README:
+
+**Sent to your browser.** The three vendored bundles — Toast UI Editor,
+family-chart, D3 — are part of the page a reader is looking at. Serving
+them is redistribution, so their licences appear **in full**. The route
+reads each `LICENSE` off disk at request time and renders that file. A copy
+pasted into the template would look identical today and drift silently the
+first time a bundle is upgraded; this cannot.
+
+**Running on the server.** Flask, Pillow, pillow-heif and the rest never
+leave the machine, so no notice obligation attaches. They are listed
+anyway, because knowing what you depend on is part of depending on it —
+including that pillow-heif's bundled codecs are LGPLv3/GPLv2, which is the
+one entry on the page anyone redistributing a built image needs to think
+about.
+
+**Fonts and pictures.** No webfonts are downloaded — the text is set in
+whatever the reader's own device already had. The artwork was made for this
+project: the ranch pack generated and then processed by hand, the orbit
+pack drawn in code. No stock imagery, no icon set, and a theme a family
+makes stays on their own machine.
+
+### Keeping it from going stale
+
+A credits page is the kind of thing that is accurate the day it ships and
+quietly wrong a year later, so the lists are checked against the real
+files rather than trusted:
+
+* every directory under `app/static/vendor/` must appear on the page —
+  adding a bundle and forgetting the page fails the suite;
+* every entry must point at a `LICENSE` that exists, and the page must
+  reproduce enough of each one to prove it is the whole text, not a
+  summary;
+* every package pinned in `requirements.txt` must be named somewhere in
+  the server list, plus the optional transcription dependency that is not
+  pinned there and so would otherwise be missed;
+* the licence the page claims for the app itself must match the root
+  `LICENSE` file.
+
+A missing licence file costs the notice, not the page: the entry falls back
+to naming the path so whoever hits it can find what went missing.
+`tests/test_vendored_licences.py` is what makes that fallback unreachable in
+practice.
+
+Sixteen tests. The page is translated into French like the rest of the
+interface — including the three "what this library does" lines, which are
+passed through `_()` as variables and so are invisible to the template
+scanner that catches everything else.
+
+### The README, while we were here
+
+The project is *Veillée* and the README said *Storybook*. It now opens with
+the name, the sense of the word, and what the thing actually is, followed by
+a short tour of what is in it — which had been buried under three
+paragraphs about the colour-scheme toggle.
+
+It also says plainly what the rename does *not* cover: the application is
+still `STORYBOOK_*` internally and the site title defaults to "Storybook"
+until a family sets their own. Renaming the internals is a separate, larger
+change, and a README that implied otherwise would be the more confusing of
+the two options.
+
+`pytest` (1524) and `ruff check .` green.
