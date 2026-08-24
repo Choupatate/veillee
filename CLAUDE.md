@@ -60,8 +60,15 @@ undocumented.
   under `app/static/vendor/` or served locally — no CDN links, no external
   fonts, no analytics beacons. (`editor.js` explicitly disables Toast UI's
   `usageStatistics` ping for this reason — never re-enable it.) If you vendor
-  a new third-party library, document its version and provenance in a banner
-  comment the way `toastui-editor-all.min.js` does.
+  a new third-party library it needs three things, and
+  `tests/test_vendored_licences.py` fails without them: a `LICENSE` file in
+  its folder, a `VENDORED.md` saying what version it is and how to rebuild
+  it, and a banner comment naming the licence in **every** `.js`/`.css`
+  file served to browsers (the way `toastui-editor-all.min.js` does). That
+  last one is the easy one to miss: Toast UI's dark theme and
+  family-chart's stylesheet both ship without a banner upstream, so theirs
+  were added locally, and each folder's `VENDORED.md` records that as its
+  only local edit.
 - **Boring, minimal dependencies; no build step; no JS framework.** Plain
   `<script>` tags, UMD modules where code needs to run in both the browser
   and Node (see `tree-logic.js`, `safe-storage.js`). Don't introduce a
@@ -290,7 +297,11 @@ Frontend:
   without saving what it captured.
 - `app/static/vendor/` — vendored third-party JS (family-chart, d3, Toast UI
   Editor). Treat as read-only/generated; if you need to update one, redo the
-  vendoring process documented in its banner comment, don't hand-edit it.
+  vendoring process documented in its `VENDORED.md`, don't hand-edit it. The
+  one sanctioned exception is a licence banner on a file upstream ships
+  without one, and both cases are already recorded in the relevant
+  `VENDORED.md` — a second local edit to a vendored file needs a better
+  reason than tidiness.
 - `app/static/css/editor-theme.css` — the only place Toast UI's own class
   names may be styled (F44). It re-dresses the vendored editor in the theme
   variables so the writing surface matches the rest of the app. Two rules

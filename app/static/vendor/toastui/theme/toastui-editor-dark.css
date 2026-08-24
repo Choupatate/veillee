@@ -1,4 +1,15 @@
 @charset "utf-8";
+/*!
+ * @toast-ui/editor — dark theme
+ * @version 3.2.2
+ * @author NHN Cloud FE Development Lab <dl_javascript@nhn.com>
+ * @license MIT
+ *
+ * Upstream ships this file without a banner; one was added locally so the
+ * copyright notice travels with the copy served to browsers, as the MIT
+ * licence requires. Re-add it if this file is ever re-vendored — see
+ * ../VENDORED.md.
+ */
 .toastui-editor-dark.toastui-editor-defaultUI {
   border-color: #494c56;
   color: #eee;
