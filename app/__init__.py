@@ -286,7 +286,7 @@ def create_app(test_config=None):
         # e.g. "Le livre de Milo", isn't ours to translate); absent that,
         # the app's own default name follows the reader's language too.
         return {
-            "app_title": settings.book("TITLE") or i18n._("Storybook"),
+            "app_title": settings.book("TITLE") or i18n._("Veillée"),
             # None for the default pack, whose colours are main.css's own.
             "theme_stylesheet": themes.stylesheet_url_path(current_theme()),
             # F50: a made pack has no stylesheet on disk — its colours are

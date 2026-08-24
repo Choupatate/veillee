@@ -123,6 +123,9 @@ complete rather than merely intended to be.
   README is reframed around Veillée
 - **Housekeeping 6** — Toast UI gets the `LICENSE` it never had, and a test
   that catches the next vendored file served without a copyright notice
+- **F54** — The name, in both languages: the app is *Veillée* in English
+  too, on both senses of the word — the fire the family gathers at, and the
+  watch someone keeps — and the login screen finally says so
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7679,3 +7682,129 @@ change, and a README that implied otherwise would be the more confusing of
 the two options.
 
 `pytest` (1524) and `ruff check .` green.
+
+
+## F54. The name, in both languages
+
+The project was *Veillée* and the application was *Storybook*. F53 wrote
+that split down honestly in the README, and it was still a split: a French
+reader met the real name, an English reader met a word that means nothing
+in particular and that [Storybook](https://storybook.js.org) has owned in
+software for a decade. The app now calls itself **Veillée** in English and
+**La Veillée** in French.
+
+### Both senses of the word
+
+*Veillée* carries two, and the app wants both. They are not rivals — the
+app is the second **because** it is the first.
+
+The everyday sense is the gathering: the evening the family sat round the
+fire after the day's work, hands busy, and someone told the stories worth
+keeping. That is what the book is *for*, and it is what the app is already
+dressed as — the firelight wash (F44), the warm paper schemes, the campfire
+on the login screen, the deliberate refusal of anything that would make it
+a feed.
+
+Underneath it is the root verb, *veiller*: to stay awake, to keep watch
+over someone. That one is what the app *does*. Markdown that outlives the
+software, `.versions/` snapshots taken before every save, sealed letters
+kept shut until their hour, the dead still named in the almanac every year.
+A vigil kept over a childhood.
+
+The README's epigraph is where both are said outright, in that order — the
+fire first, because that is the room a reader should picture, and the verb
+second, because that is the promise the storage format is making:
+
+> *la veillée* — the evening the family gathered by the fire, and someone
+> told the stories worth keeping. From *veiller*: to stay awake, to keep
+> watch over someone.
+
+One thing the first sense asks for and does not yet have, noted here rather
+than built: a veillée is an *occasion*, and the app has none. It has days
+(a story is dated to one), months (the almanac) and years (Growing up), but
+no evening — no moment when the family is together with the book rather
+than each alone with it. `months_since_last_story` (F30) is the closest
+thing and it nudges the writer, not the readers. That is a feature-shaped
+gap, not a naming one.
+
+### The login screen
+
+The one screen that speaks in the app's own voice rather than the family's
+— before you are anyone, before their book title means anything to you —
+was captioning a campfire with **"A private memory journal."** A category,
+under a picture and a whole staged room that were already saying something
+better. It now reads:
+
+> Memories fade, what's written stays.
+
+In French, **"Les souvenirs s'évaporent, les écrits restent."** — which is
+the line that matters, the English being written to match it rather than
+the other way round.
+
+It is a rewrite of *"Les paroles s'envolent, les écrits restent"*, the
+proverb every French speaker already carries, and the echo is the point:
+the sentence arrives half-known. What changes is the half that makes it
+this app's — *paroles* become *souvenirs*, so the thing at risk is not a
+spoken word but a memory, which is exactly what a family loses and exactly
+what this software exists to stop.
+
+The order is the proverb's, not the first draft's, and deliberately: the
+vanishing half goes first so the sentence **lands on what survives**.
+Ending on *s'évaporent* ends on the loss; ending on *restent* ends on the
+promise. The screen belongs to a book a parent is writing for a child who
+will read it in twenty years, and the last three words are the reason to
+bother — the nearest thing in the app to a lesson, which is what it was
+asked to be.
+
+The fire is not in the line, and does not need to be: it is in the
+illustration directly beneath it, in the firelight wash over the whole
+page (F44), and in the name at the top. The words are free to do the other
+half.
+
+`.login__subtitle` carries `text-wrap: balance`, and this sentence is the
+one that most repays it. The English fits one line at 390px; the French
+does not, and both wrap at 320px — and in every case the break falls on
+the comma, so each half of the proverb gets a line of its own. That is the
+best reading this sentence has, and it is luck plus `balance` rather than
+anything the markup asks for. An earlier draft of a different line put its
+last word alone on a second row, which is exactly the sort of thing pytest
+cannot see and a screenshot shows instantly. (`text-wrap: pretty` was
+already in `main.css`, so the family of properties had precedent here.) A
+browser without it wraps the way it did before.
+
+That screen can afford to evoke rather than explain, and this is why:
+`request_account.html` and `accept_invite.html` carry their own
+explanatory subtitles for anyone arriving by invitation, and nobody else
+reaches `/login` who does not already know what it is.
+
+The nav brand was also hidden there (`.page-login .site-nav__brand`). The
+name was rendering twice, a hundred pixels apart, on the one screen where
+it is the whole point — and that brand is the only thing in the nav with
+nothing to do before you log in, since it links to the timeline, which
+bounces straight back. The theme toggle, the flame and the language picker
+stay; all three are useful from the door.
+
+### Names change, identifiers do not
+
+The default title is a translated string like any other, so all four
+fallback sites go through `_()` and none of them hardcodes a language:
+`create_app`'s `app_title` template global, `/manifest.webmanifest`,
+`/book.epub`, and the MCP server's `_configured_title`. Product-name prose
+in module docstrings and CSS banners moved with it.
+
+What deliberately did **not** move: `STORYBOOK_*` environment variables,
+the `storybook-lang` cookie, the `window.Storybook*` JS globals, and the
+MCP server's `"storybook"` id. Those are identifiers, not names. Renaming
+them would invalidate the configuration of every install that already
+exists — a `.env` that silently stops working, an MCP client entry that
+stops resolving — and buy nothing a reader would ever see. The README says
+which is which, and why, rather than treating it as an unfinished job.
+
+`test_the_apps_own_name_is_a_translated_string_not_a_hardcoded_one` pins
+both values, and `test_a_reader_meets_the_name_in_their_own_language`
+checks the login page actually shows each one. The two tests that used the
+old subtitle as their canary for "this page is in French" now use the new
+one.
+
+`pytest` (1526) and `ruff check .` green; login checked in a real browser at
+390px in English, French, light and dark.

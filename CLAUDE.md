@@ -4,7 +4,7 @@ Guidance for Claude Code (or any AI agent) working in this repository.
 
 ## What this is
 
-Storybook is a private, self-hosted memory journal: a parent writes stories
+Veillée is a private, self-hosted memory journal: a parent writes stories
 (text + photos) for their child, and the family reads them later as a
 chronological timeline and book-like story pages. It's a Flask app with
 **no database** — every story is a folder of a markdown file (with
@@ -145,6 +145,15 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   subset the browser gets as a JSON blob. A test walks every template and
   fails on an interface string with no translation, so adding a `_("...")`
   means adding a French line in the same commit.
+
+  **The app's own name is one of those strings** (F54): `"Veillée"` →
+  `"La Veillée"`, and it is the default book title, so every fallback site
+  reads `settings.book("TITLE") or i18n._("Veillée")` rather than a literal.
+  The *identifiers* are still `STORYBOOK_*` — the environment variables, the
+  `storybook-lang` cookie, the `window.Storybook*` globals, the MCP server's
+  id — and they stay that way on purpose: renaming them breaks the
+  configuration of every install that already exists and changes nothing a
+  reader sees. Rename prose, never identifiers.
 - `app/settings.py` — the book's own settings (F51): title, birth date,
   the tree's child, narrators, language and theme, in `settings.json` in
   the stories folder. **Read every config value a family can change

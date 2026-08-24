@@ -1,4 +1,4 @@
-/* Storybook — hand-written CSS, no framework. Dark theme is the default. */
+/* Veillée — hand-written CSS, no framework. Dark theme is the default. */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -771,6 +771,15 @@ mark {
 /* Login page                                                              */
 /* ---------------------------------------------------------------------- */
 
+/* The nav brand and the page title are the same word, a hundred pixels
+   apart, on the one screen where the name is the whole point. Let the
+   title have it. The toggles and the language picker stay — those are
+   useful before you are logged in, the brand link is not (it points at the
+   timeline, which bounces straight back here). */
+.page-login .site-nav__brand {
+  display: none;
+}
+
 .login {
   max-width: 24rem;
   margin: 3rem auto;
@@ -787,6 +796,10 @@ mark {
 .login__subtitle {
   color: var(--color-text-dim);
   margin: 0 0 2rem;
+  /* One line on most phones, two on a narrow one — and when it is two,
+     `balance` keeps the last word off a line of its own. Unsupported
+     browsers just wrap normally, which is what they did before. */
+  text-wrap: balance;
 }
 
 /* A note under a field, explaining what it wants — used by the invite

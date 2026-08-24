@@ -14,7 +14,7 @@ you were born"), and French keeps that familiar register — "tu", never
 TRANSLATIONS_FR = {
     # --- the app's own name (STORYBOOK_TITLE overrides this in either
     # language; this is only the default when no family title is set) -----
-    "Storybook": "La Veillée",
+    "Veillée": "La Veillée",
 
     # --- navigation and chrome ---------------------------------------------
     "Skip to content": "Aller au contenu",
@@ -230,7 +230,8 @@ TRANSLATIONS_FR = {
 
     # --- login / accounts ---------------------------------------------------
     "Log in": "Se connecter",
-    "A private memory journal.": "Un journal de souvenirs, rien qu'à vous.",
+    "Memories fade, what's written stays.":
+    "Les souvenirs s'évaporent, les écrits restent.",
     "Username": "Nom d'utilisateur",
     "Password": "Mot de passe",
     "Incorrect password.": "Mot de passe incorrect.",

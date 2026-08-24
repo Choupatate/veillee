@@ -47,7 +47,7 @@ def test_book_cover_shows_title_and_year_range(auth_client, stories_dir):
     resp = auth_client.get("/book")
     html = resp.data.decode()
     assert "book-cover__title" in html
-    assert "Storybook" in html
+    assert "Veillée" in html
     assert "Stories from 2022 to 2025" in html
 
 

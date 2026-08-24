@@ -4,7 +4,7 @@
 {% block content %}
 <div class="login">
   <h1 class="login__title">{{ app_title }}</h1>
-  <p class="login__subtitle">{{ _("A private memory journal.") }}</p>
+  <p class="login__subtitle">{{ _("Memories fade, what's written stays.") }}</p>
   <img class="illo login__illo" src="{{ theme_img('login-campfire.jpg') }}"
        alt="" loading="lazy" decoding="async" width="856" height="735">
   <form class="login__form" method="post" action="{{ url_for('auth.login') }}">

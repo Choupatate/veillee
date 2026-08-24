@@ -59,6 +59,20 @@ def test_no_french_entry_is_identical_to_its_english_key():
     assert not lazy, f"French value identical to the English key: {lazy}"
 
 
+def test_the_apps_own_name_is_a_translated_string_not_a_hardcoded_one():
+    """The default book title *is* the app's name, and the app has one in
+    each language. Every fallback site goes through `_()` so that stays
+    true; a family's own title (F51) is what replaces it, nothing else."""
+    assert i18n.gettext("Veillée", "en") == "Veillée"
+    assert i18n.gettext("Veillée", "fr") == "La Veillée"
+
+
+def test_a_reader_meets_the_name_in_their_own_language(client):
+    assert "Veillée".encode() in client.get("/login").data
+    client.post("/language/fr", data={"next": "/login"})
+    assert "La Veillée".encode() in client.get("/login").data
+
+
 def test_no_french_value_is_empty():
     assert not [k for k, v in TRANSLATIONS_FR.items() if not v.strip()]
 
@@ -228,15 +242,15 @@ def test_choosing_french_sets_a_durable_cookie_and_returns_you_to_the_page(clien
 
 
 def test_the_choice_actually_changes_the_page(client):
-    assert b"A private memory journal" in client.get("/login").data
+    assert b"Memories fade, what" in client.get("/login").data
     client.post("/language/fr", data={"next": "/login"})
-    assert "Un journal de souvenirs".encode() in client.get("/login").data
+    assert "les écrits restent".encode() in client.get("/login").data
 
 
 def test_the_choice_survives_logging_out(auth_client):
     auth_client.post("/language/fr", data={"next": "/"})
     auth_client.post("/logout")
-    assert "Un journal de souvenirs".encode() in auth_client.get("/login").data
+    assert "les écrits restent".encode() in auth_client.get("/login").data
 
 
 def test_html_lang_attribute_follows_the_choice(client):

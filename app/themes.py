@@ -219,7 +219,7 @@ def pick_theme(chosen: str | None, configured: str | None = None, user_dir=None)
 def label(theme: str, user_dir=None) -> str:
     """The pack's name for a human: its `theme.json` label, or the folder
     name tidied up. Not translated — a pack's name is a proper noun, the
-    way "Storybook" is when a family has set STORYBOOK_TITLE."""
+    way "Veillée" is when a family has set STORYBOOK_TITLE."""
     declared = _manifest(theme, user_dir).get("label")
     if isinstance(declared, str) and declared.strip():
         return declared.strip()[:32]

@@ -249,7 +249,7 @@ def random_page():
 def manifest():
     """Web app manifest for home-screen install (FEATURES.md F9). No login
     required — the manifest and icons must be fetchable before install."""
-    title = settings.book("TITLE") or i18n._("Storybook")
+    title = settings.book("TITLE") or i18n._("Veillée")
     data = {
         "name": title,
         "short_name": title,
@@ -330,7 +330,7 @@ def book_epub():
         path = stories_dir / story_id / filename
         return path.read_bytes() if path.is_file() else None
 
-    title = settings.book("TITLE") or i18n._("Storybook")
+    title = settings.book("TITLE") or i18n._("Veillée")
     buf = epub.build_epub(
         title,
         readable[0].date.year if readable else None,

@@ -1,4 +1,4 @@
-"""MCP server exposing Storybook's stories/people to AI tools (FEATURES.md
+"""MCP server exposing Veillée's stories/people to AI tools (FEATURES.md
 F32): a read-write "authoring" surface an assistant like Claude can use to
 help write and organize a family's journal.
 
@@ -54,7 +54,7 @@ from . import dates, kinship, life_events, people, prompts, settings, storage, t
 mcp = FastMCP(
     "storybook",
     instructions=(
-        "Tools for reading and writing a private family journal (Storybook). "
+        "Tools for reading and writing a private family journal (Veillée). "
         "Stories are dated entries with a title and markdown body; people are "
         "the family/friends who can be tagged in a story and linked into a "
         "family tree. Call get_journal_context first to see what's already "
@@ -141,7 +141,7 @@ def _configured_birthdate() -> Optional[date_cls]:
 
 
 def _configured_title() -> str:
-    return _book().get("TITLE") or "Storybook"
+    return _book().get("TITLE") or "Veillée"
 
 
 # --- Validation (framework-free mirror of routes_api.py/routes_api_people.py) --
