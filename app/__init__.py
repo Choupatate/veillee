@@ -188,7 +188,13 @@ def create_app(test_config=None):
         routes_themes,
     )
 
-    CSRFProtect(app)
+    csrf = CSRFProtect(app)
+    # The only CSRF exemption in the app, kept here rather than as a
+    # decorator so that "what is unprotected" is one grep of the factory.
+    # /share is posted by the phone's share sheet (F57), which builds the
+    # request itself and cannot be handed a token; the route checks
+    # Sec-Fetch-Site instead and creates only a draft.
+    csrf.exempt(routes_pages.share_target)
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(views.bp)

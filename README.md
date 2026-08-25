@@ -622,6 +622,16 @@ like an app when launched. Regenerate the icons with
 `python scripts/make_icons.py` if you change the design; the outputs are
 committed under `app/static/icons/`.
 
+**Installing also puts Veillée in the phone's share sheet.** Once it's on
+the home screen, sharing a photo from the camera roll (or from anywhere
+else) offers Veillée as a destination: pick it, and the editor opens with
+that photo already attached, as a **draft**. Write something, save, and it
+becomes a story; leave it, and it stays on the Drafts page and never
+reaches the timeline or the book.
+
+This is the fastest way to get a moment into the book, and it only exists
+once the app is installed — a browser tab can't appear in a share sheet.
+
 ### Sealed letters
 
 Setting a "Seal until" date on a story in the editor turns it into a sealed

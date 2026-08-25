@@ -250,6 +250,15 @@ side effect; **no route file imports another**.
   also owns `/export`'s own scoping rules (`_exportable_story_ids`,
   `_viewer_may_export_credentials`), which decide what a backup contains
   for a guest, a family member and an admin respectively.
+  `routes_pages.py` also owns **the one CSRF-exempt route in the app**,
+  `/share` (F57): the phone's share sheet builds that POST itself and
+  cannot be handed a token. The exemption is applied in `create_app` next
+  to `CSRFProtect(app)` rather than as a decorator, so what is unprotected
+  stays greppable in one place. Two things replace the token and both must
+  survive any change to that route — a `Sec-Fetch-Site` check that refuses
+  anything but a browser's own navigation, and the fact that a share
+  creates a **draft**, so a forged one can never write a page into a book
+  that has no way to delete stories.
 - `app/routes_api.py` (+ `routes_api_people.py`) — JSON API routes
   (Blueprint `api`, under `/api`), consumed by the editor and tree JS.
   `routes_api_people.py` registers onto `routes_api.py`'s `bp` the same

@@ -135,6 +135,9 @@ complete rather than merely intended to be.
 - **Housekeeping 7** — three account forms carried an HTML `pattern` that
   throws in a modern browser, so it validated nothing at all; a test that
   compiles every pattern the way a browser does
+- **F57** — The app in the phone's share sheet: send a photo to Veillée
+  from wherever you are looking at it, and land in the editor with it
+  already attached — as a draft, which is what makes that safe
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -8043,3 +8046,101 @@ to mean (`marie-jo` yes, `Mamie` no, `ab` no, `mamie!` no). Confirmed by
 reverting one template and watching it fail with the right filename.
 
 `pytest` (1539) and `ruff check .` green.
+\n
+
+## F57. The app in the share sheet
+
+The app was good at *keeping* memories and bad at *catching* them. Writing
+a story meant remembering to open Veillée, then going back to find the
+photo. Everything about that order is wrong: the photo is the thing that
+prompted the memory, and by the time you have navigated to it the impulse
+has usually passed.
+
+An installed PWA can declare `share_target` in its manifest and appear in
+the phone's own share sheet. Take a photo → Share → **Veillée** → the
+editor opens with the picture already in it. The app becomes a destination
+for something you were already doing, rather than an errand.
+
+### It is a draft, and that is the whole design
+
+A shared photo creates a **draft** story. It is a picture flicked at the app
+from another screen — not a page of the book until somebody writes
+something and saves. `readable_stories` filters drafts out, so nothing
+appears in the timeline, the book view, on-this-day or the EPUB until it is
+meant to.
+
+That is a good idea on its own, and it is also what makes the next section
+safe.
+
+### The one CSRF exemption in the app
+
+`/share` cannot carry a CSRF token. Android builds the request; there is
+nowhere to put one. So it is exempted from `CSRFProtect` — the only route
+that is — and the exemption lives in `create_app` beside the protection
+itself rather than as a decorator on the view, so "what is unprotected" is
+one grep of the factory.
+
+Two things stand in its place:
+
+**`Sec-Fetch-Site`.** A share-sheet POST is a browser-initiated navigation
+and arrives with `none`; a form auto-submitted from evil.com arrives with
+`cross-site`. Anything but `none` or `same-origin` is refused with 403.
+A *missing* header is allowed on purpose — every browser implementing Web
+Share Target sends Fetch Metadata, so absence means a browser too old for
+either, and the header is set by the browser and cannot be suppressed by
+the page trying to get through.
+
+**The draft.** Even if both of the above were bypassed, the worst a forged
+share achieves is an unpublished draft on the /drafts page. This matters
+more here than it would elsewhere, because **story deletion is deliberately
+out of scope** (CLAUDE.md): a CSRF that could write a real page into the
+book would write one the app has no way to remove.
+
+`login_required` still applies, so an attacker needs an authenticated
+victim before any of this is reachable.
+
+### Details worth keeping
+
+- **Images are re-encoded through Pillow**, exactly like every other upload
+  — `storage.save_image`, same path the editor uses. A shared file is an
+  untrusted file.
+- **A file Pillow cannot read is skipped, not fatal.** Android will happily
+  offer a PDF to an `image/*` target. Losing one attachment beats 500-ing
+  and losing the whole share.
+- **Image links are bare filenames** (`![](photo-001.jpg)`), the way story
+  markdown always stores them, so the folder stays portable without the app.
+- **Titles.** An explicit shared title wins; otherwise a short first line of
+  the shared text becomes one; otherwise "Untitled", which is what the
+  editor already uses. The cap exists because the folder name is built from
+  the title, and a pasted paragraph is a body, not a name.
+
+### What could not be verified here
+
+The route was exercised end to end with CSRF protection on: a multipart
+POST with no token and `Sec-Fetch-Site: none` returns 302 to `/edit/<id>`,
+the story is a draft, both photos are saved and thumbnailed, and the same
+POST marked `cross-site` gets a 403 with nothing written.
+
+Chromium's own manifest parser was then asked what it made of the
+declaration (`Page.getAppManifest` over CDP): **zero parse errors**, and
+`share_target` read back exactly as written. That is worth more than it
+sounds — Chromium validates this field strictly, checking the action is in
+scope and that the method and enctype are a legal pair — so the declaration
+being well-formed is settled rather than hoped for.
+
+**What no test here can prove is that Android's share sheet delivers that
+POST to the server at all.** The reasoning is that a `method: "POST"` share
+target performs a navigation POST to the action URL, and with no service
+worker to intercept it that navigation goes to the network — which is the
+plain case for a server-rendered app. It needs one check on a real phone
+with the app installed, and it will not appear in the share sheet at all
+until it is installed.
+
+Nineteen tests. The negative ones were each confirmed by breaking the thing
+they guard — and one of those attempts was aimed at the wrong line
+(`create_story(draft=True)` is overridden by the `save_story` that follows,
+so flipping it changes nothing observable), which is why the redundancy now
+carries a comment explaining that it covers the window between the two
+writes rather than the outcome.
+
+`pytest` (1558) and `ruff check .` green.

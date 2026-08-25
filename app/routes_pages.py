@@ -23,6 +23,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from flask import (
+    abort,
     current_app,
     jsonify,
     redirect,
@@ -255,6 +256,22 @@ def manifest():
         "short_name": title,
         "start_url": "/",
         "display": "standalone",
+        # F57: what makes the installed app appear in the phone's share
+        # sheet. `method` has to be POST for files to come through at all,
+        # and the POST lands on /share as an ordinary form submission —
+        # there is no service worker here to intercept it, and this app
+        # does not want one.
+        "share_target": {
+            "action": url_for("pages.share_target"),
+            "method": "POST",
+            "enctype": "multipart/form-data",
+            "params": {
+                "title": "title",
+                "text": "text",
+                "url": "url",
+                "files": [{"name": SHARE_FILES_FIELD, "accept": ["image/*"]}],
+            },
+        },
         "background_color": "#141210",
         "theme_color": "#141210",
         "icons": [
@@ -494,6 +511,112 @@ def story_media(story_id, filename):
     # direct URL, which is most of what a scoped story is protecting.
     get_story_or_404(current_app.config["STORIES_DIR"], story_id)
     return serve_media(current_app.config["STORIES_DIR"], story_id, filename)
+
+
+# --- F57: photos arriving from the phone's share sheet -----------------------
+
+#: The manifest's `share_target.params.files[].name`, and so the multipart
+#: field Android posts the pictures in.
+SHARE_FILES_FIELD = "photos"
+
+#: How much of a shared caption is allowed to become the story's title
+#: before the rest is left in the body. Long enough for a real sentence,
+#: short enough that a pasted paragraph doesn't become a folder name.
+SHARE_TITLE_MAX = 80
+
+
+def _share_is_a_browser_navigation() -> bool:
+    """Whether this POST looks like the browser's own share sheet rather
+    than a form on somebody else's site.
+
+    `/share` cannot carry a CSRF token — Android builds the request, not
+    us — so it is the one route exempted from `CSRFProtect`, and this
+    stands in its place. A share-sheet POST is a browser-initiated
+    navigation and arrives with `Sec-Fetch-Site: none`; a form submitted
+    from evil.com arrives with `cross-site`, which is refused.
+
+    A *missing* header is allowed on purpose. Every browser that implements
+    Web Share Target sends Fetch Metadata, so absence means a browser too
+    old for either — and one that was never protected by this check anyway,
+    since the header is set by the browser and cannot be forged by a page.
+    """
+    site = request.headers.get("Sec-Fetch-Site")
+    return site is None or site in ("none", "same-origin")
+
+
+@bp.route("/share", methods=["POST"])
+@login_required
+def share_target():
+    """Receive a photo shared from the phone and open it in the editor
+    (FEATURES.md F57).
+
+    The story is created as a **draft**: it is a picture somebody flicked
+    at the app from another screen, not a page of the book, and it stays
+    out of `readable_stories` until a parent writes something and saves.
+    That is also what keeps the CSRF exemption above proportionate — the
+    worst a forged share can do is leave an unpublished draft on the
+    /drafts page.
+    """
+    if not _share_is_a_browser_navigation():
+        abort(403)
+
+    stories_dir = current_app.config["STORIES_DIR"]
+    shared_title = (request.form.get("title") or "").strip()
+    shared_text = (request.form.get("text") or "").strip()
+    shared_url = (request.form.get("url") or "").strip()
+
+    # Android sends a photo with no title and often no text at all, so most
+    # of the time this lands on "Untitled" — the same placeholder the
+    # editor uses when it creates a story to hang the first upload on.
+    title, leftover = _share_title(shared_title, shared_text)
+
+    # `draft=True` twice, here and on the save below, and not by accident:
+    # the folder exists on disk from this line onward, so if saving the
+    # body fails the story left behind is still a draft rather than a blank
+    # published page. The save is what the draft test actually pins.
+    story_id = storage.create_story(stories_dir, title, date.today(), "", draft=True)
+
+    body = []
+    for file_storage in request.files.getlist(SHARE_FILES_FIELD):
+        if not file_storage or not file_storage.filename:
+            continue
+        try:
+            filename = storage.save_image(stories_dir, story_id, file_storage)
+        except Exception:
+            # Whatever was shared, Pillow could not read it as an image.
+            # Losing one picture is better than losing the whole share.
+            continue
+        # Bare filename, the way story markdown always stores an image —
+        # see media-links.js on why the folder stays portable.
+        body.append(f"![]({filename})")
+
+    for extra in (leftover, shared_url):
+        if extra:
+            body.append(extra)
+
+    storage.save_story(
+        stories_dir, story_id, title, date.today(), "\n\n".join(body), draft=True,
+    )
+    return redirect(url_for("pages.edit_story", story_id=story_id))
+
+
+def _share_title(shared_title: str, shared_text: str):
+    """(title, whatever text is left for the body).
+
+    A share carries a title, a text, both or neither. When there is no
+    title, a short first line of the text makes a better one than
+    "Untitled" does — but only the first line, and only if it is short:
+    a shared paragraph is a body, not a name.
+    """
+    if shared_title:
+        return shared_title, shared_text
+    if not shared_text:
+        return "Untitled", ""
+    first, _, rest = shared_text.partition("\n")
+    first = first.strip()
+    if first and len(first) <= SHARE_TITLE_MAX:
+        return first, rest.strip()
+    return "Untitled", shared_text
 
 
 @bp.route("/new")
