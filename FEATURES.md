@@ -132,6 +132,9 @@ complete rather than merely intended to be.
 - **F56** — Two things the phone already knew how to do: handing a write
   link straight to the person it was made for, and giving a voice memo a
   name on the lock screen
+- **Housekeeping 7** — three account forms carried an HTML `pattern` that
+  throws in a modern browser, so it validated nothing at all; a test that
+  compiles every pattern the way a browser does
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7985,4 +7988,58 @@ correctly labels itself "Copy", clicking it puts the exact share URL on the
 clipboard, and the label flashes "Copied" and returns. Tier 1 is the one
 thing here no test can reach — a share sheet needs a real phone.
 
-`pytest` (1548) and `ruff check .` green.
+`pytest` (1538) and `ruff check .` green.
+\n
+
+## Housekeeping 7. A validation that had quietly stopped happening
+
+Found while driving a browser through the account flow for F56, which is
+the only way it could have been found.
+
+`accept_invite.html`, `admin_new_account.html` and `request_account.html`
+each carried:
+
+```html
+<input name="username" pattern="[a-z0-9-]{3,32}" required>
+```
+
+That is a perfectly good regular expression, and browsers were refusing to
+use it. HTML compiles `pattern` with the **`v` flag**, and under `v` a lone
+`-` inside a character class is reserved and throws. A pattern that throws
+is not a pattern that rejects — the browser discards it and validates
+nothing. The console said `Invalid regular expression: /[a-z0-9-]{3,32}/v:
+Invalid character class` to nobody, and the three forms had been accepting
+`BAD!!` for as long as they had existed.
+
+```
+u  "[a-z0-9-]{3,32}"     compiles
+v  "[a-z0-9-]{3,32}"     THROWS: Invalid character class
+u  "[a-z0-9\-]{3,32}"    compiles
+v  "[a-z0-9\-]{3,32}"    compiles
+```
+
+Escaping the dash fixes all three. Confirmed in Chromium 141 against the
+real page afterwards: `BAD!!` now reports `patternMismatch: true`,
+`marie-jo` still validates, and the console error is gone.
+
+**The impact was never more than annoyance.** `accounts.USERNAME_RE` is the
+same expression in Python, where it is fine, and it is what actually
+governs what gets stored — nothing invalid was ever written. What was lost
+is the instant client-side "no", so a bad username survived a round trip to
+the server before being refused.
+
+The interesting part is the failure mode: a validation that stops happening
+looks exactly like a validation that is passing. No Python test can see it,
+because the regex is fine in Python; no human notices, because the symptom
+is the *absence* of an error message.
+
+So the guard needs a JavaScript regex engine, and
+`tests/js/html_patterns_test.mjs` walks every template, pulls every
+`pattern="..."`, and compiles each one as `^(?:...)$` under `v` exactly as
+a browser would. It also asserts the scanner still finds at least four
+patterns — without that, a broken scanner makes every other check pass
+vacuously — and that the username pattern still means what it was written
+to mean (`marie-jo` yes, `Mamie` no, `ab` no, `mamie!` no). Confirmed by
+reverting one template and watching it fail with the right filename.
+
+`pytest` (1539) and `ruff check .` green.

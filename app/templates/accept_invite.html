@@ -13,7 +13,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="login__label" for="username">{{ _("Username") }}</label>
     <input class="login__input" type="text" id="username" name="username"
-           autocomplete="username" pattern="[a-z0-9-]{3,32}" autofocus required>
+           autocomplete="username" pattern="[a-z0-9\-]{3,32}" autofocus required>
     <p class="login__hint">{{ _("3-32 characters: lowercase letters, numbers, hyphens.") }}</p>
 
     <label class="login__label" for="password">{{ _("Password") }}</label>
