@@ -126,6 +126,9 @@ complete rather than merely intended to be.
 - **F54** — The name, in both languages: the app is *Veillée* in English
   too, on both senses of the word — the fire the family gathers at, and the
   watch someone keeps — and the login screen finally says so
+- **F55** — Turning the page: cross-document view transitions, so moving
+  between timeline and story stops being a white blink — one at-rule, no
+  JavaScript, and nothing to fall back to
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7808,3 +7811,85 @@ one.
 
 `pytest` (1526) and `ruff check .` green; login checked in a real browser at
 390px in English, French, light and dark.
+\n
+
+## F55. Turning the page
+
+Navigating from the timeline to a story was a white blink — the browser
+tearing down one document and painting another. For an app whose stated
+value is "restraint and typography," the single most common interaction in
+it looked like 2005.
+
+```css
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 260ms;
+    animation-timing-function: ease;
+  }
+}
+```
+
+That is the whole feature. No JavaScript, no library, no build step, and
+nothing to polyfill — a browser without support navigates exactly as it did
+yesterday.
+
+### Why this one is free and the rest of the platform is not
+
+Cross-document view transitions exist *because* of apps shaped like this
+one. Multi-page, server-rendered sites spent a decade being told that
+feeling continuous required a single-page framework; the platform's answer
+was to give the navigation itself a transition, so the browser snapshots
+the outgoing document, fetches the next, and cross-fades between them.
+
+Which means the thing CLAUDE.md refuses to do — adopt a framework — is
+exactly what stops being a prerequisite here. It is worth noticing that
+this is the *opposite* of how most modern web capability arrives: the
+usual bargain is that a feature is free because somebody else's server
+does the work (push notifications, hosted speech-to-text), and that bargain
+is unavailable to an app with no runtime network dependencies. This one is
+free because the browser does the work locally.
+
+### The two numbers
+
+**260ms, `ease`.** The platform default is around 250ms, tuned for app
+chrome. Much longer reads as a slideshow; much shorter is indistinguishable
+from no transition, which is the failure mode where you pay the complexity
+and get nothing. `ease` rather than anything springy: paper does not bounce.
+
+### Reduced motion
+
+The at-rule is nested *inside* `prefers-reduced-motion: no-preference`
+rather than being disabled under a `reduce` query. That is the direction
+the rest of `main.css` already goes — animation is opted into here, never
+opted out of — and it is the safer default: a rule that has to be
+remembered to turn something *off* is a rule that eventually is not.
+
+Nesting an at-rule inside a media query was the one part of this that
+needed checking rather than assuming, so it was checked. In Chromium 141,
+with reduced motion unset, `pagereveal` fires on the new document with
+`event.viewTransition` set; with reduced motion on, it fires with no
+transition at all. Both directions, measured, not inferred.
+
+### What is not here
+
+No `view-transition-name` on individual elements. Naming the timeline's
+photo and the story's photo the same thing would make the picture appear to
+grow into the page, which is a genuinely lovely effect and the wrong one:
+story ids start with a digit and are not valid CSS idents, so it needs
+generated per-story names, and a photo that flies across the screen is an
+app gesture rather than a book one. The whole-page cross-fade says
+"continuous" without saying "look at me". If it ever seems worth doing, it
+is additive and nothing here blocks it.
+
+Six tests in `tests/test_view_transitions.py`, and they guard *placement*
+rather than existence: that the at-rule is inside the reduced-motion query
+(hoisting it out is the obvious tidy-up, and it would animate navigation
+for someone whose system asked it not to), that `navigation` is `auto`,
+that both halves of the cross-fade are timed rather than just the outgoing
+one, and that the duration stays in a range where it reads as a transition
+at all. Each was confirmed by breaking it and watching the right test fail.
+
+`pytest` (1532) and `ruff check .` green.

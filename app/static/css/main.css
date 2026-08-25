@@ -18,6 +18,43 @@ html, body {
 }
 
 /* ---------------------------------------------------------------------- */
+/* F55: turning the page                                                    */
+/*                                                                          */
+/* Cross-document view transitions. One at-rule, no JavaScript, no build    */
+/* step: the browser snapshots the outgoing page, fetches the next one and  */
+/* cross-fades between them, so moving from the timeline to a story stops   */
+/* being a white blink and becomes a page settling into place.              */
+/*                                                                          */
+/* This works here precisely *because* the app is server-rendered and has   */
+/* no framework — cross-document transitions were added to the platform for */
+/* multi-page apps, which had spent a decade being told they needed a       */
+/* single-page framework to feel continuous. A browser without support      */
+/* navigates exactly as it did before; there is nothing to fall back to and */
+/* nothing to polyfill.                                                     */
+/*                                                                          */
+/* 260ms is deliberate. The platform default (~250ms) is tuned for app      */
+/* chrome; anything much longer reads as a slideshow, and anything shorter  */
+/* is indistinguishable from no transition at all. `ease` rather than a     */
+/* spring: paper does not bounce.                                           */
+/*                                                                          */
+/* Nested inside the reduced-motion query on purpose. A view transition is  */
+/* motion, and the rest of this file already opts *in* to animation the     */
+/* same way rather than opting out of it.                                   */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 260ms;
+    animation-timing-function: ease;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
 /* F17: hand-drawn visual identity ("le style du ranch")                   */
 /*                                                                          */
 /* Every JPEG illustration carries its own cream paper background, so the  */
