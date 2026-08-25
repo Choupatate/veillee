@@ -129,6 +129,9 @@ complete rather than merely intended to be.
 - **F55** — Turning the page: cross-document view transitions, so moving
   between timeline and story stops being a white blink — one at-rule, no
   JavaScript, and nothing to fall back to
+- **F56** — Two things the phone already knew how to do: handing a write
+  link straight to the person it was made for, and giving a voice memo a
+  name on the lock screen
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7893,3 +7896,93 @@ one, and that the duration stays in a range where it reads as a transition
 at all. Each was confirmed by breaking it and watching the right test fail.
 
 `pytest` (1532) and `ruff check .` green.
+\n
+
+## F56. Two things the phone already knew how to do
+
+Neither of these is a feature so much as an apology for not having asked
+the platform earlier. Both are small, both are progressive enhancements
+that vanish cleanly, and both fix a moment where the app made someone do
+by hand something their phone does natively.
+
+### Handing a link over
+
+A write link (F19) and an invitation (F39) are each a URL that exists to be
+given to one specific person — usually a grandparent, usually over a chat
+app, usually from a phone. The page printed the URL inside a `<code>` and
+left you to select it with a fingertip, which is the single most annoying
+gesture a touchscreen has.
+
+There is now a button under it, and `share-link.js` picks one of three
+tiers by what the browser can actually do:
+
+1. **`navigator.share()`** — the OS share sheet. The link goes straight
+   into a conversation with the person it was made for. Phones, and Safari.
+2. **`navigator.clipboard`** — copy it, and say "Copied" for a second and a
+   half. Desktop browsers.
+3. **select the text** — not the same as copying, but one keystroke from it
+   rather than a dead button. This tier is not hypothetical: the Clipboard
+   API needs a secure context and a self-hosted app on a home network often
+   is not one, which is the same reason `theme-form.js` already ends its
+   copy buttons this way.
+
+Capability is tested with `navigator.canShare({url})` rather than
+`"share" in navigator`, because the property exists in places the call
+throws and some browsers can share text but not a URL.
+
+The button ships `hidden` in the markup and the script unhides it, so a
+browser with no JavaScript shows the URL as selectable text and no control
+that would do nothing — the same bargain `editor.js` makes for its camera
+button. Its label is set by the script too, for the same reason: rendering
+"Share" server-side would be wrong on every desktop, and rendering either
+one would flicker on the way to being corrected.
+
+### The rule this needed a module for
+
+`share-logic.js` exists for one line of judgement. A share sheet that was
+opened and then dismissed rejects with `AbortError`, and **that is the
+person saying "not now", not a share that failed.** Treating it as a
+failure means quietly falling down a tier and putting a private
+write-link on their clipboard because they closed a dialog. So the
+tier choice and `afterShareFailure` are pure functions in a UMD module,
+tested under plain Node (`tests/js/share_link_test.mjs`, ten checks),
+and `share-link.js` is left holding nothing but DOM wiring.
+
+### A voice on the lock screen
+
+A memo is a child's actual voice, and the way you listen to one is with the
+phone in your pocket while you do something else. The moment the screen
+locks, a bare `<audio>` element becomes a nameless thing playing from
+"Chrome", with no controls you can reach without unlocking.
+
+`memo-session.js` sets `navigator.mediaSession.metadata` when a memo starts
+playing: the story's title as the track, the book's title as the artist,
+the app icon as the artwork. Play/pause from the lock screen and the
+headphones start working as a side effect of the metadata existing.
+
+Three deliberate omissions. **No `setActionHandler` calls** — seek and
+next/previous need them, and "next memo" is a playlist, which is a
+music-player idea rather than a book one. **The metadata is set on `play`,
+not on load**, because a story can hold several memos and the session
+belongs to whichever one is actually sounding. **A memo gets no name of its
+own**: it is `memo-003.webm` on disk, so naming it on the lock screen would
+mean inventing something.
+
+The whole file is wrapped in a capability check and the metadata assignment
+in a `try`. Metadata is decoration; a browser that dislikes the artwork URL
+must not take the audio down with it.
+
+### Tests
+
+Five in `tests/test_share_link.py` for the markup — that the button exists
+on both pages and carries the right URL, that it ships `hidden`, that it
+carries *no* text of its own, and that the `<code>` is addressable for the
+third tier. Ten in `tests/js/share_link_test.mjs` for the two rules.
+
+Verified in a real Chromium at 390px: the button is hidden in the HTML and
+visible on the page, headless Chromium has no `navigator.share` so it
+correctly labels itself "Copy", clicking it puts the exact share URL on the
+clipboard, and the label flashes "Copied" and returns. Tier 1 is the one
+thing here no test can reach — a share sheet needs a real phone.
+
+`pytest` (1548) and `ruff check .` green.

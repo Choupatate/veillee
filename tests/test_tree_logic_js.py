@@ -35,6 +35,15 @@ def test_tree_logic_pure_functions():
 
 
 @pytest.mark.skipif(NODE is None, reason="node not available on PATH")
+def test_share_logic_pure_functions():
+    result = subprocess.run(
+        [NODE, "tests/js/share_link_test.mjs"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node not available on PATH")
 def test_tree_graph_logic_pure_functions():
     result = subprocess.run(
         [NODE, "tests/js/tree_graph_logic_test.mjs"],

@@ -13,7 +13,14 @@
 
   {% if new_link_url %}
   <p class="admin__hint"><strong>{{ _("Copy this now — it won't be shown again:") }}</strong></p>
-  <p class="admin__token"><code>{{ new_link_url }}</code></p>
+  <p class="admin__token"><code id="new-link-url">{{ new_link_url }}</code></p>
+  <p class="admin__share-row">
+    <button type="button" class="btn admin__share" hidden
+            data-share-url="{{ new_link_url }}"
+            data-share-source="new-link-url"
+            data-share-title="{{ app_title }}"
+            data-share-text="{{ _('Write a story for our book — this link is just for you.') }}"></button>
+  </p>
   {% endif %}
 
   <form class="admin__form" method="post" action="{{ url_for('pages.account_write_links') }}">
@@ -51,4 +58,9 @@
   </ul>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/share-logic.js') }}"></script>
+<script src="{{ url_for('static', filename='js/share-link.js') }}"></script>
 {% endblock %}

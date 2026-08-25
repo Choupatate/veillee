@@ -1654,6 +1654,15 @@ img.people__portrait {
   overflow-wrap: anywhere;
 }
 
+/* F56: the button that hands a link over. Sits directly under the URL it
+   shares, and ships `hidden` — share-link.js unhides it, so a browser
+   without JS shows selectable text rather than a button that does
+   nothing. `min-height: 44px` comes from .btn and is the point on a
+   phone: this exists to replace a fingertip text selection. */
+.admin__share-row {
+  margin: 0.5rem 0 1rem;
+}
+
 /* Inline aside on an account row: a duplicate-name match on a pending
    request, or an invitation's expiry date (F39). */
 .admin__row-hint {

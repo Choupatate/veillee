@@ -232,6 +232,11 @@ TRANSLATIONS_FR = {
     "Log in": "Se connecter",
     "Memories fade, what's written stays.":
     "Les souvenirs s'évaporent, les écrits restent.",
+    "Share": "Partager",
+    "Write a story for our book — this link is just for you.":
+    "Écris une histoire pour notre livre — ce lien est pour toi.",
+    "Come and read our family book — this link makes you an account.":
+    "Viens lire notre livre de famille — ce lien te crée un compte.",
     "Username": "Nom d'utilisateur",
     "Password": "Mot de passe",
     "Incorrect password.": "Mot de passe incorrect.",

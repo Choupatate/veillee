@@ -14,7 +14,14 @@
 
   {% if new_invite_url %}
   <p class="admin__hint"><strong>{{ _("Copy this now — it won't be shown again:") }}</strong></p>
-  <p class="admin__token"><code>{{ new_invite_url }}</code></p>
+  <p class="admin__token"><code id="new-invite-url">{{ new_invite_url }}</code></p>
+  <p class="admin__share-row">
+    <button type="button" class="btn admin__share" hidden
+            data-share-url="{{ new_invite_url }}"
+            data-share-source="new-invite-url"
+            data-share-title="{{ app_title }}"
+            data-share-text="{{ _('Come and read our family book — this link makes you an account.') }}"></button>
+  </p>
   {% endif %}
 
   <form class="admin__form" method="post">
@@ -35,4 +42,9 @@
     <button class="btn btn--primary login__submit" type="submit">{{ _("Create invitation") }}</button>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/share-logic.js') }}"></script>
+<script src="{{ url_for('static', filename='js/share-link.js') }}"></script>
 {% endblock %}
