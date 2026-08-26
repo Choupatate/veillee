@@ -117,7 +117,12 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   `_exportable_story_ids`/`_viewer_may_export_credentials` decide them
   from the session, beside the route they guard. A guest never reaches
   `/export`; a family member gets the stories they can see and no
-  credential files; an admin gets everything.
+  credential files; an admin gets everything — **except the signing key**,
+  which `NEVER_EXPORTED` withholds from every role in both directions
+  (F59). Keep that distinction: `CREDENTIAL_FILENAMES` are scrypt hashes,
+  an offline guessing target withheld from non-admins; the signing key is
+  not a target but the answer, and an import carrying one is refused
+  outright rather than skipped.
 
   Also the book's memory of **when it was last backed up** (F58):
   `record_backup`/`last_backup` and `BACKUP_MARKER_FILENAME`. Only a
@@ -176,6 +181,13 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   already set up** whether or not the file exists: an install upgrading
   into this feature must never be asked to configure a book it has been
   writing in for a year.
+- `app/secret_key.py` — the session-signing key when nobody supplied one
+  (F59): generate 32 bytes, keep them in the stories folder at mode `0600`,
+  and let the environment win whenever it has an answer. A leaf, imported
+  by `create_app` and by `backup.py` (which needs the filename to keep it
+  out of every zip). Created with `O_EXCL` rather than check-then-write on
+  purpose — two workers can start at once, and the loser must adopt the
+  winner's key instead of writing a competing one.
 - `app/throttle.py` — the per-IP login lockout (10 failures / 15 minutes),
   in memory and deliberately not persisted.
 - `app/jsonstore.py` — `write_json(path, data)`: the one way a sidecar JSON
@@ -385,9 +397,13 @@ cp .env.example .env   # then edit STORYBOOK_PASSWORD and STORYBOOK_SECRET_KEY
 python run.py           # dev server, debug on, http://127.0.0.1:5000
 ```
 
-`STORYBOOK_SECRET_KEY` (not `SECRET_KEY`) is the Flask session-signing key;
-the app refuses to start without one once `STORYBOOK_PASSWORD` is set. See
-`.env.example` for every other `STORYBOOK_*` variable.
+`STORYBOOK_SECRET_KEY` (not `SECRET_KEY`) is the Flask session-signing key.
+It is **optional** since F59: with a password set and no key in the
+environment, `app/secret_key.py` generates one and keeps it in the stories
+folder. The environment still wins when it has an answer, and the app still
+refuses to start when it can neither read nor write that file — an
+ephemeral key would log the whole family out on every restart, silently.
+See `.env.example` for every other `STORYBOOK_*` variable.
 
 ## Testing
 

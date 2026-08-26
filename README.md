@@ -68,9 +68,13 @@ choice is remembered per browser.
 
 ### What you actually have to set up
 
-Two things, once: a **password** and a **secret key**, in a `.env` file
-(or as environment variables in Docker). That is the whole technical
-setup.
+One thing, once: a **password**, in a `.env` file (or as an environment
+variable in Docker). That is the whole technical setup.
+
+There used to be a second — a session-signing key — and the app refused to
+start without it. It generates and keeps its own now, so the only decision
+left is one anybody can make. You can still supply `STORYBOOK_SECRET_KEY`
+if you would rather hold that key yourself, and it wins when you do.
 
 Everything else about the book happens **in the browser**. The first time
 you log in, the app asks you four questions — what the book is called, who
@@ -100,7 +104,7 @@ Requires Python 3.12+.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # then edit STORYBOOK_PASSWORD and STORYBOOK_SECRET_KEY
+cp .env.example .env   # then edit STORYBOOK_PASSWORD
 python run.py
 ```
 
@@ -120,7 +124,7 @@ python scripts/seed_demo.py ./stories
 ### Locally (production-style, waitress)
 
 ```bash
-STORYBOOK_PASSWORD=... STORYBOOK_SECRET_KEY=... python serve.py
+STORYBOOK_PASSWORD=... python serve.py
 ```
 
 Serves on `http://0.0.0.0:5011` by default (set `PORT` to change it).
@@ -131,13 +135,15 @@ Serves on `http://0.0.0.0:5011` by default (set `PORT` to change it).
 docker build -t storybook .
 docker run -p 5011:5011 \
   -e STORYBOOK_PASSWORD=... \
-  -e STORYBOOK_SECRET_KEY=... \
   -v storybook-data:/data/stories \
   storybook
 ```
 
 The container stores stories under `/data/stories`; mount a volume there so content
-survives container recreation.
+survives container recreation. **Mount it before the first start**: that is
+also where the generated signing key is kept, and a container without a
+volume makes a new key every time it restarts, logging the family out on
+each update. The app refuses to start rather than do that silently.
 
 ### Docker Compose (e.g. Synology)
 
@@ -145,12 +151,13 @@ Clone this repo directly into the folder where you want everything to live,
 e.g. `/volume2/Media/StoryBook`, then:
 
 ```bash
-cp .env.example .env   # then edit STORYBOOK_PASSWORD and STORYBOOK_SECRET_KEY
+cp .env.example .env   # then edit STORYBOOK_PASSWORD
 docker compose up -d --build
 ```
 
-`docker-compose.yml` reads `STORYBOOK_PASSWORD`, `STORYBOOK_SECRET_KEY`, and
-`STORYBOOK_COOKIE_SECURE` from `.env` in the same directory (Compose loads it
+`docker-compose.yml` reads `STORYBOOK_PASSWORD`, `STORYBOOK_COOKIE_SECURE` and
+`STORYBOOK_SECRET_KEY` (optional — generated and kept in the stories folder
+if you leave it out) from `.env` in the same directory (Compose loads it
 automatically — no `env_file:` needed) and bind-mounts the `stories/` subfolder
 of that same clone to `/data/stories` in the container — keeping code and data
 under one folder without mixing story files into the git working tree. On
@@ -177,7 +184,7 @@ See `.env.example`:
 |---|---|
 | `STORYBOOK_STORIES_DIR` | Where story folders live (default `./stories`) |
 | `STORYBOOK_PASSWORD` | The one shared password. Required in production. |
-| `STORYBOOK_SECRET_KEY` | Flask session-signing secret. Required whenever `STORYBOOK_PASSWORD` is set — the app refuses to start otherwise. |
+| `STORYBOOK_SECRET_KEY` | Flask session-signing secret. **Optional** — leave it unset and the app generates one on first start and keeps it in the stories folder as `secret_key` (mode `0600`, and it travels in no backup zip). Set it to manage the key yourself; a value here wins. |
 | `STORYBOOK_COOKIE_SECURE` | Set to `1` when serving over HTTPS to mark the session cookie `Secure` and send an HSTS header. Default off, for local/LAN HTTP use. |
 | `STORYBOOK_TRUSTED_PROXIES` | How many reverse proxies sit in front of the app (default `0`). Set to `1` behind nginx/Caddy/a NAS reverse proxy so the login lockout sees each visitor's real IP. See "Opening it to the internet". |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |

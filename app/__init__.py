@@ -9,6 +9,7 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from . import secret_key as secret_key_file
 from . import settings, themes
 from .throttle import DEFAULT_LIMIT, DEFAULT_WINDOW_SECONDS, FailureThrottle
 
@@ -113,11 +114,20 @@ def create_app(test_config=None):
     default_language = os.environ.get("STORYBOOK_LANGUAGE") or None
     theme = _parse_theme(os.environ.get("STORYBOOK_THEME"))
 
+    # F59: a book with a password needs a stable signing key, and asking
+    # the person installing this to produce one by hand is how weak ones
+    # get typed. The environment still wins when it has an answer; with no
+    # answer, keep a generated one in the data folder. See secret_key.py.
     if password and not secret_key and not test_config:
-        raise RuntimeError(
-            "STORYBOOK_SECRET_KEY must be set when STORYBOOK_PASSWORD is set. "
-            "Generate one with: python -c 'import secrets; print(secrets.token_hex(32))'"
-        )
+        secret_key = secret_key_file.load_or_create(stories_dir)
+        if not secret_key:
+            raise RuntimeError(
+                f"Could not read or write {secret_key_file.SECRET_KEY_FILENAME} in "
+                f"{stories_dir!r}, and STORYBOOK_SECRET_KEY is not set. Make that "
+                "directory writable (in Docker, mount a volume at the stories path), "
+                "or set STORYBOOK_SECRET_KEY yourself: "
+                "python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
 
     app.config.update(
         STORIES_DIR=Path(stories_dir).resolve(),

@@ -37,6 +37,7 @@ from typing import Optional
 
 from . import groups, settings, storage, themes
 from .jsonstore import write_json
+from .secret_key import SECRET_KEY_FILENAME
 from .theme_catalog import BY_FILENAME
 from .themes import USER_THEMES_DIRNAME
 
@@ -59,6 +60,22 @@ CREDENTIAL_FILENAMES = frozenset({
     "invites.json",
     "write_links.json",
 })
+
+# The session-signing key (F59), which leaves in no zip anyone can take
+# and comes back from none. Separate from CREDENTIAL_FILENAMES above, and
+# the difference is the point: those are scrypt hashes, withheld from
+# non-admins as an offline guessing target, and an admin exporting their
+# own book's hashes is exporting something they already control. A signing
+# key is not a target — it is the answer. Anyone holding it can mint a
+# session cookie for any account in the book, admin included, without
+# guessing anything, and a zip is a portable file that gets mailed,
+# synced and left on a laptop. No viewer, of any role, has a reason to
+# carry it away.
+#
+# Never restored either: `import_backup` refuses a zip carrying one rather
+# than skipping it, since a stranger's key overwriting this book's would
+# hand them every future session.
+NEVER_EXPORTED = frozenset({SECRET_KEY_FILENAME})
 
 #: Root-level entries that are not story folders, and so are never
 #: audience-scoped on the way out. Everything else at the top of the
@@ -102,6 +119,8 @@ def write_backup(stories_dir, *, allowed_ids=None, with_credentials=True):
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:
         for path in sorted(stories_dir.rglob("*")):
             if path.is_dir() or path.name.endswith(".tmp"):
+                continue
+            if path.name in NEVER_EXPORTED:
                 continue
             if not with_credentials and path.name in CREDENTIAL_FILENAMES:
                 continue
@@ -199,6 +218,8 @@ def import_backup(stories_dir, zip_file) -> int:
                 continue
             if name.startswith("/") or ".." in Path(name).parts:
                 raise ValueError(f"Unsafe path in backup: {name!r}")
+            if Path(name).name in NEVER_EXPORTED:
+                raise ValueError(f"Backup contains a signing key: {name!r}")
             parts = Path(name).parts
             top = parts[0] if parts else ""
             if top == storage.PEOPLE_DIRNAME:

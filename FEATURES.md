@@ -141,6 +141,9 @@ complete rather than merely intended to be.
 - **F58** — A word about the backup: the timeline says so when writing has
   gone months without ever being copied anywhere — measured as the age of
   the oldest unsaved story, so a book nobody writes in is never nagged
+- **F59** — The signing key generates itself: `STORYBOOK_SECRET_KEY` is
+  optional now, kept in the data folder when nobody supplies one, and it
+  travels in no backup zip in either direction
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -8319,3 +8322,167 @@ keeper fails the two segregation tests, and rewriting `months_at_risk` to
 measure from the backup date fails four including the stale-backup one.
 
 `pytest` (1584) and `ruff check .` green.
+
+## F59. The signing key generates itself
+
+### Why
+
+Until now, this was true:
+
+```python
+if password and not secret_key and not test_config:
+    raise RuntimeError(
+        "STORYBOOK_SECRET_KEY must be set when STORYBOOK_PASSWORD is set. "
+        "Generate one with: python -c 'import secrets; print(secrets.token_hex(32))'"
+    )
+```
+
+The refusal was right about the danger and wrong about who was standing in
+front of it. Setting up this app meant a person following the Docker
+instructions being asked, mid-install, to understand what a session-signing
+key is, why it is not the password they just chose, and why
+
+```
+STORYBOOK_SECRET_KEY=change-this-to-a-long-random-string
+```
+
+is not itself a long random string. The predictable answer is a key that is
+neither long nor random — and nothing anywhere would say so. A weak signing
+key silently weakens every session cookie the app will ever sign, and the
+app would start up perfectly happily on one.
+
+So the requirement stands and the app satisfies it itself. `secrets` is
+better at this than a human under time pressure, and it is the only party
+here that has never once typed `hunter2`.
+
+### What it does
+
+`app/secret_key.py`, a leaf module. With a password set and no key in the
+environment, generate `secrets.token_hex(32)` and keep it in the stories
+directory as `secret_key` — the only place a container is guaranteed to
+have a volume mounted, and the folder a family already knows to keep.
+
+Three properties, none optional:
+
+**The environment still wins.** A key in `STORYBOOK_SECRET_KEY` is used and
+the file is never written — not read, not created. It is machine
+configuration, and when the machine has an answer that is the answer. This
+is the fallback for when there isn't one, which is why
+`test_environment_secret_key_wins_and_writes_no_file` also asserts the
+absence of the file rather than just the value of the config.
+
+**`O_EXCL`, not check-then-write.** Two workers can start at once —
+waitress, gunicorn, a container restarting into one still shutting down.
+Whoever creates the file wins, and the loser reads what the winner wrote:
+
+```python
+except FileExistsError:
+    # Another worker created it between the read above and here. Its
+    # key is the book's key now.
+    return _read(path)
+```
+
+Without this, two workers each generate a key, each writes it, and they
+sign cookies differently — logging each other's readers out at random,
+intermittently, in a way nobody would ever diagnose.
+
+**Mode `0600` at creation**, in the `os.open` flags rather than a `chmod`
+afterwards, so there is no window in which the key is world-readable on a
+NAS where the stories folder is shared over SMB.
+
+### The refusal that stayed
+
+`load_or_create` returns `None` when the key can be neither read nor
+written, and `create_app` still raises — with a message about mounting a
+volume rather than about generating a key, since that is the actual
+situation:
+
+```
+Could not read or write secret_key in '/data/stories', and
+STORYBOOK_SECRET_KEY is not set. Make that directory writable (in Docker,
+mount a volume at the stories path), or set STORYBOOK_SECRET_KEY yourself
+```
+
+Falling back to an in-memory key here would be the worst of both worlds: it
+would start, and it would log the whole family out every time the container
+restarted, and nothing would say why. The refusal was never wrong — it was
+just aimed at the wrong person.
+
+`test_unusable_stories_dir_still_refuses_to_start` covers it with a plain
+file where the directory should be, rather than a `chmod`: this suite runs
+as root often enough that mode bits prove nothing.
+
+### It travels in no backup
+
+A new frozenset in `backup.py`, deliberately separate from
+`CREDENTIAL_FILENAMES`:
+
+```python
+NEVER_EXPORTED = frozenset({SECRET_KEY_FILENAME})
+```
+
+The distinction is the whole point. `CREDENTIAL_FILENAMES` are scrypt
+hashes, withheld from non-admins (F43) as an *offline guessing target* — and
+an admin exporting their own book's hashes is exporting something they
+already control.
+
+A signing key is not a target. It is the answer. Anyone holding it can mint
+a session cookie for any account in the book, admin included, without
+guessing anything at all — and a zip is a portable file that gets mailed,
+synced to a phone, and left on a laptop. No viewer of any role has a reason
+to carry it away, so unlike the credential filter this exclusion is
+unconditional:
+
+```python
+if path.name in NEVER_EXPORTED:
+    continue
+if not with_credentials and path.name in CREDENTIAL_FILENAMES:
+    continue
+```
+
+Coming the other way it is **refused, not skipped**. Every other unknown
+root-level entry in a zip is quietly ignored; a zip carrying a signing key
+aborts the whole import:
+
+```python
+if Path(name).name in NEVER_EXPORTED:
+    raise ValueError(f"Backup contains a signing key: {name!r}")
+```
+
+Because the failure mode is not "a file this app didn't expect" — it is a
+stranger's key overwriting this book's, handing them every session signed
+afterwards. Checked on the basename anywhere in the tree, so
+`people/papa/secret_key` cannot slip past a root-level check, and it fires
+before anything is extracted so the all-or-nothing guarantee holds.
+
+The filename has no dot, which means `storage.STORY_ID_RE` — `^[a-z0-9-]+$`,
+no underscore — cannot match it either. That is belt to the explicit
+check's braces, not a substitute for it: relying on a regex in another
+module to keep a session key safe is exactly the kind of accidental
+coupling that stops being true one refactor later.
+
+### What a family sees
+
+The README's setup section used to open with *"Two things, once: a password
+and a secret key."* It now opens with one thing, and `.env.example` has
+`STORYBOOK_SECRET_KEY` commented out with a note that a value there wins.
+
+`docker-compose.yml` passes `${STORYBOOK_SECRET_KEY:-}` so an absent one is
+an empty string rather than a Compose warning, and the Docker section of
+the README gained the one warning that now matters more than the key did:
+**mount the volume before the first start**, because that is where the
+generated key lives.
+
+### Tests
+
+Six in `tests/test_create_app.py` (generated, persisted, stable across
+restarts, `0600`, environment wins and writes nothing, unusable folder
+still refuses, and a racing second worker adopting the first key) and six
+in `tests/test_backup_credentials.py` for the zip contract in both
+directions, including a real round trip proving the exclusion costs nothing
+that backups are for.
+
+Removing either half of the zip guard was confirmed to fail the right
+tests — and with the import guard removed, the key is genuinely overwritten.
+
+`pytest` (1595) and `ruff check .` green.
