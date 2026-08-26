@@ -1,7 +1,8 @@
 # Veillée
 
-> *la veillée* — the evening when the family gathered by the fire, and
-> someone told the stories worth keeping.
+> *la veillée* — the evening the family gathered by the fire, and someone
+> told the stories worth keeping. From *veiller*: to stay awake, to keep
+> watch over someone.
 
 A **private, self-hosted family memory journal**. A parent writes dated
 stories — words and photographs — for a child to read years from now. The
@@ -37,12 +38,15 @@ meant to outlive the software that wrote it.
   analytics, no tracking, and **zero network requests at runtime**. Python and
   Flask, mobile-first, no build step, no JavaScript framework.
 
-> **A note on the name.** The project is *Veillée*; the application still
-> calls itself Storybook internally — every setting is `STORYBOOK_*`, and the
-> site title defaults to "Storybook" until you set one. Set the book's title
-> on the Settings page (or `STORYBOOK_TITLE`) to whatever your family's book
-> should be called. Renaming the internals is a separate, larger change and
-> hasn't been done.
+> **A note on the name.** The app calls itself *Veillée* in English and
+> *La Veillée* in French — that is the title you see until your family sets
+> its own, on the Settings page or with `STORYBOOK_TITLE`.
+>
+> The *internals* are still `STORYBOOK_*`: every environment variable, the
+> language cookie, a handful of JavaScript globals, the MCP server's id.
+> Those are identifiers, not names — renaming them would invalidate the
+> configuration of every install that already exists, and buy nothing a
+> reader would ever see. They stay as they are.
 
 A colour toggle sits in the top-left corner. Tapping it cycles the schemes
 the current theme offers — for the one the app ships with, that's dark (the
@@ -183,7 +187,7 @@ And the book's own, all optional, all changeable later from **Settings**:
 
 | Variable | In Settings as | Purpose |
 |---|---|---|
-| `STORYBOOK_TITLE` | Name of the book | The display name — nav, page titles, install manifest, book cover. Defaults to `Storybook` / `La Veillée`, following the reader's language. |
+| `STORYBOOK_TITLE` | Name of the book | The display name — nav, page titles, install manifest, book cover. Defaults to `Veillée` / `La Veillée`, following the reader's language. |
 | `STORYBOOK_BIRTHDATE` | Birth date | The child's birth date (`YYYY-MM-DD`). Shows their age at each memory, and turns on the Growing up page. |
 | `STORYBOOK_CHILD` | The book is about | The person the family tree's kinship words ("aunt", "cousin") are worked out relative to. |
 | `STORYBOOK_AUTHORS` | Narrators | `Name:#hexcolor` pairs for several narrators. In Settings, one `Name #hexcolor` per line. |
@@ -551,7 +555,7 @@ the story folder, same numbering scheme as photos.
 
 **Microphone capture only works in a secure context** — HTTPS, or
 `localhost`. Over plain LAN HTTP the record button simply won't appear
-(playback still works everywhere), so if you're running Storybook on your
+(playback still works everywhere), so if you're running Veillée on your
 home network rather than on the same machine as the browser, put a
 reverse proxy with a certificate in front of it to use this feature.
 
@@ -609,14 +613,24 @@ unset to disable the feature entirely.
 
 ### Home-screen install
 
-Storybook can be added to a phone's home screen like a native app (a
+Veillée can be added to a phone's home screen like a native app (a
 `manifest.webmanifest`, sized icons, and standalone display mode) — set
 `STORYBOOK_TITLE` (e.g. `"Le livre de Milo"`) so it shows up under your own
-title rather than "Storybook". There is deliberately **no service worker and
+title rather than "Veillée". There is deliberately **no service worker and
 no offline caching** — every visit still talks to the server, it just looks
 like an app when launched. Regenerate the icons with
 `python scripts/make_icons.py` if you change the design; the outputs are
 committed under `app/static/icons/`.
+
+**Installing also puts Veillée in the phone's share sheet.** Once it's on
+the home screen, sharing a photo from the camera roll (or from anywhere
+else) offers Veillée as a destination: pick it, and the editor opens with
+that photo already attached, as a **draft**. Write something, save, and it
+becomes a story; leave it, and it stays on the Drafts page and never
+reaches the timeline or the book.
+
+This is the fastest way to get a moment into the book, and it only exists
+once the app is installed — a browser tab can't appear in a share sheet.
 
 ### Sealed letters
 
@@ -751,7 +765,7 @@ not something the web app depends on.
 #### Quick start
 
 **If your MCP client runs on the same machine as `stories/`** (e.g. you run
-Storybook on your own laptop), point it at the server directly:
+Veillée on your own laptop), point it at the server directly:
 
 ```json
 {
@@ -769,7 +783,7 @@ Claude Code instead of Claude Desktop: `claude mcp add storybook
 /path/to/storybook/.venv/bin/python /path/to/storybook/mcp_server.py --env
 STORYBOOK_STORIES_DIR=/path/to/storybook/stories`.
 
-**If Storybook runs on a home server/NAS and your client is on a laptop**,
+**If Veillée runs on a home server/NAS and your client is on a laptop**,
 the server itself doesn't need to change — since stdio just needs *some*
 process's stdin/stdout, point the client's command at `ssh` instead of at
 `python` directly, so the connection tunnels over an SSH session you
@@ -916,7 +930,7 @@ why each one is there.
 
 ### In-app help
 
-Everything above is written for whoever sets Storybook up. The family
+Everything above is written for whoever sets Veillée up. The family
 actually reading and writing in it day to day gets its own **Help** page
 (linked in the nav) instead — not a shorter version of this tour but a
 **glossary**: one plain-language line per word the interface actually uses,

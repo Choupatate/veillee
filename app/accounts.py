@@ -1,4 +1,4 @@
-"""Account credentials for people who can log into Storybook (FEATURES.md
+"""Account credentials for people who can log into Veillée (FEATURES.md
 F19), layered on top of people.py's Person model rather than a parallel
 identity system: every account is bound to exactly one Person, and most
 People have none (a child, a grandparent who's passed — anyone who's in the

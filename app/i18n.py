@@ -264,6 +264,7 @@ JS_STRINGS = (
     "saved.",
     "Could not reach the server. The recording is still here — keep this "
     "page open and it will try again.",
+    "Share", "Copy", "Copied",
 )
 
 

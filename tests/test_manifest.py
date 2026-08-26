@@ -7,8 +7,8 @@ def test_manifest_returns_valid_json_with_default_title(client):
     resp = client.get("/manifest.webmanifest")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["name"] == "Storybook"
-    assert data["short_name"] == "Storybook"
+    assert data["name"] == "Veillée"
+    assert data["short_name"] == "Veillée"
     assert data["display"] == "standalone"
     assert data["start_url"] == "/"
     assert len(data["icons"]) == 2

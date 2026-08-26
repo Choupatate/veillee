@@ -1,4 +1,4 @@
-/* Storybook — hand-written CSS, no framework. Dark theme is the default. */
+/* Veillée — hand-written CSS, no framework. Dark theme is the default. */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -15,6 +15,43 @@ html, body {
    `hidden` attribute (rather than a class) must actually disappear. */
 [hidden] {
   display: none !important;
+}
+
+/* ---------------------------------------------------------------------- */
+/* F55: turning the page                                                    */
+/*                                                                          */
+/* Cross-document view transitions. One at-rule, no JavaScript, no build    */
+/* step: the browser snapshots the outgoing page, fetches the next one and  */
+/* cross-fades between them, so moving from the timeline to a story stops   */
+/* being a white blink and becomes a page settling into place.              */
+/*                                                                          */
+/* This works here precisely *because* the app is server-rendered and has   */
+/* no framework — cross-document transitions were added to the platform for */
+/* multi-page apps, which had spent a decade being told they needed a       */
+/* single-page framework to feel continuous. A browser without support      */
+/* navigates exactly as it did before; there is nothing to fall back to and */
+/* nothing to polyfill.                                                     */
+/*                                                                          */
+/* 260ms is deliberate. The platform default (~250ms) is tuned for app      */
+/* chrome; anything much longer reads as a slideshow, and anything shorter  */
+/* is indistinguishable from no transition at all. `ease` rather than a     */
+/* spring: paper does not bounce.                                           */
+/*                                                                          */
+/* Nested inside the reduced-motion query on purpose. A view transition is  */
+/* motion, and the rest of this file already opts *in* to animation the     */
+/* same way rather than opting out of it.                                   */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 260ms;
+    animation-timing-function: ease;
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -771,6 +808,15 @@ mark {
 /* Login page                                                              */
 /* ---------------------------------------------------------------------- */
 
+/* The nav brand and the page title are the same word, a hundred pixels
+   apart, on the one screen where the name is the whole point. Let the
+   title have it. The toggles and the language picker stay — those are
+   useful before you are logged in, the brand link is not (it points at the
+   timeline, which bounces straight back here). */
+.page-login .site-nav__brand {
+  display: none;
+}
+
 .login {
   max-width: 24rem;
   margin: 3rem auto;
@@ -787,6 +833,10 @@ mark {
 .login__subtitle {
   color: var(--color-text-dim);
   margin: 0 0 2rem;
+  /* One line on most phones, two on a narrow one — and when it is two,
+     `balance` keeps the last word off a line of its own. Unsupported
+     browsers just wrap normally, which is what they did before. */
+  text-wrap: balance;
 }
 
 /* A note under a field, explaining what it wants — used by the invite
@@ -1602,6 +1652,15 @@ img.people__portrait {
   background: var(--color-bg-raised);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
+}
+
+/* F56: the button that hands a link over. Sits directly under the URL it
+   shares, and ships `hidden` — share-link.js unhides it, so a browser
+   without JS shows selectable text rather than a button that does
+   nothing. `min-height: 44px` comes from .btn and is the point on a
+   phone: this exists to replace a fingertip text selection. */
+.admin__share-row {
+  margin: 0.5rem 0 1rem;
 }
 
 /* Inline aside on an account row: a duplicate-name match on a pending

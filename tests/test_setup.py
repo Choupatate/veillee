@@ -184,7 +184,7 @@ def test_clearing_a_setting_means_no_value_not_the_environments(fresh_dir):
     })
     html = client.get("/").data.decode()
     assert "From the environment" not in html
-    assert "Storybook" in html
+    assert "Veillée" in html
 
 
 def test_a_change_takes_effect_without_a_restart(fresh_dir):

@@ -9,7 +9,11 @@
 <article class="story"{% if author_color %} style="--author-color: {{ author_color }}"{% endif %}>
   {% include "_story_article.html" %}
   {% if memos %}
-  <section class="story__listen" aria-labelledby="story-listen-heading">
+  <section class="story__listen" aria-labelledby="story-listen-heading"
+           data-memo-session
+           data-memo-session-book="{{ app_title }}"
+           data-memo-session-story="{{ story.title }}"
+           data-memo-session-artwork="{{ url_for('static', filename='icons/icon-512.png') }}">
     <h2 class="story__listen-heading" id="story-listen-heading">{{ _("Listen") }}</h2>
     {% for memo in memos %}
     <div class="story__memo">
@@ -49,4 +53,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/story.js') }}"></script>
+<script src="{{ url_for('static', filename='js/memo-session.js') }}"></script>
 {% endblock %}

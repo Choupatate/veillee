@@ -123,6 +123,21 @@ complete rather than merely intended to be.
   README is reframed around Veillée
 - **Housekeeping 6** — Toast UI gets the `LICENSE` it never had, and a test
   that catches the next vendored file served without a copyright notice
+- **F54** — The name, in both languages: the app is *Veillée* in English
+  too, on both senses of the word — the fire the family gathers at, and the
+  watch someone keeps — and the login screen finally says so
+- **F55** — Turning the page: cross-document view transitions, so moving
+  between timeline and story stops being a white blink — one at-rule, no
+  JavaScript, and nothing to fall back to
+- **F56** — Two things the phone already knew how to do: handing a write
+  link straight to the person it was made for, and giving a voice memo a
+  name on the lock screen
+- **Housekeeping 7** — three account forms carried an HTML `pattern` that
+  throws in a modern browser, so it validated nothing at all; a test that
+  compiles every pattern the way a browser does
+- **F57** — The app in the phone's share sheet: send a photo to Veillée
+  from wherever you are looking at it, and land in the editor with it
+  already attached — as a draft, which is what makes that safe
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -7679,3 +7694,453 @@ change, and a README that implied otherwise would be the more confusing of
 the two options.
 
 `pytest` (1524) and `ruff check .` green.
+
+
+## F54. The name, in both languages
+
+The project was *Veillée* and the application was *Storybook*. F53 wrote
+that split down honestly in the README, and it was still a split: a French
+reader met the real name, an English reader met a word that means nothing
+in particular and that [Storybook](https://storybook.js.org) has owned in
+software for a decade. The app now calls itself **Veillée** in English and
+**La Veillée** in French.
+
+### Both senses of the word
+
+*Veillée* carries two, and the app wants both. They are not rivals — the
+app is the second **because** it is the first.
+
+The everyday sense is the gathering: the evening the family sat round the
+fire after the day's work, hands busy, and someone told the stories worth
+keeping. That is what the book is *for*, and it is what the app is already
+dressed as — the firelight wash (F44), the warm paper schemes, the campfire
+on the login screen, the deliberate refusal of anything that would make it
+a feed.
+
+Underneath it is the root verb, *veiller*: to stay awake, to keep watch
+over someone. That one is what the app *does*. Markdown that outlives the
+software, `.versions/` snapshots taken before every save, sealed letters
+kept shut until their hour, the dead still named in the almanac every year.
+A vigil kept over a childhood.
+
+The README's epigraph is where both are said outright, in that order — the
+fire first, because that is the room a reader should picture, and the verb
+second, because that is the promise the storage format is making:
+
+> *la veillée* — the evening the family gathered by the fire, and someone
+> told the stories worth keeping. From *veiller*: to stay awake, to keep
+> watch over someone.
+
+One thing the first sense asks for and does not yet have, noted here rather
+than built: a veillée is an *occasion*, and the app has none. It has days
+(a story is dated to one), months (the almanac) and years (Growing up), but
+no evening — no moment when the family is together with the book rather
+than each alone with it. `months_since_last_story` (F30) is the closest
+thing and it nudges the writer, not the readers. That is a feature-shaped
+gap, not a naming one.
+
+### The login screen
+
+The one screen that speaks in the app's own voice rather than the family's
+— before you are anyone, before their book title means anything to you —
+was captioning a campfire with **"A private memory journal."** A category,
+under a picture and a whole staged room that were already saying something
+better. It now reads:
+
+> Memories fade, what's written stays.
+
+In French, **"Les souvenirs s'évaporent, les écrits restent."** — which is
+the line that matters, the English being written to match it rather than
+the other way round.
+
+It is a rewrite of *"Les paroles s'envolent, les écrits restent"*, the
+proverb every French speaker already carries, and the echo is the point:
+the sentence arrives half-known. What changes is the half that makes it
+this app's — *paroles* become *souvenirs*, so the thing at risk is not a
+spoken word but a memory, which is exactly what a family loses and exactly
+what this software exists to stop.
+
+The order is the proverb's, not the first draft's, and deliberately: the
+vanishing half goes first so the sentence **lands on what survives**.
+Ending on *s'évaporent* ends on the loss; ending on *restent* ends on the
+promise. The screen belongs to a book a parent is writing for a child who
+will read it in twenty years, and the last three words are the reason to
+bother — the nearest thing in the app to a lesson, which is what it was
+asked to be.
+
+The fire is not in the line, and does not need to be: it is in the
+illustration directly beneath it, in the firelight wash over the whole
+page (F44), and in the name at the top. The words are free to do the other
+half.
+
+`.login__subtitle` carries `text-wrap: balance`, and this sentence is the
+one that most repays it. The English fits one line at 390px; the French
+does not, and both wrap at 320px — and in every case the break falls on
+the comma, so each half of the proverb gets a line of its own. That is the
+best reading this sentence has, and it is luck plus `balance` rather than
+anything the markup asks for. An earlier draft of a different line put its
+last word alone on a second row, which is exactly the sort of thing pytest
+cannot see and a screenshot shows instantly. (`text-wrap: pretty` was
+already in `main.css`, so the family of properties had precedent here.) A
+browser without it wraps the way it did before.
+
+That screen can afford to evoke rather than explain, and this is why:
+`request_account.html` and `accept_invite.html` carry their own
+explanatory subtitles for anyone arriving by invitation, and nobody else
+reaches `/login` who does not already know what it is.
+
+The nav brand was also hidden there (`.page-login .site-nav__brand`). The
+name was rendering twice, a hundred pixels apart, on the one screen where
+it is the whole point — and that brand is the only thing in the nav with
+nothing to do before you log in, since it links to the timeline, which
+bounces straight back. The theme toggle, the flame and the language picker
+stay; all three are useful from the door.
+
+### Names change, identifiers do not
+
+The default title is a translated string like any other, so all four
+fallback sites go through `_()` and none of them hardcodes a language:
+`create_app`'s `app_title` template global, `/manifest.webmanifest`,
+`/book.epub`, and the MCP server's `_configured_title`. Product-name prose
+in module docstrings and CSS banners moved with it.
+
+What deliberately did **not** move: `STORYBOOK_*` environment variables,
+the `storybook-lang` cookie, the `window.Storybook*` JS globals, and the
+MCP server's `"storybook"` id. Those are identifiers, not names. Renaming
+them would invalidate the configuration of every install that already
+exists — a `.env` that silently stops working, an MCP client entry that
+stops resolving — and buy nothing a reader would ever see. The README says
+which is which, and why, rather than treating it as an unfinished job.
+
+`test_the_apps_own_name_is_a_translated_string_not_a_hardcoded_one` pins
+both values, and `test_a_reader_meets_the_name_in_their_own_language`
+checks the login page actually shows each one. The two tests that used the
+old subtitle as their canary for "this page is in French" now use the new
+one.
+
+`pytest` (1526) and `ruff check .` green; login checked in a real browser at
+390px in English, French, light and dark.
+\n
+
+## F55. Turning the page
+
+Navigating from the timeline to a story was a white blink — the browser
+tearing down one document and painting another. For an app whose stated
+value is "restraint and typography," the single most common interaction in
+it looked like 2005.
+
+```css
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 260ms;
+    animation-timing-function: ease;
+  }
+}
+```
+
+That is the whole feature. No JavaScript, no library, no build step, and
+nothing to polyfill — a browser without support navigates exactly as it did
+yesterday.
+
+### Why this one is free and the rest of the platform is not
+
+Cross-document view transitions exist *because* of apps shaped like this
+one. Multi-page, server-rendered sites spent a decade being told that
+feeling continuous required a single-page framework; the platform's answer
+was to give the navigation itself a transition, so the browser snapshots
+the outgoing document, fetches the next, and cross-fades between them.
+
+Which means the thing CLAUDE.md refuses to do — adopt a framework — is
+exactly what stops being a prerequisite here. It is worth noticing that
+this is the *opposite* of how most modern web capability arrives: the
+usual bargain is that a feature is free because somebody else's server
+does the work (push notifications, hosted speech-to-text), and that bargain
+is unavailable to an app with no runtime network dependencies. This one is
+free because the browser does the work locally.
+
+### The two numbers
+
+**260ms, `ease`.** The platform default is around 250ms, tuned for app
+chrome. Much longer reads as a slideshow; much shorter is indistinguishable
+from no transition, which is the failure mode where you pay the complexity
+and get nothing. `ease` rather than anything springy: paper does not bounce.
+
+### Reduced motion
+
+The at-rule is nested *inside* `prefers-reduced-motion: no-preference`
+rather than being disabled under a `reduce` query. That is the direction
+the rest of `main.css` already goes — animation is opted into here, never
+opted out of — and it is the safer default: a rule that has to be
+remembered to turn something *off* is a rule that eventually is not.
+
+Nesting an at-rule inside a media query was the one part of this that
+needed checking rather than assuming, so it was checked. In Chromium 141,
+with reduced motion unset, `pagereveal` fires on the new document with
+`event.viewTransition` set; with reduced motion on, it fires with no
+transition at all. Both directions, measured, not inferred.
+
+### What is not here
+
+No `view-transition-name` on individual elements. Naming the timeline's
+photo and the story's photo the same thing would make the picture appear to
+grow into the page, which is a genuinely lovely effect and the wrong one:
+story ids start with a digit and are not valid CSS idents, so it needs
+generated per-story names, and a photo that flies across the screen is an
+app gesture rather than a book one. The whole-page cross-fade says
+"continuous" without saying "look at me". If it ever seems worth doing, it
+is additive and nothing here blocks it.
+
+Six tests in `tests/test_view_transitions.py`, and they guard *placement*
+rather than existence: that the at-rule is inside the reduced-motion query
+(hoisting it out is the obvious tidy-up, and it would animate navigation
+for someone whose system asked it not to), that `navigation` is `auto`,
+that both halves of the cross-fade are timed rather than just the outgoing
+one, and that the duration stays in a range where it reads as a transition
+at all. Each was confirmed by breaking it and watching the right test fail.
+
+`pytest` (1532) and `ruff check .` green.
+\n
+
+## F56. Two things the phone already knew how to do
+
+Neither of these is a feature so much as an apology for not having asked
+the platform earlier. Both are small, both are progressive enhancements
+that vanish cleanly, and both fix a moment where the app made someone do
+by hand something their phone does natively.
+
+### Handing a link over
+
+A write link (F19) and an invitation (F39) are each a URL that exists to be
+given to one specific person — usually a grandparent, usually over a chat
+app, usually from a phone. The page printed the URL inside a `<code>` and
+left you to select it with a fingertip, which is the single most annoying
+gesture a touchscreen has.
+
+There is now a button under it, and `share-link.js` picks one of three
+tiers by what the browser can actually do:
+
+1. **`navigator.share()`** — the OS share sheet. The link goes straight
+   into a conversation with the person it was made for. Phones, and Safari.
+2. **`navigator.clipboard`** — copy it, and say "Copied" for a second and a
+   half. Desktop browsers.
+3. **select the text** — not the same as copying, but one keystroke from it
+   rather than a dead button. This tier is not hypothetical: the Clipboard
+   API needs a secure context and a self-hosted app on a home network often
+   is not one, which is the same reason `theme-form.js` already ends its
+   copy buttons this way.
+
+Capability is tested with `navigator.canShare({url})` rather than
+`"share" in navigator`, because the property exists in places the call
+throws and some browsers can share text but not a URL.
+
+The button ships `hidden` in the markup and the script unhides it, so a
+browser with no JavaScript shows the URL as selectable text and no control
+that would do nothing — the same bargain `editor.js` makes for its camera
+button. Its label is set by the script too, for the same reason: rendering
+"Share" server-side would be wrong on every desktop, and rendering either
+one would flicker on the way to being corrected.
+
+### The rule this needed a module for
+
+`share-logic.js` exists for one line of judgement. A share sheet that was
+opened and then dismissed rejects with `AbortError`, and **that is the
+person saying "not now", not a share that failed.** Treating it as a
+failure means quietly falling down a tier and putting a private
+write-link on their clipboard because they closed a dialog. So the
+tier choice and `afterShareFailure` are pure functions in a UMD module,
+tested under plain Node (`tests/js/share_link_test.mjs`, ten checks),
+and `share-link.js` is left holding nothing but DOM wiring.
+
+### A voice on the lock screen
+
+A memo is a child's actual voice, and the way you listen to one is with the
+phone in your pocket while you do something else. The moment the screen
+locks, a bare `<audio>` element becomes a nameless thing playing from
+"Chrome", with no controls you can reach without unlocking.
+
+`memo-session.js` sets `navigator.mediaSession.metadata` when a memo starts
+playing: the story's title as the track, the book's title as the artist,
+the app icon as the artwork. Play/pause from the lock screen and the
+headphones start working as a side effect of the metadata existing.
+
+Three deliberate omissions. **No `setActionHandler` calls** — seek and
+next/previous need them, and "next memo" is a playlist, which is a
+music-player idea rather than a book one. **The metadata is set on `play`,
+not on load**, because a story can hold several memos and the session
+belongs to whichever one is actually sounding. **A memo gets no name of its
+own**: it is `memo-003.webm` on disk, so naming it on the lock screen would
+mean inventing something.
+
+The whole file is wrapped in a capability check and the metadata assignment
+in a `try`. Metadata is decoration; a browser that dislikes the artwork URL
+must not take the audio down with it.
+
+### Tests
+
+Five in `tests/test_share_link.py` for the markup — that the button exists
+on both pages and carries the right URL, that it ships `hidden`, that it
+carries *no* text of its own, and that the `<code>` is addressable for the
+third tier. Ten in `tests/js/share_link_test.mjs` for the two rules.
+
+Verified in a real Chromium at 390px: the button is hidden in the HTML and
+visible on the page, headless Chromium has no `navigator.share` so it
+correctly labels itself "Copy", clicking it puts the exact share URL on the
+clipboard, and the label flashes "Copied" and returns. Tier 1 is the one
+thing here no test can reach — a share sheet needs a real phone.
+
+`pytest` (1538) and `ruff check .` green.
+\n
+
+## Housekeeping 7. A validation that had quietly stopped happening
+
+Found while driving a browser through the account flow for F56, which is
+the only way it could have been found.
+
+`accept_invite.html`, `admin_new_account.html` and `request_account.html`
+each carried:
+
+```html
+<input name="username" pattern="[a-z0-9-]{3,32}" required>
+```
+
+That is a perfectly good regular expression, and browsers were refusing to
+use it. HTML compiles `pattern` with the **`v` flag**, and under `v` a lone
+`-` inside a character class is reserved and throws. A pattern that throws
+is not a pattern that rejects — the browser discards it and validates
+nothing. The console said `Invalid regular expression: /[a-z0-9-]{3,32}/v:
+Invalid character class` to nobody, and the three forms had been accepting
+`BAD!!` for as long as they had existed.
+
+```
+u  "[a-z0-9-]{3,32}"     compiles
+v  "[a-z0-9-]{3,32}"     THROWS: Invalid character class
+u  "[a-z0-9\-]{3,32}"    compiles
+v  "[a-z0-9\-]{3,32}"    compiles
+```
+
+Escaping the dash fixes all three. Confirmed in Chromium 141 against the
+real page afterwards: `BAD!!` now reports `patternMismatch: true`,
+`marie-jo` still validates, and the console error is gone.
+
+**The impact was never more than annoyance.** `accounts.USERNAME_RE` is the
+same expression in Python, where it is fine, and it is what actually
+governs what gets stored — nothing invalid was ever written. What was lost
+is the instant client-side "no", so a bad username survived a round trip to
+the server before being refused.
+
+The interesting part is the failure mode: a validation that stops happening
+looks exactly like a validation that is passing. No Python test can see it,
+because the regex is fine in Python; no human notices, because the symptom
+is the *absence* of an error message.
+
+So the guard needs a JavaScript regex engine, and
+`tests/js/html_patterns_test.mjs` walks every template, pulls every
+`pattern="..."`, and compiles each one as `^(?:...)$` under `v` exactly as
+a browser would. It also asserts the scanner still finds at least four
+patterns — without that, a broken scanner makes every other check pass
+vacuously — and that the username pattern still means what it was written
+to mean (`marie-jo` yes, `Mamie` no, `ab` no, `mamie!` no). Confirmed by
+reverting one template and watching it fail with the right filename.
+
+`pytest` (1539) and `ruff check .` green.
+\n
+
+## F57. The app in the share sheet
+
+The app was good at *keeping* memories and bad at *catching* them. Writing
+a story meant remembering to open Veillée, then going back to find the
+photo. Everything about that order is wrong: the photo is the thing that
+prompted the memory, and by the time you have navigated to it the impulse
+has usually passed.
+
+An installed PWA can declare `share_target` in its manifest and appear in
+the phone's own share sheet. Take a photo → Share → **Veillée** → the
+editor opens with the picture already in it. The app becomes a destination
+for something you were already doing, rather than an errand.
+
+### It is a draft, and that is the whole design
+
+A shared photo creates a **draft** story. It is a picture flicked at the app
+from another screen — not a page of the book until somebody writes
+something and saves. `readable_stories` filters drafts out, so nothing
+appears in the timeline, the book view, on-this-day or the EPUB until it is
+meant to.
+
+That is a good idea on its own, and it is also what makes the next section
+safe.
+
+### The one CSRF exemption in the app
+
+`/share` cannot carry a CSRF token. Android builds the request; there is
+nowhere to put one. So it is exempted from `CSRFProtect` — the only route
+that is — and the exemption lives in `create_app` beside the protection
+itself rather than as a decorator on the view, so "what is unprotected" is
+one grep of the factory.
+
+Two things stand in its place:
+
+**`Sec-Fetch-Site`.** A share-sheet POST is a browser-initiated navigation
+and arrives with `none`; a form auto-submitted from evil.com arrives with
+`cross-site`. Anything but `none` or `same-origin` is refused with 403.
+A *missing* header is allowed on purpose — every browser implementing Web
+Share Target sends Fetch Metadata, so absence means a browser too old for
+either, and the header is set by the browser and cannot be suppressed by
+the page trying to get through.
+
+**The draft.** Even if both of the above were bypassed, the worst a forged
+share achieves is an unpublished draft on the /drafts page. This matters
+more here than it would elsewhere, because **story deletion is deliberately
+out of scope** (CLAUDE.md): a CSRF that could write a real page into the
+book would write one the app has no way to remove.
+
+`login_required` still applies, so an attacker needs an authenticated
+victim before any of this is reachable.
+
+### Details worth keeping
+
+- **Images are re-encoded through Pillow**, exactly like every other upload
+  — `storage.save_image`, same path the editor uses. A shared file is an
+  untrusted file.
+- **A file Pillow cannot read is skipped, not fatal.** Android will happily
+  offer a PDF to an `image/*` target. Losing one attachment beats 500-ing
+  and losing the whole share.
+- **Image links are bare filenames** (`![](photo-001.jpg)`), the way story
+  markdown always stores them, so the folder stays portable without the app.
+- **Titles.** An explicit shared title wins; otherwise a short first line of
+  the shared text becomes one; otherwise "Untitled", which is what the
+  editor already uses. The cap exists because the folder name is built from
+  the title, and a pasted paragraph is a body, not a name.
+
+### What could not be verified here
+
+The route was exercised end to end with CSRF protection on: a multipart
+POST with no token and `Sec-Fetch-Site: none` returns 302 to `/edit/<id>`,
+the story is a draft, both photos are saved and thumbnailed, and the same
+POST marked `cross-site` gets a 403 with nothing written.
+
+Chromium's own manifest parser was then asked what it made of the
+declaration (`Page.getAppManifest` over CDP): **zero parse errors**, and
+`share_target` read back exactly as written. That is worth more than it
+sounds — Chromium validates this field strictly, checking the action is in
+scope and that the method and enctype are a legal pair — so the declaration
+being well-formed is settled rather than hoped for.
+
+**What no test here can prove is that Android's share sheet delivers that
+POST to the server at all.** The reasoning is that a `method: "POST"` share
+target performs a navigation POST to the action URL, and with no service
+worker to intercept it that navigation goes to the network — which is the
+plain case for a server-rendered app. It needs one check on a real phone
+with the app installed, and it will not appear in the share sheet at all
+until it is installed.
+
+Nineteen tests. The negative ones were each confirmed by breaking the thing
+they guard — and one of those attempts was aimed at the wrong line
+(`create_story(draft=True)` is overridden by the `save_story` that follows,
+so flipping it changes nothing observable), which is why the redundancy now
+carries a comment explaining that it covers the window between the two
+writes rather than the outcome.
+
+`pytest` (1558) and `ruff check .` green.

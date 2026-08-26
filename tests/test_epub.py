@@ -119,7 +119,7 @@ def test_epub_cover_page_shows_title_and_year_range(auth_client, stories_dir):
     resp = auth_client.get("/book.epub")
     zf = zipfile.ZipFile(BytesIO(resp.data))
     cover = zf.read("OEBPS/cover.xhtml").decode()
-    assert "Storybook" in cover
+    assert "Veillée" in cover
     assert "Stories from 2022 to 2025" in cover
 
 

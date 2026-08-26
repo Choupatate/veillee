@@ -35,6 +35,27 @@ def test_tree_logic_pure_functions():
 
 
 @pytest.mark.skipif(NODE is None, reason="node not available on PATH")
+def test_html_pattern_attributes_compile_in_a_browser():
+    """Not pure-function logic like the rest of this file — a guard that
+    needs a JS regex engine, because HTML's `pattern` is compiled with the
+    `v` flag and Python's `re` cannot tell you what that rejects."""
+    result = subprocess.run(
+        [NODE, "tests/js/html_patterns_test.mjs"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node not available on PATH")
+def test_share_logic_pure_functions():
+    result = subprocess.run(
+        [NODE, "tests/js/share_link_test.mjs"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node not available on PATH")
 def test_tree_graph_logic_pure_functions():
     result = subprocess.run(
         [NODE, "tests/js/tree_graph_logic_test.mjs"],

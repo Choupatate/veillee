@@ -253,7 +253,7 @@
         if (!svg || !view) {
           if (window.console && window.console.warn) {
             window.console.warn(
-              "Storybook: couldn't find the chart's SVG pan/zoom group to attach the map " +
+              "Veillée: couldn't find the chart's SVG pan/zoom group to attach the map " +
                 "background to."
             );
           }
