@@ -1,4 +1,4 @@
-"""Making a backup zip, and restoring one (FEATURES.md F8, F43, F50, F51).
+"""Making a backup zip, and restoring one (FEATURES.md F8, F43, F50, F51, F58).
 
 **Both halves of the round trip live here, and that is the whole point of
 the file.** Export used to be thirty lines inside the `/export` route and
@@ -30,10 +30,13 @@ and one answer — everything.
 
 import json
 import zipfile
+from datetime import date
 from pathlib import Path
 from tempfile import TemporaryFile
+from typing import Optional
 
 from . import groups, settings, storage, themes
+from .jsonstore import write_json
 from .theme_catalog import BY_FILENAME
 from .themes import USER_THEMES_DIRNAME
 
@@ -264,3 +267,48 @@ def _restore_settings(zf, info, stories_dir) -> None:
     kept = {key: data[key] for key in settings.KEYS if key in data}
     if kept:
         settings.save(stories_dir, kept)
+
+
+# --- When this book was last backed up (FEATURES.md F58) --------------------
+
+#: Root-level sidecar recording the last complete backup. Here rather than
+#: in `settings.py` because it is not a setting: nobody chooses it, and it
+#: is written by the act of taking a backup. Here rather than in
+#: `timeline.py` because that file touches no filesystem, and here rather
+#: than in `storage.py` because it is not a story folder — the rule
+#: CLAUDE.md states for exactly this decision.
+BACKUP_MARKER_FILENAME = "last_backup.json"
+
+
+def record_backup(stories_dir, when: Optional[date] = None) -> None:
+    """Remember that a complete backup was taken today (FEATURES.md F58).
+
+    Called by `/export` only when the person downloading could take a
+    *whole* one. A family member's partial zip is a real backup of what
+    they can see and no use at all as the book's copy of record, so it
+    must not quiet the nudge for everyone else.
+
+    A date, not a timestamp: the nudge counts whole months, so an hour of
+    precision would be stored and never read, and a plain `YYYY-MM-DD` is
+    what someone opening this file by hand would hope to find.
+    """
+    if when is None:
+        when = date.today()
+    write_json(Path(stories_dir) / BACKUP_MARKER_FILENAME, {"at": when.isoformat()})
+
+
+def last_backup(stories_dir) -> Optional[date]:
+    """The date of the last complete backup, or None if there has never
+    been one — which is also what a missing, unreadable or malformed
+    marker returns.
+
+    Tolerant on purpose. This file exists to prompt a kindness, and the
+    worst a corrupt one should ever do is prompt it again; refusing to
+    render the timeline over it would be absurd.
+    """
+    path = Path(stories_dir) / BACKUP_MARKER_FILENAME
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return date.fromisoformat(data["at"])
+    except (OSError, ValueError, TypeError, KeyError):
+        return None

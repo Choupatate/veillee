@@ -138,6 +138,9 @@ complete rather than merely intended to be.
 - **F57** — The app in the phone's share sheet: send a photo to Veillée
   from wherever you are looking at it, and land in the editor with it
   already attached — as a draft, which is what makes that safe
+- **F58** — A word about the backup: the timeline says so when writing has
+  gone months without ever being copied anywhere — measured as the age of
+  the oldest unsaved story, so a book nobody writes in is never nagged
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -8144,3 +8147,175 @@ carries a comment explaining that it covers the window between the two
 writes rather than the outcome.
 
 `pytest` (1558) and `ruff check .` green.
+
+## F58. A word about the backup
+
+### Why
+
+The premise of this whole app is that a child reads it in fifteen years.
+The file format keeps that promise — markdown and JPEGs are about as close
+to forever as digital gets, and everything in `storage.py` is built around
+it. A single disk does not keep it.
+
+`/export` has been one tap since F8. Nothing has ever asked anyone to press
+it. The only mention of backing up anywhere in the project was a comment on
+the first line of `.env.example`:
+
+```
+# Where story folders live. Back this directory up — it is all your data.
+```
+
+which is in a file that a family who installed this from Docker Compose
+never opens, addressed to a person who by definition already knew.
+
+Meanwhile F30 has been nudging the same family, on the same page, since
+2025 — *"Nothing new in 3 months — a little story?"* — about writing more.
+The app had a voice for asking people to add to the book and none for
+asking them to protect it.
+
+### The question the nudge asks
+
+The obvious implementation is "months since the last backup", and it is
+wrong in both directions.
+
+It nags a book nobody is writing in. Someone exports in June, writes
+nothing for a year, and every time they open the timeline the app tells
+them their backup is stale — when the zip on the shelf is a *complete* copy
+and there is not one word anywhere that it does not contain. Nothing is at
+risk. The app would be crying wolf for twelve months, and the cost of that
+is not annoyance, it is that the nudge stops being read by the time it is
+true.
+
+It is also silent in the opposite case, for a shorter window: a book backed
+up last week and written in every day since is accumulating real exposure
+and reports zero.
+
+So the question is not how old the backup is. It is **how much unsaved
+writing has piled up**:
+
+```python
+at_risk = [
+    s.created.date() for s in stories
+    if s.created and (last_backup is None or s.created.date() > last_backup)
+]
+if not at_risk:
+    return None
+return dates.whole_months_between(min(at_risk), today)
+```
+
+`timeline.months_at_risk`, and one rule covers every case:
+
+| Book | At risk | Nudge |
+|---|---|---|
+| Empty | — | no |
+| Written this week, never backed up | 0 months | no |
+| A year of writing, never backed up | 12 months | **yes** |
+| Backed up last week | — | no |
+| Exported a year ago, nothing written since | — | **no** |
+| Exported a year ago, wrote 8 months ago | 8 months | **yes** |
+
+Row five is the one the naive version gets wrong, and row three is the one
+that matters most: a book that has never been backed up at all is not a
+special case here, it is `last_backup is None` and every story counts.
+
+By `created` rather than the story's own `date`, exactly as
+`months_since_last_story` is: writing today about a memory from 2019 puts
+*today's* work at risk, not 2019's. Drafts and instants count — an
+unfinished story is still an evening of someone's writing.
+
+Six months, against F30's three, because the two nudges say different
+things. Three quiet months is an invitation. Half a year of unsaved writing
+is a risk, and a risk should be mentioned less often and mean more.
+
+### Who it is addressed to
+
+Only whoever can act on it — an admin, or the single identity everyone
+shares when accounts are off. Two reasons, and the second is the load-bearing
+one.
+
+A grandmother reading on the sofa cannot take the book's backup: hers is
+scoped to the stories she is in the audience for (F40) and carries no
+account files (F43). Telling her the book is at risk asks for something she
+cannot give. And the number would be wrong for her anyway — it would be
+computed from her scoped list, so the months it reported would describe her
+slice of the book rather than the book.
+
+The same rule decides what *counts*. `/export` records a backup only when
+the person downloading could take a whole one:
+
+```python
+if _viewer_is_the_keeper():
+    backup.record_backup(current_app.config["STORIES_DIR"])
+```
+
+If a family member's partial zip recorded a backup, one relative
+downloading their own slice would tell the admin — falsely, and silently —
+that the whole book was safe. That is a worse failure than never having
+built the nudge, and `test_a_family_member_s_partial_zip_does_not_quiet_the_book`
+is the test that holds it.
+
+`_viewer_is_the_keeper()` is one predicate with two callers now:
+`_viewer_may_export_credentials()` delegates to it rather than repeating
+its body. They were the same two lines in two places, and the risk of
+identical bodies is that a change reaches one and misses the other — here
+that change would be to who counts as an admin.
+
+### The marker
+
+`last_backup.json` in the stories directory, beside `settings.json` and
+`groups.json`, written through `jsonstore.write_json` like every other
+sidecar:
+
+```json
+{
+  "at": "2026-08-26"
+}
+```
+
+A date, not a timestamp: the nudge counts whole months, so an hour of
+precision would be stored and never read, and a plain `YYYY-MM-DD` is what
+someone opening this file by hand would hope to find.
+
+In `backup.py` rather than `settings.py` because nobody chooses it — it is
+written by the act of taking a backup, not by a person deciding something.
+Not in `timeline.py`, which touches no filesystem. Not in `storage.py`,
+which is for story folders. That is the rule CLAUDE.md states for exactly
+this decision, and this is the first new file to be placed by it.
+
+`last_backup()` is deliberately tolerant: a missing, empty, malformed or
+unparseable marker all return `None`. This file exists to prompt a
+kindness, and the worst a damaged one may ever do is prompt it twice.
+Taking the timeline down over it would be absurd.
+
+Read on import, never restored — `last_backup.json` contains a dot, so
+`is_valid_story_id` rejects it and `import_backup` skips it like
+`groups.json`, which is right: an old zip's idea of when it was backed up
+is not this install's.
+
+### Where it appears
+
+Under the quiet-spell nudge on the timeline, in the same restrained shape,
+linking straight to `/export` so the fix is one tap from the complaint:
+
+> 8 months of writing have never been backed up — *keep a copy somewhere safe.*
+
+> 8 mois d'écriture n'ont jamais été sauvegardés — *gardez-en une copie en lieu sûr.*
+
+One typographic difference from F30's: it is set upright rather than
+italic. The quiet-spell nudge is an invitation and italic suits one; this
+is a statement of fact about work that could be lost. No alert colour, no
+badge, no banner — this is a book, and a book does not flash red at you.
+
+### Tests
+
+`tests/test_backup_nudge.py`, 26 of them, and most assert that the app
+**stays quiet** — the empty book, the new book, the freshly backed-up book,
+the stale backup with nothing written since, the family member. A nudge
+that fires when there is nothing to do is one people learn to ignore, and
+then it is not there on the day it matters.
+
+Each guard was confirmed by breaking what it protects: making everyone a
+keeper fails the two segregation tests, and rewriting `months_at_risk` to
+measure from the backup date fails four including the stale-backup one.
+
+`pytest` (1584) and `ruff check .` green.

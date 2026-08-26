@@ -62,3 +62,19 @@ def same_day_of_year(anniversary: date, today: date) -> bool:
         and today.month == 3 and today.day == 1
         and not is_leap_year(today.year)
     )
+
+
+def whole_months_between(then: date, today: date) -> int:
+    """Whole elapsed months from `then` to `today`, never negative.
+
+    A month has elapsed on the day-of-month it started on: from the 15th
+    to the 15th is one month, to the 14th is none. `timeline`'s quiet-spell
+    nudge (F30) and the backup nudge (F58) both ask this question, and a
+    calendar-month count is fiddly enough — the day-of-month back-off, the
+    year rollover — that two copies would eventually disagree about the
+    same day. `same_day_of_year` above is here for exactly that reason.
+    """
+    months = (today.year - then.year) * 12 + (today.month - then.month)
+    if today.day < then.day:
+        months -= 1
+    return max(months, 0)

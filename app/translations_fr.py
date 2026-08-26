@@ -450,6 +450,11 @@ TRANSLATIONS_FR = {
     "Nothing new in {n} month —": "Rien de neuf depuis {n} mois —",
     "Nothing new in {n} months —": "Rien de neuf depuis {n} mois —",
     "a little story?": "une petite histoire ?",
+    "{n} month of writing has never been backed up —":
+    "{n} mois d'écriture n'a jamais été sauvegardé —",
+    "{n} months of writing have never been backed up —":
+    "{n} mois d'écriture n'ont jamais été sauvegardés —",
+    "keep a copy somewhere safe.": "gardez-en une copie en lieu sûr.",
     "Drafts ({n})": "Brouillons ({n})",
     "Archived ({n})": "Archivées ({n})",
     "Search titles, tags, people…": "Rechercher titres, mots-clés, personnes…",

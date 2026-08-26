@@ -45,6 +45,12 @@
   <a href="{{ url_for('pages.new_story') }}">{{ _("a little story?") }}</a>
 </p>
 {% endif %}
+{% if backup_months %}
+<p class="timeline__nudge timeline__nudge--backup">
+  {{ _n("{n} month of writing has never been backed up —", "{n} months of writing have never been backed up —", backup_months) }}
+  <a href="{{ url_for('pages.export') }}">{{ _("keep a copy somewhere safe.") }}</a>
+</p>
+{% endif %}
 {% if authors %}
 <div class="timeline__legend">
   {% for a in authors %}

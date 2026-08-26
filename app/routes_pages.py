@@ -40,9 +40,11 @@ from . import backup, epub, groups, i18n, life_events, people, prompts, settings
 # below is `def timeline()`, and its endpoint is `pages.timeline` in a
 # dozen templates. The module import would shadow it.
 from .timeline import (
+    BACKUP_NUDGE_MONTHS,
     QUIET_SPELL_MONTHS,
     growth_photos,
     is_sealed,
+    months_at_risk,
     months_since_last_story,
     on_this_day,
     readable_stories,
@@ -91,6 +93,17 @@ def timeline():
     quiet_months = months_since_last_story(all_stories, today)
     if quiet_months is None or quiet_months < QUIET_SPELL_MONTHS:
         quiet_months = None
+    # F58: the backup nudge is addressed to whoever can act on it. A
+    # grandmother reading on the sofa cannot take the book's backup and
+    # should not be told the book is at risk; `all_stories` is her scoped
+    # list anyway, so the count would be wrong for her as well as useless.
+    backup_months = None
+    if _viewer_is_the_keeper():
+        backup_months = months_at_risk(
+            all_stories, backup.last_backup(current_app.config["STORIES_DIR"]), today
+        )
+        if backup_months is None or backup_months < BACKUP_NUDGE_MONTHS:
+            backup_months = None
     return render_template(
         "timeline.html",
         years=sorted(years.items()),
@@ -108,6 +121,7 @@ def timeline():
         has_firsts=bool(stories_with_milestones(all_stories)),
         has_growth=bool(birthdate and growth_photos(all_stories, birthdate, today)),
         quiet_months=quiet_months,
+        backup_months=backup_months,
     )
 
 
@@ -389,6 +403,21 @@ def _exportable_story_ids():
     )}
 
 
+def _viewer_is_the_keeper():
+    """Whether this viewer is the person who keeps the book: an admin, or
+    the single identity everyone shares when accounts are off.
+
+    Two things ask this, and they are the same question. Only a keeper's
+    export is a complete backup worth recording (F58), and only a keeper's
+    zip may carry account files (F43). One body rather than two identical
+    ones, so a change to who counts as a keeper cannot reach one and miss
+    the other.
+    """
+    if not current_app.config["ACCOUNTS_ENABLED"]:
+        return True
+    return session.get("role") == "admin"
+
+
 def _viewer_may_export_credentials():
     """Whether this viewer's zip may contain account files.
 
@@ -403,9 +432,7 @@ def _viewer_may_export_credentials():
     since an admin can add themselves to one — the escalation F40 and F41
     deliberately made visible would become invisible again.
     """
-    if not current_app.config["ACCOUNTS_ENABLED"]:
-        return True
-    return session.get("role") == "admin"
+    return _viewer_is_the_keeper()
 
 
 @bp.route("/export")
@@ -425,6 +452,12 @@ def export():
         allowed_ids=_exportable_story_ids(),
         with_credentials=_viewer_may_export_credentials(),
     )
+    # F58: only a keeper's zip is the book's copy of record, so only a
+    # keeper's download quiets the nudge. A family member's export is a
+    # real backup of what they can see and no substitute for the whole
+    # book — recording it would tell everyone else the book was safe.
+    if _viewer_is_the_keeper():
+        backup.record_backup(current_app.config["STORIES_DIR"])
     filename = f"storybook-backup-{date.today().isoformat()}.zip"
     return send_file(tmp, mimetype="application/zip", as_attachment=True, download_name=filename)
 

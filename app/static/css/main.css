@@ -1011,6 +1011,14 @@ mark {
   color: var(--color-text-dim);
 }
 
+/* The quiet-spell nudge (F30) is an invitation, and italic suits one. The
+   backup nudge (F58) is a statement of fact about work that could be lost,
+   so it is set upright — the same restraint, in a plainer voice. No alert
+   colour: this is a book, and a book does not flash red at you. */
+.timeline__nudge--backup {
+  font-style: normal;
+}
+
 .timeline__legend {
   display: flex;
   flex-wrap: wrap;

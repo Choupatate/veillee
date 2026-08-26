@@ -102,7 +102,7 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   no filesystem: `readable_stories` (the canonical pages of the book — not
   an access-control gate, see `groups.py` for that), `on_this_day` (F5),
   `stories_with_milestones` (F28), `growth_photos` (F29),
-  `months_since_last_story` (F30), `is_sealed`. They were the "also home
+  `months_since_last_story` (F30), `months_at_risk` (F58), `is_sealed`. They were the "also home
   to several small pure date-math helpers" hedge in `storage.py`'s entry
   here, which is usually a file boundary asking to be drawn.
 - `app/backup.py` — **both halves of the backup round trip**:
@@ -118,6 +118,17 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   from the session, beside the route they guard. A guest never reaches
   `/export`; a family member gets the stories they can see and no
   credential files; an admin gets everything.
+
+  Also the book's memory of **when it was last backed up** (F58):
+  `record_backup`/`last_backup` and `BACKUP_MARKER_FILENAME`. Only a
+  *keeper's* export records one — `routes_pages._viewer_is_the_keeper`,
+  the single predicate `_viewer_may_export_credentials` now delegates to —
+  because a family member's scoped zip is a real backup of what they can
+  see and no substitute for the book's copy of record. Whether the nudge
+  then *fires* is `timeline.months_at_risk`, and it deliberately measures
+  the age of the oldest un-backed-up story rather than months since the
+  last backup: a book nobody has written in since its last export has
+  nothing to lose and must not be nagged for a year.
 - `app/people.py` — the "cast of the book" (F14): `Person` dataclass
   (including F27's `born`/`died`/`unions`), `list_people`/`get_person`/
   `create_person`/`update_person`. Mirrors `storage.py`'s shape.
@@ -182,6 +193,9 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   birthday have to surface on the same day, and they cannot while
   `timeline.py` and `life_events.py` each carry their own copy of it —
   which they did, along with a third inside `growth_photos`.
+  `dates.whole_months_between` is there for the same reason: F30's nudge
+  and F58's each need a calendar-month count with the day-of-month back-off,
+  and two copies of that would eventually disagree about the same day.
 - `app/themes.py` — theme packs (F46). A pack is a folder under
   `app/static/themes/<name>/`: a `theme.css` of colour variables and an
   `img/` folder. **No template ever names an image folder** — they call the
