@@ -230,6 +230,25 @@ TRANSLATIONS_FR = {
 
     # --- login / accounts ---------------------------------------------------
     "Log in": "Se connecter",
+
+    # --- claiming a fresh book (F60) ---------------------------------------
+    "Claim this book": "Prendre possession du livre",
+    "Nobody has claimed this book yet.":
+    "Personne n'a encore pris possession de ce livre.",
+    "The code is printed in this server's own logs — the same window or terminal you started it from.":
+    "Le code s'affiche dans les journaux du serveur — la fenêtre ou le "
+    "terminal depuis lequel vous l'avez démarré.",
+    "Claim code": "Code d'installation",
+    "Choose a password for the book": "Choisissez un mot de passe pour le livre",
+    "At least 8 characters. Everyone who reads the book will use it.":
+    "Au moins 8 caractères. Toute la famille s'en servira pour lire le livre.",
+    "This book is yours. Now let's set it up.":
+    "Ce livre est le vôtre. Configurons-le.",
+    "That code is not right.": "Ce code n'est pas le bon.",
+    "Choose a password of at least {n} character.":
+    "Choisissez un mot de passe d'au moins {n} caractère.",
+    "Choose a password of at least {n} characters.":
+    "Choisissez un mot de passe d'au moins {n} caractères.",
     "Memories fade, what's written stays.":
     "Les souvenirs s'évaporent, les écrits restent.",
     "Share": "Partager",

@@ -34,7 +34,7 @@ from flask import (
     url_for,
 )
 
-from . import accounts, i18n, storage, themes, write_links
+from . import accounts, claim, i18n, storage, themes, write_links
 from .i18n import _, _n
 
 bp = Blueprint("auth", __name__)
@@ -74,6 +74,34 @@ def throttled_response(template, **context):
     return response
 
 
+def book_is_unclaimed():
+    """Whether this book still has no shared secret at all (F60).
+
+    True only when the environment supplied no `STORYBOOK_PASSWORD` *and*
+    nobody has claimed the book through the browser yet. An install that
+    has always had the variable set can never be in this state, which is
+    what makes the feature invisible to every book that already exists.
+    """
+    if current_app.config["PASSWORD_CONFIGURED"]:
+        return False
+    return not claim.is_claimed(current_app.config["STORIES_DIR"])
+
+
+def shared_secret_matches(candidate):
+    """Whether `candidate` is the book's shared secret.
+
+    One function because the secret has two jobs — it is the login password
+    with accounts off, and the invite code with accounts on (F19) — and
+    both must resolve it the same way. The environment wins when it has an
+    answer; otherwise it is the scrypt hash chosen at claim time, read from
+    disk per attempt so a book claimed a moment ago works without a
+    restart.
+    """
+    if current_app.config["PASSWORD_CONFIGURED"]:
+        return hmac.compare_digest(candidate or "", current_app.config["PASSWORD"])
+    return claim.verify_password(current_app.config["STORIES_DIR"], candidate)
+
+
 def set_session_for_account(account):
     """Populate a fresh session for a real (non-delegate) account — shared
     by login() and any route that changes the current user's own password
@@ -91,6 +119,10 @@ def set_session_for_account(account):
 def login_required(view):
     @wraps(view)
     def wrapped_view(*args, **kwargs):
+        if book_is_unclaimed():
+            # F60: nothing in an unclaimed book is reachable, and every
+            # path leads to the one page that can do anything about it.
+            return redirect(url_for("auth.claim_page"))
         if not session.get("authed"):
             return redirect(url_for("auth.login", next=request.path))
         if current_app.config["ACCOUNTS_ENABLED"] and session.get("account_username"):
@@ -165,6 +197,8 @@ def delegate_required(view):
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
+    if book_is_unclaimed():
+        return redirect(url_for("auth.claim_page"))
     accounts_enabled = current_app.config["ACCOUNTS_ENABLED"]
     no_accounts_yet = accounts_enabled and not accounts.any_accounts_exist(
         storage.people_dir(current_app.config["STORIES_DIR"])
@@ -195,7 +229,7 @@ def login():
             flash(_("Incorrect username or password."), "error")
         else:
             password = request.form.get("password", "")
-            correct = hmac.compare_digest(password, current_app.config["PASSWORD"])
+            correct = shared_secret_matches(password)
             if correct:
                 throttle.clear(key)
                 session.clear()
@@ -209,6 +243,68 @@ def login():
     return render_template(
         "login.html", accounts_enabled=accounts_enabled, no_accounts_yet=no_accounts_yet
     )
+
+
+@bp.route("/claim", methods=["GET", "POST"])
+def claim_page():
+    """Take ownership of a book nobody has claimed yet (FEATURES.md F60).
+
+    Not `@login_required` — there is nothing to log in to yet, which is the
+    whole situation. What stands in for it is the code printed to the
+    machine's own logs: the person holding it is the person who installed
+    this, and nobody reaching the domain from outside can be.
+
+    404 once the book is claimed, rather than a message saying it is
+    already claimed. A claimed book should look, to anyone poking at it,
+    exactly like a book that never had this page.
+
+    Throttled on the same counter as the login form, because it is the same
+    kind of guess against the same kind of secret — and unlike a password,
+    the code cannot be changed by the person defending it.
+    """
+    if not book_is_unclaimed():
+        abort(404)
+
+    stories_dir = current_app.config["STORIES_DIR"]
+    throttle = current_app.extensions["failure_throttle"]
+    key = throttle_key()
+
+    if request.method == "POST":
+        if throttle.is_blocked(key, time.time()):
+            return throttled_response("claim.html")
+        try:
+            claim.claim(
+                stories_dir,
+                request.form.get("code", ""),
+                request.form.get("password", ""),
+            )
+        except claim.ClaimError as error:
+            if error.reason == "code":
+                # Only a wrong code counts against the throttle. A password
+                # the person typed too short is their own slip, and locking
+                # them out of their own book for it would be absurd.
+                throttle.register_failure(key, time.time())
+                time.sleep(1)
+                flash(_("That code is not right."), "error")
+            else:
+                flash(
+                    _n(
+                        "Choose a password of at least {n} character.",
+                        "Choose a password of at least {n} characters.",
+                        claim.MIN_PASSWORD_LENGTH,
+                    ),
+                    "error",
+                )
+            return render_template("claim.html", form=request.form)
+
+        throttle.clear(key)
+        session.clear()
+        session["authed"] = True
+        session.permanent = True
+        flash(_("This book is yours. Now let's set it up."), "success")
+        return redirect(url_for("pages.setup_page"))
+
+    return render_template("claim.html", form=None)
 
 
 @bp.route("/logout", methods=["POST"])

@@ -35,7 +35,7 @@ from pathlib import Path
 from tempfile import TemporaryFile
 from typing import Optional
 
-from . import groups, settings, storage, themes
+from . import claim, groups, settings, storage, themes
 from .jsonstore import write_json
 from .secret_key import SECRET_KEY_FILENAME
 from .theme_catalog import BY_FILENAME
@@ -59,6 +59,7 @@ CREDENTIAL_FILENAMES = frozenset({
     "pending_accounts.json",
     "invites.json",
     "write_links.json",
+    claim.BOOK_PASSWORD_FILENAME,
 })
 
 # The session-signing key (F59), which leaves in no zip anyone can take
@@ -75,7 +76,7 @@ CREDENTIAL_FILENAMES = frozenset({
 # Never restored either: `import_backup` refuses a zip carrying one rather
 # than skipping it, since a stranger's key overwriting this book's would
 # hand them every future session.
-NEVER_EXPORTED = frozenset({SECRET_KEY_FILENAME})
+NEVER_EXPORTED = frozenset({SECRET_KEY_FILENAME, claim.CLAIM_CODE_FILENAME})
 
 #: Root-level entries that are not story folders, and so are never
 #: audience-scoped on the way out. Everything else at the top of the

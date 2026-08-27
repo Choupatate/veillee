@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Claim this book") }} — {{ app_title }}{% endblock %}
+{% block body_class %}page-login page-claim{% endblock %}
+{% block content %}
+<div class="login">
+  <h1 class="login__title">{{ app_title }}</h1>
+  <p class="login__subtitle">{{ _("Nobody has claimed this book yet.") }}</p>
+  <img class="illo login__illo" src="{{ theme_img('login-campfire.jpg') }}"
+       alt="" loading="lazy" decoding="async" width="856" height="735">
+  <p class="login__claim-hint">
+    {{ _("The code is printed in this server's own logs — the same window or terminal you started it from.") }}
+  </p>
+  <form class="login__form" method="post" action="{{ url_for('auth.claim_page') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="login__label" for="code">{{ _("Claim code") }}</label>
+    <input class="login__input login__input--code" type="text" id="code" name="code"
+           inputmode="latin" autocapitalize="characters" autocomplete="off"
+           spellcheck="false" placeholder="XXXX-XXXX-XXXX" autofocus required
+           value="{{ form.code if form else '' }}">
+    <label class="login__label" for="password">{{ _("Choose a password for the book") }}</label>
+    <input class="login__input" type="password" id="password" name="password"
+           autocomplete="new-password" minlength="8" required>
+    <p class="login__hint">{{ _("At least 8 characters. Everyone who reads the book will use it.") }}</p>
+    <button class="btn btn--primary login__submit" type="submit">{{ _("Claim this book") }}</button>
+  </form>
+</div>
+{% endblock %}

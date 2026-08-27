@@ -144,6 +144,9 @@ complete rather than merely intended to be.
 - **F59** — The signing key generates itself: `STORYBOOK_SECRET_KEY` is
   optional now, kept in the data folder when nobody supplies one, and it
   travels in no backup zip in either direction
+- **F60** — Claiming a fresh book: installing Veillée is running one
+  container and opening a browser, with a one-time code printed to the
+  logs standing in for the password nobody has set yet
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -8486,3 +8489,174 @@ Removing either half of the zip guard was confirmed to fail the right
 tests — and with the import guard removed, the key is genuinely overwritten.
 
 `pytest` (1595) and `ruff check .` green.
+
+## F60. Claiming a fresh book
+
+### Why
+
+F59 took the signing key out of the environment, on the argument that
+asking a family to generate one by hand is how weak keys get typed. The
+password is the same argument one step further along, and the evidence was
+sitting in `.env.example`:
+
+```
+STORYBOOK_PASSWORD=changeme
+```
+
+An install that never gets past copying the example file is an install
+whose password is `changeme`. Nothing anywhere says so, and it works
+perfectly.
+
+With F59 done, the password was also the *last* thing standing between a
+family and a working book. Everything else the app needs it now generates
+or asks for in the browser. So this removes it, and installing Veillée
+becomes: run one container, open a browser.
+
+### What happens
+
+A book started with no `STORYBOOK_PASSWORD` in its environment is
+**unclaimed**. It serves exactly one page, and prints this to its own logs:
+
+```
+┌─────────────────────────────────────────────┐
+│  This book is waiting to be claimed.        │
+│  Open it in a browser and enter this code:  │
+│                                             │
+│      K7QP-3MRW-92XD                         │
+└─────────────────────────────────────────────┘
+```
+
+Whoever types that code chooses the book's password and lands in the setup
+wizard (F51) already logged in. The code is destroyed at that moment and
+there is no way to ask for another.
+
+Every route redirects there while the book is unclaimed — `/`, `/login`,
+`/firsts`, anything — because there is nothing else to usefully do, and a
+login form for a password nobody has set is a puzzle rather than a door.
+
+### Why a code, when F19 already claims by arriving first
+
+The obvious cheaper design is the one this codebase already uses: F19's
+very first account request auto-approves as admin, no code involved. The
+difference is where the two happen.
+
+F19's rule runs on a book somebody is already running and has already
+password-protected. This one runs on a book reachable at a domain name from
+the moment the container starts. The gap between `docker compose up` and
+"walked to the other room and opened a browser" is minutes, and a book of
+photographs of a child is not a thing to leave unlocked for minutes on the
+open internet.
+
+Reading the machine's own logs is proof of being the person who installed
+it. That is exactly the claim being made, and nobody arriving over the
+network can make it.
+
+Details that follow from taking that seriously:
+
+- **The code is never rendered on the claim page.** It says where to find
+  it. `test_the_claim_page_never_shows_the_code` exists because printing it
+  would silently defeat the entire mechanism while looking friendlier.
+- **A claimed book 404s the page** rather than saying "already claimed". To
+  anyone poking at it, a claimed book looks exactly like a book that never
+  had this feature.
+- **Wrong codes are throttled**, on the same per-IP counter as the login
+  form (F36) — it is the same kind of guess at the same kind of secret, and
+  unlike a password, the code cannot be changed by the person defending it.
+- **A short password is not throttled.** Fumbling your own new password
+  must never lock you out of your own book. That distinction is why
+  `ClaimError` carries a `reason` of `"code"` or `"password"` instead of a
+  message: deciding a security consequence by matching on prose is a bug
+  waiting for a translation, and the wording *is* translated.
+
+### The code itself
+
+Twelve characters from a 32-letter alphabet — about 60 bits — printed in
+threes:
+
+```python
+ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+```
+
+No `I`, `O`, `0` or `1`. It is read off a terminal and typed into a phone,
+and those four are the ones that get read wrong.
+
+`normalize()` accepts it however it arrives: dashes or not, spaces or not,
+upper case or not. A phone keyboard capitalizes the first letter and not
+the rest, and none of that is a wrong code. Six typed forms are
+parametrized in the tests.
+
+Persisted in the stories folder at mode `0600`, with the same `O_EXCL`
+dance `secret_key.py` explains — so restarting the container does not
+invalidate a code somebody is halfway through typing, and two workers print
+the same one rather than one each.
+
+### One secret, two jobs
+
+`STORYBOOK_PASSWORD` was compared in two places: the login form, and F19's
+invite code. Both now go through `auth.shared_secret_matches()`, which
+resolves the environment's answer first and the claimed hash second.
+
+They had to be unified rather than one of them patched. In accounts mode
+the shared secret is *only* the invite code, so a claimed book whose login
+knew about the hash but whose invite check did not would be a book nobody
+could ever be invited to.
+
+### The bug this found in F59
+
+Running it for real, rather than trusting the tests, turned up a hole a day
+old. `create_app` persisted the signing key only `if password and not
+secret_key` — sound when "no password" meant "dev server", and wrong the
+moment F60 made it mean "waiting to be claimed". Such a book got an
+*ephemeral* key, so the family that claimed it would be logged out on every
+restart, silently: precisely the failure F59 was written to prevent,
+reintroduced by the feature built on top of it a day later.
+
+The key is now persisted whenever the environment has none. Nothing is lost
+— a dev server gets sessions that survive a reload — and `run.py` sets
+`STORYBOOK_PASSWORD=dev` so local development is untouched. That default
+lives in the dev entrypoint on purpose and not in `create_app`, so the
+app's own rule stays one sentence: no password in the environment means
+claim me.
+
+### Nothing here travels in a backup
+
+`book_password.json` joins `CREDENTIAL_FILENAMES` — it is a scrypt hash,
+the same category as an account's, withheld from a non-admin's zip and
+never restored by an import.
+
+`claim_code` joins `NEVER_EXPORTED` beside the signing key. An unclaimed
+book has nothing to export and nobody who could export it, so this is
+defence against a situation that should not arise — which is the only kind
+worth having for a live credential that grants ownership.
+
+### What a family sees now
+
+`.env.example` has every variable commented out. Nothing in it is required.
+The README's setup section, which said *"Two things, once: a password and a
+secret key"* two features ago and *"One thing, once: a password"* one
+feature ago, now says **nothing, in a file**.
+
+An install that has always had `STORYBOOK_PASSWORD` set never enters any of
+this, and `test_a_configured_book_generates_no_code` is the test that says
+so.
+
+### Tests
+
+`tests/test_claim.py`, 36 of them: the code's shape and stability, the six
+ways someone might type it, single use, the throttle on both sides of the
+code/password distinction, every route redirecting while unclaimed, the
+page 404ing once claimed, and a book configured from the environment being
+wholly untouched.
+
+Breaking each guard was confirmed to fail the right ones: accepting any
+code fails three, serving the page to a claimed book fails two, and
+dropping the throttle registration fails the throttle test alone.
+
+`pytest` (1631) and `ruff check .` green.
+
+Verified end to end in a browser against a genuinely fresh install — no
+`.env`, no environment variables at all: logs printed the banner, `/`
+redirected to `/claim`, a wrong code was refused, the code typed in lower
+case with dashes was accepted, the wizard ran, the book got its title, and
+`/claim` 404ed afterwards. The whole form fits above the fold at 390px in
+both languages.

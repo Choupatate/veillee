@@ -119,7 +119,7 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   `/export`; a family member gets the stories they can see and no
   credential files; an admin gets everything — **except the signing key**,
   which `NEVER_EXPORTED` withholds from every role in both directions
-  (F59). Keep that distinction: `CREDENTIAL_FILENAMES` are scrypt hashes,
+  (F59), and the claim code (F60). Keep that distinction: `CREDENTIAL_FILENAMES` are scrypt hashes,
   an offline guessing target withheld from non-admins; the signing key is
   not a target but the answer, and an import carrying one is refused
   outright rather than skipped.
@@ -181,13 +181,34 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   already set up** whether or not the file exists: an install upgrading
   into this feature must never be asked to configure a book it has been
   writing in for a year.
+- `app/claim.py` — claiming a fresh book (F60): the one-time code printed
+  to the logs, and the scrypt hash of the password chosen with it. A leaf
+  beside `secret_key.py` and built the same way (`O_EXCL`, mode `0600`),
+  for the same reason: **the environment wins when it has an answer**, and
+  a book that has always had `STORYBOOK_PASSWORD` set never enters any of
+  this. `auth.book_is_unclaimed()` is what routes ask, and
+  `auth.shared_secret_matches()` is the **one** way the book's shared
+  secret is ever checked — it has two jobs (the login password with
+  accounts off, the invite code with accounts on) and both must resolve it
+  identically. Never compare against `config["PASSWORD"]` directly again;
+  that misses a claimed book entirely.
+
+  `ClaimError` carries a `reason` (`"code"` or `"password"`) rather than a
+  message, because two things are decided from it and neither may be done
+  by matching on prose: only a wrong *code* counts against the login
+  throttle, and the wording has to be translatable.
 - `app/secret_key.py` — the session-signing key when nobody supplied one
   (F59): generate 32 bytes, keep them in the stories folder at mode `0600`,
   and let the environment win whenever it has an answer. A leaf, imported
   by `create_app` and by `backup.py` (which needs the filename to keep it
   out of every zip). Created with `O_EXCL` rather than check-then-write on
   purpose — two workers can start at once, and the loser must adopt the
-  winner's key instead of writing a competing one.
+  winner's key instead of writing a competing one. **Persisted whenever
+  the environment has no key, not only when a password is set**: since F60
+  a book with no password is a book waiting to be claimed rather than a
+  book nobody logs into, and keying this off `password` gave that book an
+  ephemeral key — logging its family out on every restart, silently, which
+  is the exact failure F59 exists to prevent.
 - `app/throttle.py` — the per-IP login lockout (10 failures / 15 minutes),
   in memory and deliberately not persisted.
 - `app/jsonstore.py` — `write_json(path, data)`: the one way a sidecar JSON
@@ -396,6 +417,11 @@ pip install -r requirements.txt
 cp .env.example .env   # then edit STORYBOOK_PASSWORD and STORYBOOK_SECRET_KEY
 python run.py           # dev server, debug on, http://127.0.0.1:5000
 ```
+
+`STORYBOOK_PASSWORD` is **optional** since F60: a book started without one
+prints a claim code to its logs and is claimed from the browser. `run.py`
+defaults it to `dev` so local development is unchanged — that default lives
+in the dev entrypoint, deliberately, and not in `create_app`.
 
 `STORYBOOK_SECRET_KEY` (not `SECRET_KEY`) is the Flask session-signing key.
 It is **optional** since F59: with a password set and no key in the
