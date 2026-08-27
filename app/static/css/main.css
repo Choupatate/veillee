@@ -830,6 +830,58 @@ mark {
   margin: 0 0 0.25rem;
 }
 
+/* F60: the claim page is a task, not a welcome. The campfire is the book's
+   face on the login screen, where you see it every time; here it sits
+   between a family and the one thing they have to do, and at 390px it
+   pushed the button below the fold. Kept, because a blank form is a cold
+   greeting for the first screen anyone ever sees of this — but small
+   enough that the whole task fits on a phone without scrolling. */
+.page-claim .login__illo {
+  max-width: 9rem;
+  margin-bottom: 1.25rem;
+}
+
+/* On a short screen the picture goes entirely. An old phone is exactly the
+   device someone props against a NAS while typing a code off it, and there
+   the whole point is that the form fits without scrolling. */
+@media (max-height: 640px) {
+  .page-claim .login__illo {
+    display: none;
+  }
+
+  .page-claim .login__title {
+    margin-bottom: 0.25rem;
+  }
+
+  .page-claim .login__subtitle,
+  .page-claim .login__claim-hint {
+    margin-bottom: 0.75rem;
+  }
+}
+
+/* F60: the claim page's two explanatory lines, and the code field itself —
+   read off a terminal one group at a time, so it is set in the mono face
+   and spaced out rather than left as ordinary prose. */
+.login__claim-hint,
+.login__hint {
+  max-width: 28rem;
+  margin: 0 auto 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text-dim);
+  text-wrap: pretty;
+}
+
+.login__hint {
+  margin: -0.5rem auto 1rem;
+}
+
+.login__input--code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .login__subtitle {
   color: var(--color-text-dim);
   margin: 0 0 2rem;
@@ -1009,6 +1061,14 @@ mark {
 
 .timeline__nudge a {
   color: var(--color-text-dim);
+}
+
+/* The quiet-spell nudge (F30) is an invitation, and italic suits one. The
+   backup nudge (F58) is a statement of fact about work that could be lost,
+   so it is set upright — the same restraint, in a plainer voice. No alert
+   colour: this is a book, and a book does not flash red at you. */
+.timeline__nudge--backup {
+  font-style: normal;
 }
 
 .timeline__legend {

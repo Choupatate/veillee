@@ -5,7 +5,6 @@ see that module's docstring for why these live in a separate file without
 a separate blueprint.
 """
 
-import hmac
 import time
 from datetime import date, datetime
 
@@ -18,6 +17,7 @@ from .auth import (
     delegate_required,
     login_required,
     set_session_for_account,
+    shared_secret_matches,
     throttle_key,
     throttled_response,
 )
@@ -71,7 +71,9 @@ def request_account():
             return throttled_response("request_account.html", submitted=False,
                                       open_requests=open_requests)
 
-        code_verified = hmac.compare_digest(invite_code, current_app.config["PASSWORD"])
+        # F60: the same resolution the login form uses — the environment's
+        # secret, or the one chosen when the book was claimed.
+        code_verified = shared_secret_matches(invite_code)
         code_optional = open_requests and not invite_code
 
         if not code_verified and not code_optional:

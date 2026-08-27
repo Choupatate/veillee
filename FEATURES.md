@@ -138,6 +138,24 @@ complete rather than merely intended to be.
 - **F57** — The app in the phone's share sheet: send a photo to Veillée
   from wherever you are looking at it, and land in the editor with it
   already attached — as a draft, which is what makes that safe
+- **F58** — A word about the backup: the timeline says so when writing has
+  gone months without ever being copied anywhere — measured as the age of
+  the oldest unsaved story, so a book nobody writes in is never nagged
+- **F59** — The signing key generates itself: `STORYBOOK_SECRET_KEY` is
+  optional now, kept in the data folder when nobody supplies one, and it
+  travels in no backup zip in either direction
+- **F60** — Claiming a fresh book: installing Veillée is running one
+  container and opening a browser, with a one-time code printed to the
+  logs standing in for the password nobody has set yet
+- **F61** — The image a family installs: a multi-arch build published to
+  GHCR on every version tag, so nobody clones a repository or builds
+  anything, and the version they are running is on the Licences page
+- **F62** — HTTPS on your own domain: a compose file with Caddy in it, one
+  `DOMAIN=` line, and the two proxy settings that are silently wrong when
+  you set them by hand
+- **F63** — The install page: written for someone who can paste a command
+  but not read a stack trace, and honest about CGNAT being a dead end
+  rather than something they configured wrong
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -8144,3 +8162,702 @@ carries a comment explaining that it covers the window between the two
 writes rather than the outcome.
 
 `pytest` (1558) and `ruff check .` green.
+
+## F58. A word about the backup
+
+### Why
+
+The premise of this whole app is that a child reads it in fifteen years.
+The file format keeps that promise — markdown and JPEGs are about as close
+to forever as digital gets, and everything in `storage.py` is built around
+it. A single disk does not keep it.
+
+`/export` has been one tap since F8. Nothing has ever asked anyone to press
+it. The only mention of backing up anywhere in the project was a comment on
+the first line of `.env.example`:
+
+```
+# Where story folders live. Back this directory up — it is all your data.
+```
+
+which is in a file that a family who installed this from Docker Compose
+never opens, addressed to a person who by definition already knew.
+
+Meanwhile F30 has been nudging the same family, on the same page, since
+2025 — *"Nothing new in 3 months — a little story?"* — about writing more.
+The app had a voice for asking people to add to the book and none for
+asking them to protect it.
+
+### The question the nudge asks
+
+The obvious implementation is "months since the last backup", and it is
+wrong in both directions.
+
+It nags a book nobody is writing in. Someone exports in June, writes
+nothing for a year, and every time they open the timeline the app tells
+them their backup is stale — when the zip on the shelf is a *complete* copy
+and there is not one word anywhere that it does not contain. Nothing is at
+risk. The app would be crying wolf for twelve months, and the cost of that
+is not annoyance, it is that the nudge stops being read by the time it is
+true.
+
+It is also silent in the opposite case, for a shorter window: a book backed
+up last week and written in every day since is accumulating real exposure
+and reports zero.
+
+So the question is not how old the backup is. It is **how much unsaved
+writing has piled up**:
+
+```python
+at_risk = [
+    s.created.date() for s in stories
+    if s.created and (last_backup is None or s.created.date() > last_backup)
+]
+if not at_risk:
+    return None
+return dates.whole_months_between(min(at_risk), today)
+```
+
+`timeline.months_at_risk`, and one rule covers every case:
+
+| Book | At risk | Nudge |
+|---|---|---|
+| Empty | — | no |
+| Written this week, never backed up | 0 months | no |
+| A year of writing, never backed up | 12 months | **yes** |
+| Backed up last week | — | no |
+| Exported a year ago, nothing written since | — | **no** |
+| Exported a year ago, wrote 8 months ago | 8 months | **yes** |
+
+Row five is the one the naive version gets wrong, and row three is the one
+that matters most: a book that has never been backed up at all is not a
+special case here, it is `last_backup is None` and every story counts.
+
+By `created` rather than the story's own `date`, exactly as
+`months_since_last_story` is: writing today about a memory from 2019 puts
+*today's* work at risk, not 2019's. Drafts and instants count — an
+unfinished story is still an evening of someone's writing.
+
+Six months, against F30's three, because the two nudges say different
+things. Three quiet months is an invitation. Half a year of unsaved writing
+is a risk, and a risk should be mentioned less often and mean more.
+
+### Who it is addressed to
+
+Only whoever can act on it — an admin, or the single identity everyone
+shares when accounts are off. Two reasons, and the second is the load-bearing
+one.
+
+A grandmother reading on the sofa cannot take the book's backup: hers is
+scoped to the stories she is in the audience for (F40) and carries no
+account files (F43). Telling her the book is at risk asks for something she
+cannot give. And the number would be wrong for her anyway — it would be
+computed from her scoped list, so the months it reported would describe her
+slice of the book rather than the book.
+
+The same rule decides what *counts*. `/export` records a backup only when
+the person downloading could take a whole one:
+
+```python
+if _viewer_is_the_keeper():
+    backup.record_backup(current_app.config["STORIES_DIR"])
+```
+
+If a family member's partial zip recorded a backup, one relative
+downloading their own slice would tell the admin — falsely, and silently —
+that the whole book was safe. That is a worse failure than never having
+built the nudge, and `test_a_family_member_s_partial_zip_does_not_quiet_the_book`
+is the test that holds it.
+
+`_viewer_is_the_keeper()` is one predicate with two callers now:
+`_viewer_may_export_credentials()` delegates to it rather than repeating
+its body. They were the same two lines in two places, and the risk of
+identical bodies is that a change reaches one and misses the other — here
+that change would be to who counts as an admin.
+
+### The marker
+
+`last_backup.json` in the stories directory, beside `settings.json` and
+`groups.json`, written through `jsonstore.write_json` like every other
+sidecar:
+
+```json
+{
+  "at": "2026-08-26"
+}
+```
+
+A date, not a timestamp: the nudge counts whole months, so an hour of
+precision would be stored and never read, and a plain `YYYY-MM-DD` is what
+someone opening this file by hand would hope to find.
+
+In `backup.py` rather than `settings.py` because nobody chooses it — it is
+written by the act of taking a backup, not by a person deciding something.
+Not in `timeline.py`, which touches no filesystem. Not in `storage.py`,
+which is for story folders. That is the rule CLAUDE.md states for exactly
+this decision, and this is the first new file to be placed by it.
+
+`last_backup()` is deliberately tolerant: a missing, empty, malformed or
+unparseable marker all return `None`. This file exists to prompt a
+kindness, and the worst a damaged one may ever do is prompt it twice.
+Taking the timeline down over it would be absurd.
+
+Read on import, never restored — `last_backup.json` contains a dot, so
+`is_valid_story_id` rejects it and `import_backup` skips it like
+`groups.json`, which is right: an old zip's idea of when it was backed up
+is not this install's.
+
+### Where it appears
+
+Under the quiet-spell nudge on the timeline, in the same restrained shape,
+linking straight to `/export` so the fix is one tap from the complaint:
+
+> 8 months of writing have never been backed up — *keep a copy somewhere safe.*
+
+> 8 mois d'écriture n'ont jamais été sauvegardés — *gardez-en une copie en lieu sûr.*
+
+One typographic difference from F30's: it is set upright rather than
+italic. The quiet-spell nudge is an invitation and italic suits one; this
+is a statement of fact about work that could be lost. No alert colour, no
+badge, no banner — this is a book, and a book does not flash red at you.
+
+### Tests
+
+`tests/test_backup_nudge.py`, 26 of them, and most assert that the app
+**stays quiet** — the empty book, the new book, the freshly backed-up book,
+the stale backup with nothing written since, the family member. A nudge
+that fires when there is nothing to do is one people learn to ignore, and
+then it is not there on the day it matters.
+
+Each guard was confirmed by breaking what it protects: making everyone a
+keeper fails the two segregation tests, and rewriting `months_at_risk` to
+measure from the backup date fails four including the stale-backup one.
+
+`pytest` (1584) and `ruff check .` green.
+
+## F59. The signing key generates itself
+
+### Why
+
+Until now, this was true:
+
+```python
+if password and not secret_key and not test_config:
+    raise RuntimeError(
+        "STORYBOOK_SECRET_KEY must be set when STORYBOOK_PASSWORD is set. "
+        "Generate one with: python -c 'import secrets; print(secrets.token_hex(32))'"
+    )
+```
+
+The refusal was right about the danger and wrong about who was standing in
+front of it. Setting up this app meant a person following the Docker
+instructions being asked, mid-install, to understand what a session-signing
+key is, why it is not the password they just chose, and why
+
+```
+STORYBOOK_SECRET_KEY=change-this-to-a-long-random-string
+```
+
+is not itself a long random string. The predictable answer is a key that is
+neither long nor random — and nothing anywhere would say so. A weak signing
+key silently weakens every session cookie the app will ever sign, and the
+app would start up perfectly happily on one.
+
+So the requirement stands and the app satisfies it itself. `secrets` is
+better at this than a human under time pressure, and it is the only party
+here that has never once typed `hunter2`.
+
+### What it does
+
+`app/secret_key.py`, a leaf module. With a password set and no key in the
+environment, generate `secrets.token_hex(32)` and keep it in the stories
+directory as `secret_key` — the only place a container is guaranteed to
+have a volume mounted, and the folder a family already knows to keep.
+
+Three properties, none optional:
+
+**The environment still wins.** A key in `STORYBOOK_SECRET_KEY` is used and
+the file is never written — not read, not created. It is machine
+configuration, and when the machine has an answer that is the answer. This
+is the fallback for when there isn't one, which is why
+`test_environment_secret_key_wins_and_writes_no_file` also asserts the
+absence of the file rather than just the value of the config.
+
+**`O_EXCL`, not check-then-write.** Two workers can start at once —
+waitress, gunicorn, a container restarting into one still shutting down.
+Whoever creates the file wins, and the loser reads what the winner wrote:
+
+```python
+except FileExistsError:
+    # Another worker created it between the read above and here. Its
+    # key is the book's key now.
+    return _read(path)
+```
+
+Without this, two workers each generate a key, each writes it, and they
+sign cookies differently — logging each other's readers out at random,
+intermittently, in a way nobody would ever diagnose.
+
+**Mode `0600` at creation**, in the `os.open` flags rather than a `chmod`
+afterwards, so there is no window in which the key is world-readable on a
+NAS where the stories folder is shared over SMB.
+
+### The refusal that stayed
+
+`load_or_create` returns `None` when the key can be neither read nor
+written, and `create_app` still raises — with a message about mounting a
+volume rather than about generating a key, since that is the actual
+situation:
+
+```
+Could not read or write secret_key in '/data/stories', and
+STORYBOOK_SECRET_KEY is not set. Make that directory writable (in Docker,
+mount a volume at the stories path), or set STORYBOOK_SECRET_KEY yourself
+```
+
+Falling back to an in-memory key here would be the worst of both worlds: it
+would start, and it would log the whole family out every time the container
+restarted, and nothing would say why. The refusal was never wrong — it was
+just aimed at the wrong person.
+
+`test_unusable_stories_dir_still_refuses_to_start` covers it with a plain
+file where the directory should be, rather than a `chmod`: this suite runs
+as root often enough that mode bits prove nothing.
+
+### It travels in no backup
+
+A new frozenset in `backup.py`, deliberately separate from
+`CREDENTIAL_FILENAMES`:
+
+```python
+NEVER_EXPORTED = frozenset({SECRET_KEY_FILENAME})
+```
+
+The distinction is the whole point. `CREDENTIAL_FILENAMES` are scrypt
+hashes, withheld from non-admins (F43) as an *offline guessing target* — and
+an admin exporting their own book's hashes is exporting something they
+already control.
+
+A signing key is not a target. It is the answer. Anyone holding it can mint
+a session cookie for any account in the book, admin included, without
+guessing anything at all — and a zip is a portable file that gets mailed,
+synced to a phone, and left on a laptop. No viewer of any role has a reason
+to carry it away, so unlike the credential filter this exclusion is
+unconditional:
+
+```python
+if path.name in NEVER_EXPORTED:
+    continue
+if not with_credentials and path.name in CREDENTIAL_FILENAMES:
+    continue
+```
+
+Coming the other way it is **refused, not skipped**. Every other unknown
+root-level entry in a zip is quietly ignored; a zip carrying a signing key
+aborts the whole import:
+
+```python
+if Path(name).name in NEVER_EXPORTED:
+    raise ValueError(f"Backup contains a signing key: {name!r}")
+```
+
+Because the failure mode is not "a file this app didn't expect" — it is a
+stranger's key overwriting this book's, handing them every session signed
+afterwards. Checked on the basename anywhere in the tree, so
+`people/papa/secret_key` cannot slip past a root-level check, and it fires
+before anything is extracted so the all-or-nothing guarantee holds.
+
+The filename has no dot, which means `storage.STORY_ID_RE` — `^[a-z0-9-]+$`,
+no underscore — cannot match it either. That is belt to the explicit
+check's braces, not a substitute for it: relying on a regex in another
+module to keep a session key safe is exactly the kind of accidental
+coupling that stops being true one refactor later.
+
+### What a family sees
+
+The README's setup section used to open with *"Two things, once: a password
+and a secret key."* It now opens with one thing, and `.env.example` has
+`STORYBOOK_SECRET_KEY` commented out with a note that a value there wins.
+
+`docker-compose.yml` passes `${STORYBOOK_SECRET_KEY:-}` so an absent one is
+an empty string rather than a Compose warning, and the Docker section of
+the README gained the one warning that now matters more than the key did:
+**mount the volume before the first start**, because that is where the
+generated key lives.
+
+### Tests
+
+Six in `tests/test_create_app.py` (generated, persisted, stable across
+restarts, `0600`, environment wins and writes nothing, unusable folder
+still refuses, and a racing second worker adopting the first key) and six
+in `tests/test_backup_credentials.py` for the zip contract in both
+directions, including a real round trip proving the exclusion costs nothing
+that backups are for.
+
+Removing either half of the zip guard was confirmed to fail the right
+tests — and with the import guard removed, the key is genuinely overwritten.
+
+`pytest` (1595) and `ruff check .` green.
+
+## F60. Claiming a fresh book
+
+### Why
+
+F59 took the signing key out of the environment, on the argument that
+asking a family to generate one by hand is how weak keys get typed. The
+password is the same argument one step further along, and the evidence was
+sitting in `.env.example`:
+
+```
+STORYBOOK_PASSWORD=changeme
+```
+
+An install that never gets past copying the example file is an install
+whose password is `changeme`. Nothing anywhere says so, and it works
+perfectly.
+
+With F59 done, the password was also the *last* thing standing between a
+family and a working book. Everything else the app needs it now generates
+or asks for in the browser. So this removes it, and installing Veillée
+becomes: run one container, open a browser.
+
+### What happens
+
+A book started with no `STORYBOOK_PASSWORD` in its environment is
+**unclaimed**. It serves exactly one page, and prints this to its own logs:
+
+```
+┌─────────────────────────────────────────────┐
+│  This book is waiting to be claimed.        │
+│  Open it in a browser and enter this code:  │
+│                                             │
+│      K7QP-3MRW-92XD                         │
+└─────────────────────────────────────────────┘
+```
+
+Whoever types that code chooses the book's password and lands in the setup
+wizard (F51) already logged in. The code is destroyed at that moment and
+there is no way to ask for another.
+
+Every route redirects there while the book is unclaimed — `/`, `/login`,
+`/firsts`, anything — because there is nothing else to usefully do, and a
+login form for a password nobody has set is a puzzle rather than a door.
+
+### Why a code, when F19 already claims by arriving first
+
+The obvious cheaper design is the one this codebase already uses: F19's
+very first account request auto-approves as admin, no code involved. The
+difference is where the two happen.
+
+F19's rule runs on a book somebody is already running and has already
+password-protected. This one runs on a book reachable at a domain name from
+the moment the container starts. The gap between `docker compose up` and
+"walked to the other room and opened a browser" is minutes, and a book of
+photographs of a child is not a thing to leave unlocked for minutes on the
+open internet.
+
+Reading the machine's own logs is proof of being the person who installed
+it. That is exactly the claim being made, and nobody arriving over the
+network can make it.
+
+Details that follow from taking that seriously:
+
+- **The code is never rendered on the claim page.** It says where to find
+  it. `test_the_claim_page_never_shows_the_code` exists because printing it
+  would silently defeat the entire mechanism while looking friendlier.
+- **A claimed book 404s the page** rather than saying "already claimed". To
+  anyone poking at it, a claimed book looks exactly like a book that never
+  had this feature.
+- **Wrong codes are throttled**, on the same per-IP counter as the login
+  form (F36) — it is the same kind of guess at the same kind of secret, and
+  unlike a password, the code cannot be changed by the person defending it.
+- **A short password is not throttled.** Fumbling your own new password
+  must never lock you out of your own book. That distinction is why
+  `ClaimError` carries a `reason` of `"code"` or `"password"` instead of a
+  message: deciding a security consequence by matching on prose is a bug
+  waiting for a translation, and the wording *is* translated.
+
+### The code itself
+
+Twelve characters from a 32-letter alphabet — about 60 bits — printed in
+threes:
+
+```python
+ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+```
+
+No `I`, `O`, `0` or `1`. It is read off a terminal and typed into a phone,
+and those four are the ones that get read wrong.
+
+`normalize()` accepts it however it arrives: dashes or not, spaces or not,
+upper case or not. A phone keyboard capitalizes the first letter and not
+the rest, and none of that is a wrong code. Six typed forms are
+parametrized in the tests.
+
+Persisted in the stories folder at mode `0600`, with the same `O_EXCL`
+dance `secret_key.py` explains — so restarting the container does not
+invalidate a code somebody is halfway through typing, and two workers print
+the same one rather than one each.
+
+### One secret, two jobs
+
+`STORYBOOK_PASSWORD` was compared in two places: the login form, and F19's
+invite code. Both now go through `auth.shared_secret_matches()`, which
+resolves the environment's answer first and the claimed hash second.
+
+They had to be unified rather than one of them patched. In accounts mode
+the shared secret is *only* the invite code, so a claimed book whose login
+knew about the hash but whose invite check did not would be a book nobody
+could ever be invited to.
+
+### The bug this found in F59
+
+Running it for real, rather than trusting the tests, turned up a hole a day
+old. `create_app` persisted the signing key only `if password and not
+secret_key` — sound when "no password" meant "dev server", and wrong the
+moment F60 made it mean "waiting to be claimed". Such a book got an
+*ephemeral* key, so the family that claimed it would be logged out on every
+restart, silently: precisely the failure F59 was written to prevent,
+reintroduced by the feature built on top of it a day later.
+
+The key is now persisted whenever the environment has none. Nothing is lost
+— a dev server gets sessions that survive a reload — and `run.py` sets
+`STORYBOOK_PASSWORD=dev` so local development is untouched. That default
+lives in the dev entrypoint on purpose and not in `create_app`, so the
+app's own rule stays one sentence: no password in the environment means
+claim me.
+
+### Nothing here travels in a backup
+
+`book_password.json` joins `CREDENTIAL_FILENAMES` — it is a scrypt hash,
+the same category as an account's, withheld from a non-admin's zip and
+never restored by an import.
+
+`claim_code` joins `NEVER_EXPORTED` beside the signing key. An unclaimed
+book has nothing to export and nobody who could export it, so this is
+defence against a situation that should not arise — which is the only kind
+worth having for a live credential that grants ownership.
+
+### What a family sees now
+
+`.env.example` has every variable commented out. Nothing in it is required.
+The README's setup section, which said *"Two things, once: a password and a
+secret key"* two features ago and *"One thing, once: a password"* one
+feature ago, now says **nothing, in a file**.
+
+An install that has always had `STORYBOOK_PASSWORD` set never enters any of
+this, and `test_a_configured_book_generates_no_code` is the test that says
+so.
+
+### Tests
+
+`tests/test_claim.py`, 36 of them: the code's shape and stability, the six
+ways someone might type it, single use, the throttle on both sides of the
+code/password distinction, every route redirecting while unclaimed, the
+page 404ing once claimed, and a book configured from the environment being
+wholly untouched.
+
+Breaking each guard was confirmed to fail the right ones: accepting any
+code fails three, serving the page to a claimed book fails two, and
+dropping the throttle registration fails the throttle test alone.
+
+`pytest` (1631) and `ruff check .` green.
+
+Verified end to end in a browser against a genuinely fresh install — no
+`.env`, no environment variables at all: logs printed the banner, `/`
+redirected to `/claim`, a wrong code was refused, the code typed in lower
+case with dashes was accepted, the wizard ran, the book got its title, and
+`/claim` 404ed afterwards. The whole form fits above the fold at 390px in
+both languages.
+
+## F61. The image a family installs
+
+### Why
+
+The Docker instructions said `docker compose up -d --build`. That word
+`--build` is doing a lot of quiet work: it means clone the repository,
+have a build toolchain, and compile an image locally — before anything
+runs. For the person this project is now aimed at, that is three
+opportunities to fail before the first screen.
+
+So the image is built once, by CI, and published. Installing becomes
+`docker run` against a name.
+
+### What ships
+
+`.github/workflows/release.yml`, on `v*` tags only. Not on merge to main:
+deciding a commit is a release is a human act, and making it a side effect
+of merging means every merge publishes something a family might install.
+
+**`linux/amd64` and `linux/arm64`** — a VPS or an old laptop is the first,
+a Raspberry Pi the second. Cross-built under QEMU, which is only tolerable
+because every pinned dependency ships a manylinux aarch64 wheel for
+CPython 3.12. That was checked rather than assumed:
+
+```
+pillow_heif-1.4.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl
+pillow-12.3.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
+```
+
+If a future dependency has no aarch64 wheel, this job will appear to hang
+while it compiles something like libheif under emulation. That is the
+failure to expect, the workflow comment says so, and the fix is to check
+the wheel before pinning rather than to raise the timeout.
+
+**The tests run again before the push.** A tag usually points at a commit
+CI has already seen, and "usually" is not a thing to publish an image on.
+
+**`latest`, `1`, `1.2` and `1.2.3`** all move, so a family can follow
+whichever they want — the latest, or a major line, or nothing at all.
+
+### The version, where someone can read it
+
+`ARG VERSION` in the Dockerfile, `STORYBOOK_VERSION` in the environment,
+`config["VERSION"]` in the app, and a line at the bottom of the Licences
+page. `dev` for anyone building from a checkout, which is the honest
+answer: a working tree is not a release.
+
+It exists for one exchange — "what version are you on?" — which is
+otherwise unanswerable for a self-hosted app, and unanswerable is where
+support conversations die.
+
+A small thing worth recording, because it is the kind of trap that gets
+committed: the first attempt put a `_("Version")` label beside it, whose
+French translation is the identical word. `test_i18n.py` refuses an entry
+identical to its English key, and it is right to — such an entry is
+indistinguishable from a forgotten one. The label was folded into the
+sentence instead.
+
+## F62. HTTPS on your own domain
+
+### Why
+
+Getting a certificate onto a self-hosted app is the step where installs
+die. Not because any part is hard, but because there are four parts and
+two of them fail silently.
+
+So Veillée ships the web server. `compose.https.yml` plus a `Caddyfile`,
+one `DOMAIN=` line in `.env`, and Caddy obtains a Let's Encrypt
+certificate, renews it forever, and redirects `http://` to `https://`
+without being asked.
+
+### The two settings that are invisible when wrong
+
+```yaml
+STORYBOOK_COOKIE_SECURE: 1
+STORYBOOK_TRUSTED_PROXIES: 1
+```
+
+Both are documented, both have always been the family's job, and both look
+exactly the same in a browser whether or not you set them.
+
+Without `COOKIE_SECURE`, the session cookie is not marked `Secure` and will
+travel over plain HTTP given the chance.
+
+Without `TRUSTED_PROXIES`, every visitor arrives as Caddy's container
+address. F36's login throttle counts failures per IP, so the entire
+internet shares one counter — and one person guessing passwords locks out
+the whole family. It fails closed, which is the right direction and a
+miserable way to find out.
+
+Shipping them set, in a file, is the argument for this feature existing at
+all rather than being another paragraph in the README.
+
+`tests/test_behind_a_proxy.py` is what keeps them honest, and it tests
+consequences rather than configuration: a run of failures from one
+forwarded address must not block a different one, the cookie must come back
+`Secure` + `HttpOnly` + `SameSite=Lax`, and HSTS must be sent over HTTPS
+and **not** sent on a plain LAN install — a browser that caches HSTS will
+refuse `http://` afterwards, and a LAN book has no certificate to offer
+instead.
+
+The default has to fail the other way, and there is a test for that too:
+with no proxy configured, two different `X-Forwarded-For` values still share
+a throttle counter. Trusting a header nobody sets would let any client
+invent a new address per attempt and walk straight past the lockout.
+
+### Deliberately a second file
+
+`docker-compose.yml` — the Synology setup, with its bind mount to
+`/volume2/Media/StoryBook` — is untouched and still valid. This stack takes
+ports 80 and 443 for itself, which a NAS already serving its own web
+interface on them cannot give. Two files, each honest about what it is for,
+rather than one with a profile flag and two ways to be half-configured.
+
+`caddy-data` is a named volume and the compose file says why at length: it
+holds the certificates, and Let's Encrypt allows five per domain per week.
+Deleting it on a Tuesday can leave the book without HTTPS until the
+following week.
+
+**Not verified end to end.** There is no Docker daemon in the environment
+this was written in. `docker compose config` validates both files and the
+missing-`DOMAIN` guard was confirmed to fire with its intended message, and
+everything on the app's side of the proxy is tested — but nobody has yet
+watched Caddy fetch a real certificate for a real domain. That is the one
+claim on this page taken on trust.
+
+## F63. The install page
+
+### Why
+
+Everything above assumes somebody gets as far as running the thing. The
+README is written for a developer reading a repository; `docs/install.md`
+is written for the person this project is now for — someone who can paste a
+command and follow it with their eyes, and who will not read a stack trace.
+
+### What it says that the README does not
+
+**Which machine, with the drawbacks named.** A table of Pi, NAS, old
+laptop, VPS and desktop, each with the thing that goes wrong: SD cards die
+without warning, a NAS's web interface already owns ports 80 and 443, a
+laptop sleeps when you close it, a VPS means the photographs sit on a
+rented disk.
+
+**Why the `-v` flag is the important part**, in a block quote, because it
+is the difference between a book and a container that will be deleted one
+day with everything in it.
+
+**CGNAT, named as a dead end.** Many providers — especially fibre and
+5G home broadband — put customers behind carrier-grade NAT, where no port
+forward can ever work. This is the single most likely reason a family's
+evening ends in failure, and the honest thing is to say so before they buy
+a domain. There is a two-minute check:
+
+1. `curl -4 ifconfig.me`
+2. the router's WAN address
+3. different, or starting `100.64.`–`100.127.` → CGNAT, and no amount of
+   configuration will change it
+
+with three real ways forward (a VPS, asking the provider for a public IP,
+or Tailscale) rather than a shrug. Failing fast beats an evening of
+somebody thinking they did it wrong.
+
+**What happens once a port is open**, plainly: strangers find the login
+page within hours, not because they are after you but because everything
+gets scanned. Followed by what the app actually does about it — scrypt,
+per-IP lockout, `Secure`/`HttpOnly` cookies, and a book that cannot be
+claimed without a code from your own logs — and the note that a VPN avoids
+having to make the decision at all.
+
+**Two ways out**, in the troubleshooting section, and they are the reason
+this page changed the code: writing them down made them promises, so they
+are tested now (`test_deleting_the_password_unclaims_the_book` and friends).
+
+- Forgot the book's password → delete `book_password.json`, restart, read
+  the new claim code from the logs. Stories untouched.
+- Lost the claim code before claiming → delete `claim_code`, restart.
+
+Both require access to the machine's filesystem, and neither is reachable
+from the browser. That asymmetry is the design: for a book on a NAS in your
+own house, whoever can delete that file is the person who installed it —
+whereas a password reset reachable over the network is a password reset for
+whoever finds the domain.
+
+`pytest` (1636) and `ruff check .` green.
+
+Both were run for real before being written down, and the first attempt to
+verify them was wrong: a `curl` POST to `/claim` returned 400 because CSRF
+was on and curl carried no token, which made the *next* step look like a
+passing result when nothing had been claimed at all. Worth recording as the
+shape of the mistake: a verification that fails silently upstream and
+succeeds downstream is worse than no verification.

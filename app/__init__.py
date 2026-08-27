@@ -9,6 +9,8 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from . import claim as claim_module
+from . import secret_key as secret_key_file
 from . import settings, themes
 from .throttle import DEFAULT_LIMIT, DEFAULT_WINDOW_SECONDS, FailureThrottle
 
@@ -112,18 +114,44 @@ def create_app(test_config=None):
     trusted_proxies = int(os.environ.get("STORYBOOK_TRUSTED_PROXIES") or 0)
     default_language = os.environ.get("STORYBOOK_LANGUAGE") or None
     theme = _parse_theme(os.environ.get("STORYBOOK_THEME"))
+    # F61: baked into the published image by the release workflow. "dev"
+    # for a checkout, which is the truth — a working tree is not a release.
+    version = os.environ.get("STORYBOOK_VERSION") or "dev"
 
-    if password and not secret_key and not test_config:
-        raise RuntimeError(
-            "STORYBOOK_SECRET_KEY must be set when STORYBOOK_PASSWORD is set. "
-            "Generate one with: python -c 'import secrets; print(secrets.token_hex(32))'"
-        )
+    # F59: a book that anyone logs into needs a stable signing key, and
+    # asking the person installing this to produce one by hand is how weak
+    # ones get typed. The environment still wins when it has an answer;
+    # with no answer, keep a generated one in the data folder. See
+    # secret_key.py.
+    #
+    # Not conditional on `password` any more, and F60 is why. A book with
+    # no password in its environment is no longer a book nobody logs into
+    # — it is one waiting to be claimed, and it will have a password in a
+    # minute. Keying this off `password` meant such a book got an
+    # *ephemeral* key, so the family it belongs to would be logged out on
+    # every restart, silently, which is the exact failure F59 exists to
+    # prevent. Nothing is lost by always persisting it: a dev server gets
+    # sessions that survive a reload.
+    if not secret_key and not test_config:
+        secret_key = secret_key_file.load_or_create(stories_dir)
+        if not secret_key:
+            raise RuntimeError(
+                f"Could not read or write {secret_key_file.SECRET_KEY_FILENAME} in "
+                f"{stories_dir!r}, and STORYBOOK_SECRET_KEY is not set. Make that "
+                "directory writable (in Docker, mount a volume at the stories path), "
+                "or set STORYBOOK_SECRET_KEY yourself: "
+                "python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
 
     app.config.update(
         STORIES_DIR=Path(stories_dir).resolve(),
         PASSWORD=password or "dev",
         SECRET_KEY=secret_key or secrets.token_hex(32),
         DEV_MODE=password is None,
+        # F60: whether the environment supplied the book's shared secret.
+        # When it did not, the book is claimed through the browser instead,
+        # and `auth.book_is_unclaimed` is what the routes ask.
+        PASSWORD_CONFIGURED=password is not None,
         AUTHORS=authors,
         BIRTHDATE=birthdate,
         TITLE=title_override,
@@ -137,12 +165,34 @@ def create_app(test_config=None):
         SESSION_COOKIE_SECURE=cookie_secure,
         DEFAULT_LANGUAGE=default_language,
         THEME=theme,
+        VERSION=version,
         LOGIN_ATTEMPT_LIMIT=DEFAULT_LIMIT,
         LOGIN_ATTEMPT_WINDOW=DEFAULT_WINDOW_SECONDS,
     )
 
     if test_config:
         app.config.update(test_config)
+        # F60: a test builds an app that already has a password — that is
+        # what `PASSWORD` in a test config means. Defaulted here rather
+        # than in every fixture, so a test written before this feature
+        # existed keeps testing what it was written to test. The claim
+        # tests pass it explicitly, which is the only way to get an
+        # unclaimed book out of `test_config`.
+        #
+        # Not `setdefault`: the update above has already put the
+        # environment's answer (False, with no STORYBOOK_PASSWORD set) into
+        # the config, so the key is never absent and setdefault never fires.
+        if "PASSWORD_CONFIGURED" not in test_config:
+            app.config["PASSWORD_CONFIGURED"] = True
+
+    # F60: an unclaimed book prints its claim code where only somebody with
+    # access to the machine can read it. After `test_config` so a test app
+    # never generates one, and before the first request so `docker compose
+    # up` shows it immediately rather than on first visit.
+    if not test_config and password is None:
+        code = claim_module.pending_code(app.config["STORIES_DIR"])
+        if code:
+            app.logger.warning(claim_module.banner(code))
 
     # Behind a reverse proxy (the normal NAS setup), remote_addr is the
     # proxy's address, which would make the login throttle treat the whole

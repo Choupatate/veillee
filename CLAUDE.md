@@ -102,7 +102,7 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   no filesystem: `readable_stories` (the canonical pages of the book — not
   an access-control gate, see `groups.py` for that), `on_this_day` (F5),
   `stories_with_milestones` (F28), `growth_photos` (F29),
-  `months_since_last_story` (F30), `is_sealed`. They were the "also home
+  `months_since_last_story` (F30), `months_at_risk` (F58), `is_sealed`. They were the "also home
   to several small pure date-math helpers" hedge in `storage.py`'s entry
   here, which is usually a file boundary asking to be drawn.
 - `app/backup.py` — **both halves of the backup round trip**:
@@ -117,7 +117,23 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   `_exportable_story_ids`/`_viewer_may_export_credentials` decide them
   from the session, beside the route they guard. A guest never reaches
   `/export`; a family member gets the stories they can see and no
-  credential files; an admin gets everything.
+  credential files; an admin gets everything — **except the signing key**,
+  which `NEVER_EXPORTED` withholds from every role in both directions
+  (F59), and the claim code (F60). Keep that distinction: `CREDENTIAL_FILENAMES` are scrypt hashes,
+  an offline guessing target withheld from non-admins; the signing key is
+  not a target but the answer, and an import carrying one is refused
+  outright rather than skipped.
+
+  Also the book's memory of **when it was last backed up** (F58):
+  `record_backup`/`last_backup` and `BACKUP_MARKER_FILENAME`. Only a
+  *keeper's* export records one — `routes_pages._viewer_is_the_keeper`,
+  the single predicate `_viewer_may_export_credentials` now delegates to —
+  because a family member's scoped zip is a real backup of what they can
+  see and no substitute for the book's copy of record. Whether the nudge
+  then *fires* is `timeline.months_at_risk`, and it deliberately measures
+  the age of the oldest un-backed-up story rather than months since the
+  last backup: a book nobody has written in since its last export has
+  nothing to lose and must not be nagged for a year.
 - `app/people.py` — the "cast of the book" (F14): `Person` dataclass
   (including F27's `born`/`died`/`unions`), `list_people`/`get_person`/
   `create_person`/`update_person`. Mirrors `storage.py`'s shape.
@@ -165,6 +181,34 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   already set up** whether or not the file exists: an install upgrading
   into this feature must never be asked to configure a book it has been
   writing in for a year.
+- `app/claim.py` — claiming a fresh book (F60): the one-time code printed
+  to the logs, and the scrypt hash of the password chosen with it. A leaf
+  beside `secret_key.py` and built the same way (`O_EXCL`, mode `0600`),
+  for the same reason: **the environment wins when it has an answer**, and
+  a book that has always had `STORYBOOK_PASSWORD` set never enters any of
+  this. `auth.book_is_unclaimed()` is what routes ask, and
+  `auth.shared_secret_matches()` is the **one** way the book's shared
+  secret is ever checked — it has two jobs (the login password with
+  accounts off, the invite code with accounts on) and both must resolve it
+  identically. Never compare against `config["PASSWORD"]` directly again;
+  that misses a claimed book entirely.
+
+  `ClaimError` carries a `reason` (`"code"` or `"password"`) rather than a
+  message, because two things are decided from it and neither may be done
+  by matching on prose: only a wrong *code* counts against the login
+  throttle, and the wording has to be translatable.
+- `app/secret_key.py` — the session-signing key when nobody supplied one
+  (F59): generate 32 bytes, keep them in the stories folder at mode `0600`,
+  and let the environment win whenever it has an answer. A leaf, imported
+  by `create_app` and by `backup.py` (which needs the filename to keep it
+  out of every zip). Created with `O_EXCL` rather than check-then-write on
+  purpose — two workers can start at once, and the loser must adopt the
+  winner's key instead of writing a competing one. **Persisted whenever
+  the environment has no key, not only when a password is set**: since F60
+  a book with no password is a book waiting to be claimed rather than a
+  book nobody logs into, and keying this off `password` gave that book an
+  ephemeral key — logging its family out on every restart, silently, which
+  is the exact failure F59 exists to prevent.
 - `app/throttle.py` — the per-IP login lockout (10 failures / 15 minutes),
   in memory and deliberately not persisted.
 - `app/jsonstore.py` — `write_json(path, data)`: the one way a sidecar JSON
@@ -182,6 +226,9 @@ Data layer — pure functions, no Flask, each taking its directory explicitly
   birthday have to surface on the same day, and they cannot while
   `timeline.py` and `life_events.py` each carry their own copy of it —
   which they did, along with a third inside `growth_photos`.
+  `dates.whole_months_between` is there for the same reason: F30's nudge
+  and F58's each need a calendar-month count with the day-of-month back-off,
+  and two copies of that would eventually disagree about the same day.
 - `app/themes.py` — theme packs (F46). A pack is a folder under
   `app/static/themes/<name>/`: a `theme.css` of colour variables and an
   `img/` folder. **No template ever names an image folder** — they call the
@@ -332,6 +379,36 @@ Frontend:
   stay linked *after* the vendor sheets, and every selector must keep its
   `:root` prefix. `tests/test_editor_theme.py` fails if either slips.
 
+## Shipping it (F61-F63)
+
+Veillée is installed by families, not only cloned by developers, and three
+files carry that:
+
+- `.github/workflows/release.yml` — multi-arch (`amd64` + `arm64`) image to
+  `ghcr.io/choupatate/veillee` on `v*` tags only, never on merge. The arm64
+  build is cross-compiled under QEMU and is only fast because **every
+  pinned dependency ships a manylinux aarch64 wheel for CPython 3.12**.
+  Check that before adding or bumping a dependency — one without a wheel
+  turns a three-minute job into a silent half-hour of compiling libheif
+  under emulation, and the symptom looks like a hang.
+- `compose.https.yml` + `Caddyfile` — the app behind Caddy on a domain.
+  **Deliberately not `docker-compose.yml`**, which is the Synology/LAN
+  setup and must keep working: this stack claims ports 80 and 443, which a
+  NAS serving its own web UI cannot give. It ships
+  `STORYBOOK_COOKIE_SECURE=1` and `STORYBOOK_TRUSTED_PROXIES=1` because
+  both are silently wrong when a person sets them by hand, and
+  `tests/test_behind_a_proxy.py` tests their *consequences* (one attacker
+  must not lock out the family; HSTS must not be sent on a plain LAN
+  install) rather than the values.
+- `docs/install.md` — the page for someone who can paste a command but not
+  read a stack trace. **Anything promised there is a promise**: the two
+  recovery paths it documents (delete `book_password.json` to reset the
+  password, delete `claim_code` to reissue a code) have tests in
+  `tests/test_claim.py` because writing them down made them supported.
+
+`config["VERSION"]` comes from `STORYBOOK_VERSION`, baked into the image by
+the release workflow and shown on `/licences`. It is `dev` from a checkout.
+
 ## Data-safety conventions (follow these for any new filesystem/upload code)
 
 - Never build a filesystem path from user input without validating it first.
@@ -371,9 +448,18 @@ cp .env.example .env   # then edit STORYBOOK_PASSWORD and STORYBOOK_SECRET_KEY
 python run.py           # dev server, debug on, http://127.0.0.1:5000
 ```
 
-`STORYBOOK_SECRET_KEY` (not `SECRET_KEY`) is the Flask session-signing key;
-the app refuses to start without one once `STORYBOOK_PASSWORD` is set. See
-`.env.example` for every other `STORYBOOK_*` variable.
+`STORYBOOK_PASSWORD` is **optional** since F60: a book started without one
+prints a claim code to its logs and is claimed from the browser. `run.py`
+defaults it to `dev` so local development is unchanged — that default lives
+in the dev entrypoint, deliberately, and not in `create_app`.
+
+`STORYBOOK_SECRET_KEY` (not `SECRET_KEY`) is the Flask session-signing key.
+It is **optional** since F59: with a password set and no key in the
+environment, `app/secret_key.py` generates one and keeps it in the stories
+folder. The environment still wins when it has an answer, and the app still
+refuses to start when it can neither read nor write that file — an
+ephemeral key would log the whole family out on every restart, silently.
+See `.env.example` for every other `STORYBOOK_*` variable.
 
 ## Testing
 

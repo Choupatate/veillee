@@ -1,4 +1,4 @@
-"""Making a backup zip, and restoring one (FEATURES.md F8, F43, F50, F51).
+"""Making a backup zip, and restoring one (FEATURES.md F8, F43, F50, F51, F58).
 
 **Both halves of the round trip live here, and that is the whole point of
 the file.** Export used to be thirty lines inside the `/export` route and
@@ -30,10 +30,14 @@ and one answer — everything.
 
 import json
 import zipfile
+from datetime import date
 from pathlib import Path
 from tempfile import TemporaryFile
+from typing import Optional
 
-from . import groups, settings, storage, themes
+from . import claim, groups, settings, storage, themes
+from .jsonstore import write_json
+from .secret_key import SECRET_KEY_FILENAME
 from .theme_catalog import BY_FILENAME
 from .themes import USER_THEMES_DIRNAME
 
@@ -55,7 +59,24 @@ CREDENTIAL_FILENAMES = frozenset({
     "pending_accounts.json",
     "invites.json",
     "write_links.json",
+    claim.BOOK_PASSWORD_FILENAME,
 })
+
+# The session-signing key (F59), which leaves in no zip anyone can take
+# and comes back from none. Separate from CREDENTIAL_FILENAMES above, and
+# the difference is the point: those are scrypt hashes, withheld from
+# non-admins as an offline guessing target, and an admin exporting their
+# own book's hashes is exporting something they already control. A signing
+# key is not a target — it is the answer. Anyone holding it can mint a
+# session cookie for any account in the book, admin included, without
+# guessing anything, and a zip is a portable file that gets mailed,
+# synced and left on a laptop. No viewer, of any role, has a reason to
+# carry it away.
+#
+# Never restored either: `import_backup` refuses a zip carrying one rather
+# than skipping it, since a stranger's key overwriting this book's would
+# hand them every future session.
+NEVER_EXPORTED = frozenset({SECRET_KEY_FILENAME, claim.CLAIM_CODE_FILENAME})
 
 #: Root-level entries that are not story folders, and so are never
 #: audience-scoped on the way out. Everything else at the top of the
@@ -99,6 +120,8 @@ def write_backup(stories_dir, *, allowed_ids=None, with_credentials=True):
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:
         for path in sorted(stories_dir.rglob("*")):
             if path.is_dir() or path.name.endswith(".tmp"):
+                continue
+            if path.name in NEVER_EXPORTED:
                 continue
             if not with_credentials and path.name in CREDENTIAL_FILENAMES:
                 continue
@@ -196,6 +219,8 @@ def import_backup(stories_dir, zip_file) -> int:
                 continue
             if name.startswith("/") or ".." in Path(name).parts:
                 raise ValueError(f"Unsafe path in backup: {name!r}")
+            if Path(name).name in NEVER_EXPORTED:
+                raise ValueError(f"Backup contains a signing key: {name!r}")
             parts = Path(name).parts
             top = parts[0] if parts else ""
             if top == storage.PEOPLE_DIRNAME:
@@ -264,3 +289,48 @@ def _restore_settings(zf, info, stories_dir) -> None:
     kept = {key: data[key] for key in settings.KEYS if key in data}
     if kept:
         settings.save(stories_dir, kept)
+
+
+# --- When this book was last backed up (FEATURES.md F58) --------------------
+
+#: Root-level sidecar recording the last complete backup. Here rather than
+#: in `settings.py` because it is not a setting: nobody chooses it, and it
+#: is written by the act of taking a backup. Here rather than in
+#: `timeline.py` because that file touches no filesystem, and here rather
+#: than in `storage.py` because it is not a story folder — the rule
+#: CLAUDE.md states for exactly this decision.
+BACKUP_MARKER_FILENAME = "last_backup.json"
+
+
+def record_backup(stories_dir, when: Optional[date] = None) -> None:
+    """Remember that a complete backup was taken today (FEATURES.md F58).
+
+    Called by `/export` only when the person downloading could take a
+    *whole* one. A family member's partial zip is a real backup of what
+    they can see and no use at all as the book's copy of record, so it
+    must not quiet the nudge for everyone else.
+
+    A date, not a timestamp: the nudge counts whole months, so an hour of
+    precision would be stored and never read, and a plain `YYYY-MM-DD` is
+    what someone opening this file by hand would hope to find.
+    """
+    if when is None:
+        when = date.today()
+    write_json(Path(stories_dir) / BACKUP_MARKER_FILENAME, {"at": when.isoformat()})
+
+
+def last_backup(stories_dir) -> Optional[date]:
+    """The date of the last complete backup, or None if there has never
+    been one — which is also what a missing, unreadable or malformed
+    marker returns.
+
+    Tolerant on purpose. This file exists to prompt a kindness, and the
+    worst a corrupt one should ever do is prompt it again; refusing to
+    render the timeline over it would be absurd.
+    """
+    path = Path(stories_dir) / BACKUP_MARKER_FILENAME
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return date.fromisoformat(data["at"])
+    except (OSError, ValueError, TypeError, KeyError):
+        return None

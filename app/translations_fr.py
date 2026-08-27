@@ -230,6 +230,30 @@ TRANSLATIONS_FR = {
 
     # --- login / accounts ---------------------------------------------------
     "Log in": "Se connecter",
+
+    # --- claiming a fresh book (F60) ---------------------------------------
+    "This copy": "Cette copie",
+    "the version you are running, worth quoting if you ever ask for help. A copy built from source rather than installed from a published release reads \"dev\".":
+    "la version que vous utilisez, à indiquer si vous demandez de l'aide un "
+    "jour. Une copie construite depuis les sources plutôt qu'installée "
+    "depuis une version publiée affiche « dev ».",
+    "Claim this book": "Prendre possession du livre",
+    "Nobody has claimed this book yet.":
+    "Personne n'a encore pris possession de ce livre.",
+    "The code is printed in this server's own logs — the same window or terminal you started it from.":
+    "Le code s'affiche dans les journaux du serveur — la fenêtre ou le "
+    "terminal depuis lequel vous l'avez démarré.",
+    "Claim code": "Code d'installation",
+    "Choose a password for the book": "Choisissez un mot de passe pour le livre",
+    "At least 8 characters. Everyone who reads the book will use it.":
+    "Au moins 8 caractères. Toute la famille s'en servira pour lire le livre.",
+    "This book is yours. Now let's set it up.":
+    "Ce livre est le vôtre. Configurons-le.",
+    "That code is not right.": "Ce code n'est pas le bon.",
+    "Choose a password of at least {n} character.":
+    "Choisissez un mot de passe d'au moins {n} caractère.",
+    "Choose a password of at least {n} characters.":
+    "Choisissez un mot de passe d'au moins {n} caractères.",
     "Memories fade, what's written stays.":
     "Les souvenirs s'évaporent, les écrits restent.",
     "Share": "Partager",
@@ -450,6 +474,11 @@ TRANSLATIONS_FR = {
     "Nothing new in {n} month —": "Rien de neuf depuis {n} mois —",
     "Nothing new in {n} months —": "Rien de neuf depuis {n} mois —",
     "a little story?": "une petite histoire ?",
+    "{n} month of writing has never been backed up —":
+    "{n} mois d'écriture n'a jamais été sauvegardé —",
+    "{n} months of writing have never been backed up —":
+    "{n} mois d'écriture n'ont jamais été sauvegardés —",
+    "keep a copy somewhere safe.": "gardez-en une copie en lieu sûr.",
     "Drafts ({n})": "Brouillons ({n})",
     "Archived ({n})": "Archivées ({n})",
     "Search titles, tags, people…": "Rechercher titres, mots-clés, personnes…",

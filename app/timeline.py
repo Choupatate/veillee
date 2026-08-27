@@ -1,4 +1,4 @@
-"""Reading a list of stories as a timeline (F5, F28, F29, F30).
+"""Reading a list of stories as a timeline (F5, F28, F29, F30, F58).
 
 Pure functions over `list[storage.Story]` and a date — no filesystem, no
 Flask, nothing to set up to test. They lived in `storage.py`, whose own
@@ -72,10 +72,46 @@ def months_since_last_story(stories: list[storage.Story], today: Optional[date] 
     if not created_dates:
         return None
     latest = max(created_dates).date()
-    months = (today.year - latest.year) * 12 + (today.month - latest.month)
-    if today.day < latest.day:
-        months -= 1
-    return max(months, 0)
+    return dates.whole_months_between(latest, today)
+
+
+#: A backup older than this many months, with writing done since, is worth
+#: a word on the timeline (FEATURES.md F58). Longer than QUIET_SPELL_MONTHS
+#: because the two nudges say different things: three quiet months is an
+#: invitation to write, and half a year of unsaved writing is a risk.
+BACKUP_NUDGE_MONTHS = 6
+
+
+def months_at_risk(stories: list[storage.Story], last_backup: Optional[date] = None,
+                   today: Optional[date] = None) -> Optional[int]:
+    """How old the oldest *un-backed-up* story is, in whole months, or None
+    when nothing is at risk (FEATURES.md F58).
+
+    Deliberately not "months since the last backup". That question nags a
+    book nobody has written in — the one book where the backup on the shelf
+    is already complete and there is nothing whatsoever to lose. It also
+    stays quiet about a book backed up last week and written in every day
+    since, which is the same mistake facing the other way.
+
+    The question worth asking is how much unsaved work has piled up, so
+    this measures from the oldest story `created` after `last_backup`
+    rather than from the backup itself. By `created` and not the story's
+    own `date`, exactly as `months_since_last_story` is: writing today
+    about a memory from 2019 puts today's work at risk, not 2019's.
+
+    `last_backup` of None means this book has never been backed up, and
+    every story counts. Drafts and instants count too — an unfinished
+    story is still an evening of someone's writing.
+    """
+    if today is None:
+        today = date.today()
+    at_risk = [
+        s.created.date() for s in stories
+        if s.created and (last_backup is None or s.created.date() > last_backup)
+    ]
+    if not at_risk:
+        return None
+    return dates.whole_months_between(min(at_risk), today)
 
 
 def is_sealed(story: storage.Story, today: Optional[date] = None) -> bool:

@@ -68,9 +68,28 @@ choice is remembered per browser.
 
 ### What you actually have to set up
 
-Two things, once: a **password** and a **secret key**, in a `.env` file
-(or as environment variables in Docker). That is the whole technical
-setup.
+**Nothing, in a file.** Start it, and it prints a one-time code to its own
+logs:
+
+```
+┌─────────────────────────────────────────────┐
+│  This book is waiting to be claimed.        │
+│  Open it in a browser and enter this code:  │
+│                                             │
+│      K7QP-3MRW-92XD                         │
+└─────────────────────────────────────────────┘
+```
+
+Open the book in a browser, type that code, and choose the password your
+family will use. The code only exists in the logs of the machine you
+started it on, so the person who installed it is the only person who can
+claim it — and it stops existing the moment they do.
+
+There used to be two things to set here: a password and a session-signing
+key, and the app refused to start without either. Both are generated now.
+You can still supply `STORYBOOK_PASSWORD` and `STORYBOOK_SECRET_KEY`
+yourself, and they win when you do — which is why an install that has been
+running for a year notices none of this.
 
 Everything else about the book happens **in the browser**. The first time
 you log in, the app asks you four questions — what the book is called, who
@@ -92,6 +111,11 @@ against.
 
 ## Running it
 
+> **Not a developer?** [**docs/install.md**](docs/install.md) is the page
+> for you — one command, no repository to clone, and an honest section on
+> the router problem before you spend money on a domain. What follows here
+> is for running it from a checkout.
+
 ### Locally (dev server)
 
 Requires Python 3.12+.
@@ -100,12 +124,14 @@ Requires Python 3.12+.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # then edit STORYBOOK_PASSWORD and STORYBOOK_SECRET_KEY
+cp .env.example .env   # optional: nothing in it is required
 python run.py
 ```
 
-The dev server runs at `http://127.0.0.1:5000` with debug mode on. If
-`STORYBOOK_PASSWORD` is unset, the dev password is `dev`.
+The dev server runs at `http://127.0.0.1:5000` with debug mode on. `run.py`
+defaults `STORYBOOK_PASSWORD` to `dev` — only there, so that a checkout you
+run twenty times a day doesn't ask to be claimed each time it gets a fresh
+stories folder.
 
 **Serve this app over HTTPS, or only on a trusted LAN.** The single shared
 password is sent as a plain form field on every login; without HTTPS (or a
@@ -120,24 +146,41 @@ python scripts/seed_demo.py ./stories
 ### Locally (production-style, waitress)
 
 ```bash
-STORYBOOK_PASSWORD=... STORYBOOK_SECRET_KEY=... python serve.py
+python serve.py
 ```
 
 Serves on `http://0.0.0.0:5011` by default (set `PORT` to change it).
 
 ### Docker
 
+The published image, which is what [docs/install.md](docs/install.md) uses
+and what a family should install — no clone, no build:
+
+```bash
+docker run -d --name veillee --restart unless-stopped \
+  -p 5011:5011 \
+  -v "$PWD/stories:/data/stories" \
+  ghcr.io/choupatate/veillee:latest
+```
+
+Read the claim code it prints with `docker logs veillee`. To put it on your
+own domain with a real certificate, `compose.https.yml` runs it behind Caddy
+— set `DOMAIN=` in `.env` and nothing else.
+
+Or build it yourself from a checkout:
+
 ```bash
 docker build -t storybook .
 docker run -p 5011:5011 \
-  -e STORYBOOK_PASSWORD=... \
-  -e STORYBOOK_SECRET_KEY=... \
   -v storybook-data:/data/stories \
   storybook
 ```
 
 The container stores stories under `/data/stories`; mount a volume there so content
-survives container recreation.
+survives container recreation. **Mount it before the first start**: that is
+also where the generated signing key is kept, and a container without a
+volume makes a new key every time it restarts, logging the family out on
+each update. The app refuses to start rather than do that silently.
 
 ### Docker Compose (e.g. Synology)
 
@@ -145,12 +188,14 @@ Clone this repo directly into the folder where you want everything to live,
 e.g. `/volume2/Media/StoryBook`, then:
 
 ```bash
-cp .env.example .env   # then edit STORYBOOK_PASSWORD and STORYBOOK_SECRET_KEY
+cp .env.example .env   # optional: nothing in it is required
 docker compose up -d --build
 ```
 
-`docker-compose.yml` reads `STORYBOOK_PASSWORD`, `STORYBOOK_SECRET_KEY`, and
-`STORYBOOK_COOKIE_SECURE` from `.env` in the same directory (Compose loads it
+`docker-compose.yml` reads `STORYBOOK_PASSWORD`, `STORYBOOK_SECRET_KEY` and
+`STORYBOOK_COOKIE_SECURE` from `.env` in the same directory — **all three
+optional**: with none of them set, the book generates its own signing key
+and is claimed from the browser (Compose loads it
 automatically — no `env_file:` needed) and bind-mounts the `stories/` subfolder
 of that same clone to `/data/stories` in the container — keeping code and data
 under one folder without mixing story files into the git working tree. On
@@ -176,8 +221,8 @@ See `.env.example`:
 | Variable | Purpose |
 |---|---|
 | `STORYBOOK_STORIES_DIR` | Where story folders live (default `./stories`) |
-| `STORYBOOK_PASSWORD` | The one shared password. Required in production. |
-| `STORYBOOK_SECRET_KEY` | Flask session-signing secret. Required whenever `STORYBOOK_PASSWORD` is set — the app refuses to start otherwise. |
+| `STORYBOOK_PASSWORD` | The one shared password. **Optional** — leave it unset and the book is claimed from the browser instead, using a code printed to the logs on first start. Set it and it wins, as it always did. |
+| `STORYBOOK_SECRET_KEY` | Flask session-signing secret. **Optional** — leave it unset and the app generates one on first start and keeps it in the stories folder as `secret_key` (mode `0600`, and it travels in no backup zip). Set it to manage the key yourself; a value here wins. |
 | `STORYBOOK_COOKIE_SECURE` | Set to `1` when serving over HTTPS to mark the session cookie `Secure` and send an HSTS header. Default off, for local/LAN HTTP use. |
 | `STORYBOOK_TRUSTED_PROXIES` | How many reverse proxies sit in front of the app (default `0`). Set to `1` behind nginx/Caddy/a NAS reverse proxy so the login lockout sees each visitor's real IP. See "Opening it to the internet". |
 | `STORYBOOK_ACCOUNTS` | Optional. Set to `1` for per-person username/password accounts with an admin role, instead of one shared password (see below). Unset by default. |
@@ -203,8 +248,10 @@ that can read/write the whole book like today, plus manage its own
 password. Leaving it unset keeps the app exactly as it's always been —
 this is additive, not a replacement, for families who don't need it.
 
-`STORYBOOK_PASSWORD` never logs anyone in once this is on — instead it
+The book's shared secret never logs anyone in once this is on — instead it
 becomes the invite code required on the **Request an account** page
+(whether that secret came from `STORYBOOK_PASSWORD` or was chosen when the
+book was claimed)
 (linked from the login page), so a stranger who finds the URL can't queue
 requests without knowing it. Anyone who submits one picks their own
 username and password up front; an admin then reviews it from

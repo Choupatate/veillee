@@ -1,0 +1,71 @@
+# Publishing the image a family actually installs (FEATURES.md F61).
+#
+# Fires on a semver tag and nothing else. `tests.yml` runs on every push and
+# pull request; this runs when someone decides a commit is a release, which
+# is a human act and deliberately not an automatic consequence of merging.
+#
+# linux/amd64 and linux/arm64: a VPS or an old laptop is the first, a
+# Raspberry Pi is the second. Both are cross-built under QEMU, which is
+# only tolerable because every dependency here ships a manylinux aarch64
+# wheel for CPython 3.12 — pillow and pillow-heif included. If a future
+# dependency does not, this job will appear to hang while it compiles
+# something like libheif under emulation. That is the failure to expect,
+# and the fix is to check the wheel before pinning, not to raise the
+# timeout.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # The tests that gate every other push gate a release too. A tag is
+      # pushed at a commit CI has usually already seen, but "usually" is
+      # not a thing to publish an image on.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: ruff check .
+      - run: pytest -q
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # GHCR rejects an upper-case path, and the owner here has one.
+          images: ghcr.io/choupatate/veillee
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

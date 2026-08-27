@@ -12,7 +12,9 @@ from io import BytesIO
 
 import pytest
 
-from app import accounts, backup, groups, invites, people, storage, write_links
+from app import (
+    accounts, backup, groups, invites, people, secret_key, storage, write_links,
+)
 from tests.conftest import _login
 
 
@@ -218,3 +220,86 @@ def test_import_ignores_odd_shapes_under_people(tmp_path, stories_dir):
 
     assert not (stories_dir / "people" / "loose.md").exists()
     assert not (stories_dir / "people" / "Not A Slug").exists()
+
+
+# --- the signing key, which is in a category of its own (F59) ---------------
+#
+# CREDENTIAL_FILENAMES above are scrypt hashes: withheld from non-admins as
+# an offline guessing target, and an admin exporting their own book's is
+# exporting something they already control. The session key is not a target,
+# it is the answer — whoever holds it mints a cookie for any account in the
+# book without guessing anything. So it leaves in nobody's zip, admin
+# included, and comes back from none.
+
+
+def _write_key(stories_dir, value="deadbeef" * 8):
+    path = stories_dir / secret_key.SECRET_KEY_FILENAME
+    path.write_text(value + "\n")
+    return path
+
+
+def test_the_signing_key_is_in_no_admin_s_export(cast, accounts_app, stories_dir):
+    _write_key(stories_dir)
+    names = _zip_for(accounts_app, "papa", "adminpass1").namelist()
+    assert secret_key.SECRET_KEY_FILENAME not in names
+
+
+def test_the_signing_key_is_in_no_family_member_s_export(cast, accounts_app, stories_dir):
+    _write_key(stories_dir)
+    names = _zip_for(accounts_app, "mamie", "mamiepass1").namelist()
+    assert secret_key.SECRET_KEY_FILENAME not in names
+
+
+def test_the_signing_key_is_in_no_export_with_accounts_off(stories_dir, auth_client):
+    """With one shared password there is one identity and it gets
+    everything — except this."""
+    _write_key(stories_dir)
+    storage.create_story(stories_dir, "A day", date(2026, 1, 1), "body")
+
+    resp = auth_client.get("/export")
+
+    assert resp.status_code == 200
+    assert secret_key.SECRET_KEY_FILENAME not in zipfile.ZipFile(BytesIO(resp.data)).namelist()
+
+
+def test_an_import_refuses_a_zip_carrying_a_signing_key(stories_dir):
+    """Refused outright rather than skipped. A stranger's key overwriting
+    this book's would hand them every session the app signs afterwards, and
+    a zip is a file that arrives by mail."""
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("2026-01-01-ok/index.md", "---\ntitle: Ok\ndate: 2026-01-01\n---\nbody\n")
+        zf.writestr(secret_key.SECRET_KEY_FILENAME, "attackers-key")
+    buf.seek(0)
+
+    with pytest.raises(ValueError, match="signing key"):
+        backup.import_backup(stories_dir, buf)
+
+    assert not (stories_dir / secret_key.SECRET_KEY_FILENAME).exists()
+    assert not (stories_dir / "2026-01-01-ok").exists()
+
+
+def test_a_signing_key_hidden_deeper_in_the_zip_is_refused_too(stories_dir):
+    """The check is on the filename anywhere in the tree, not just at the
+    root, so `people/papa/secret_key` cannot sneak one past it."""
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("2026-01-01-ok/index.md", "---\ntitle: Ok\ndate: 2026-01-01\n---\nbody\n")
+        zf.writestr(f"people/papa/{secret_key.SECRET_KEY_FILENAME}", "attackers-key")
+    buf.seek(0)
+
+    with pytest.raises(ValueError, match="signing key"):
+        backup.import_backup(stories_dir, buf)
+
+
+def test_a_real_round_trip_survives_the_new_exclusion(stories_dir, tmp_path):
+    """The exclusion must not cost the thing backups are for."""
+    source = tmp_path / "source"
+    source.mkdir()
+    _write_key(source)
+    storage.create_story(source, "A day worth keeping", date(2026, 1, 1), "the body")
+
+    assert backup.import_backup(stories_dir, _backup_of(source)) == 1
+    assert not (stories_dir / secret_key.SECRET_KEY_FILENAME).exists()
+    restored = storage.list_stories(stories_dir)
+    assert [s.title for s in restored] == ["A day worth keeping"]

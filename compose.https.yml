@@ -1,0 +1,69 @@
+# Veillée behind Caddy, with a real certificate, on your own domain.
+# See docs/install.md. In short:
+#
+#     echo "DOMAIN=livre.example.com" > .env
+#     docker compose -f compose.https.yml up -d
+#     docker compose -f compose.https.yml logs veillee   # your claim code
+#
+# Deliberately a separate file from docker-compose.yml, which is the
+# Synology/LAN setup and must keep working untouched. This one takes ports
+# 80 and 443 for itself, which a NAS already serving its own web UI on
+# them cannot give.
+services:
+  veillee:
+    image: ghcr.io/choupatate/veillee:latest
+    restart: unless-stopped
+    environment:
+      STORYBOOK_STORIES_DIR: /data/stories
+      PORT: 5011
+      # Both of these are what being behind a proxy means, and both are
+      # easy to forget and invisible when wrong — which is the whole
+      # argument for shipping this file rather than documenting it.
+      #
+      # COOKIE_SECURE: the session cookie is marked Secure, so it is never
+      # sent over plain HTTP, and an HSTS header goes out.
+      #
+      # TRUSTED_PROXIES=1: exactly one proxy (the caddy service below), so
+      # the app reads each visitor's real IP from X-Forwarded-For instead
+      # of seeing every request come from Caddy. The login throttle (F36)
+      # counts failures per IP; without this the whole internet shares one
+      # counter and one attacker locks out the entire family.
+      STORYBOOK_COOKIE_SECURE: 1
+      STORYBOOK_TRUSTED_PROXIES: 1
+      # All optional. Unset, the book generates its signing key and prints
+      # a claim code to these logs on first start (F59, F60).
+      STORYBOOK_PASSWORD: ${STORYBOOK_PASSWORD:-}
+      STORYBOOK_SECRET_KEY: ${STORYBOOK_SECRET_KEY:-}
+      STORYBOOK_TITLE: ${STORYBOOK_TITLE:-}
+      STORYBOOK_ACCOUNTS: ${STORYBOOK_ACCOUNTS:-}
+    volumes:
+      # Your stories, your photos, your signing key. This is the directory
+      # to back up — it is all your data.
+      - ./stories:/data/stories
+    expose:
+      - "5011"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env, e.g. DOMAIN=livre.example.com}
+      EMAIL: ${EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Named, and worth keeping: this holds the certificates. Delete it
+      # and Caddy asks Let's Encrypt for new ones, which is rate-limited
+      # to five per domain per week. Losing it on a Tuesday can leave the
+      # book without HTTPS until the following week.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - veillee
+
+volumes:
+  caddy-data:
+  caddy-config:
