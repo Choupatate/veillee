@@ -1,5 +1,11 @@
 FROM python:3.12-slim
 
+# The release tag, so a family can say which version they are running when
+# something goes wrong. `dev` for anyone building this themselves — which
+# is honest: an image built from a working tree is not a release.
+ARG VERSION=dev
+ENV STORYBOOK_VERSION=$VERSION
+
 WORKDIR /app
 
 COPY requirements.txt .

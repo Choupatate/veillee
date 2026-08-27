@@ -379,6 +379,36 @@ Frontend:
   stay linked *after* the vendor sheets, and every selector must keep its
   `:root` prefix. `tests/test_editor_theme.py` fails if either slips.
 
+## Shipping it (F61-F63)
+
+Veillée is installed by families, not only cloned by developers, and three
+files carry that:
+
+- `.github/workflows/release.yml` — multi-arch (`amd64` + `arm64`) image to
+  `ghcr.io/choupatate/veillee` on `v*` tags only, never on merge. The arm64
+  build is cross-compiled under QEMU and is only fast because **every
+  pinned dependency ships a manylinux aarch64 wheel for CPython 3.12**.
+  Check that before adding or bumping a dependency — one without a wheel
+  turns a three-minute job into a silent half-hour of compiling libheif
+  under emulation, and the symptom looks like a hang.
+- `compose.https.yml` + `Caddyfile` — the app behind Caddy on a domain.
+  **Deliberately not `docker-compose.yml`**, which is the Synology/LAN
+  setup and must keep working: this stack claims ports 80 and 443, which a
+  NAS serving its own web UI cannot give. It ships
+  `STORYBOOK_COOKIE_SECURE=1` and `STORYBOOK_TRUSTED_PROXIES=1` because
+  both are silently wrong when a person sets them by hand, and
+  `tests/test_behind_a_proxy.py` tests their *consequences* (one attacker
+  must not lock out the family; HSTS must not be sent on a plain LAN
+  install) rather than the values.
+- `docs/install.md` — the page for someone who can paste a command but not
+  read a stack trace. **Anything promised there is a promise**: the two
+  recovery paths it documents (delete `book_password.json` to reset the
+  password, delete `claim_code` to reissue a code) have tests in
+  `tests/test_claim.py` because writing them down made them supported.
+
+`config["VERSION"]` comes from `STORYBOOK_VERSION`, baked into the image by
+the release workflow and shown on `/licences`. It is `dev` from a checkout.
+
 ## Data-safety conventions (follow these for any new filesystem/upload code)
 
 - Never build a filesystem path from user input without validating it first.

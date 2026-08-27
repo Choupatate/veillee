@@ -114,6 +114,9 @@ def create_app(test_config=None):
     trusted_proxies = int(os.environ.get("STORYBOOK_TRUSTED_PROXIES") or 0)
     default_language = os.environ.get("STORYBOOK_LANGUAGE") or None
     theme = _parse_theme(os.environ.get("STORYBOOK_THEME"))
+    # F61: baked into the published image by the release workflow. "dev"
+    # for a checkout, which is the truth — a working tree is not a release.
+    version = os.environ.get("STORYBOOK_VERSION") or "dev"
 
     # F59: a book that anyone logs into needs a stable signing key, and
     # asking the person installing this to produce one by hand is how weak
@@ -162,6 +165,7 @@ def create_app(test_config=None):
         SESSION_COOKIE_SECURE=cookie_secure,
         DEFAULT_LANGUAGE=default_language,
         THEME=theme,
+        VERSION=version,
         LOGIN_ATTEMPT_LIMIT=DEFAULT_LIMIT,
         LOGIN_ATTEMPT_WINDOW=DEFAULT_WINDOW_SECONDS,
     )

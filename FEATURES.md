@@ -147,6 +147,15 @@ complete rather than merely intended to be.
 - **F60** — Claiming a fresh book: installing Veillée is running one
   container and opening a browser, with a one-time code printed to the
   logs standing in for the password nobody has set yet
+- **F61** — The image a family installs: a multi-arch build published to
+  GHCR on every version tag, so nobody clones a repository or builds
+  anything, and the version they are running is on the Licences page
+- **F62** — HTTPS on your own domain: a compose file with Caddy in it, one
+  `DOMAIN=` line, and the two proxy settings that are silently wrong when
+  you set them by hand
+- **F63** — The install page: written for someone who can paste a command
+  but not read a stack trace, and honest about CGNAT being a dead end
+  rather than something they configured wrong
 
 # Feature spec — F1: Authors ("two voices, one book")
 
@@ -8660,3 +8669,195 @@ redirected to `/claim`, a wrong code was refused, the code typed in lower
 case with dashes was accepted, the wizard ran, the book got its title, and
 `/claim` 404ed afterwards. The whole form fits above the fold at 390px in
 both languages.
+
+## F61. The image a family installs
+
+### Why
+
+The Docker instructions said `docker compose up -d --build`. That word
+`--build` is doing a lot of quiet work: it means clone the repository,
+have a build toolchain, and compile an image locally — before anything
+runs. For the person this project is now aimed at, that is three
+opportunities to fail before the first screen.
+
+So the image is built once, by CI, and published. Installing becomes
+`docker run` against a name.
+
+### What ships
+
+`.github/workflows/release.yml`, on `v*` tags only. Not on merge to main:
+deciding a commit is a release is a human act, and making it a side effect
+of merging means every merge publishes something a family might install.
+
+**`linux/amd64` and `linux/arm64`** — a VPS or an old laptop is the first,
+a Raspberry Pi the second. Cross-built under QEMU, which is only tolerable
+because every pinned dependency ships a manylinux aarch64 wheel for
+CPython 3.12. That was checked rather than assumed:
+
+```
+pillow_heif-1.4.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl
+pillow-12.3.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
+```
+
+If a future dependency has no aarch64 wheel, this job will appear to hang
+while it compiles something like libheif under emulation. That is the
+failure to expect, the workflow comment says so, and the fix is to check
+the wheel before pinning rather than to raise the timeout.
+
+**The tests run again before the push.** A tag usually points at a commit
+CI has already seen, and "usually" is not a thing to publish an image on.
+
+**`latest`, `1`, `1.2` and `1.2.3`** all move, so a family can follow
+whichever they want — the latest, or a major line, or nothing at all.
+
+### The version, where someone can read it
+
+`ARG VERSION` in the Dockerfile, `STORYBOOK_VERSION` in the environment,
+`config["VERSION"]` in the app, and a line at the bottom of the Licences
+page. `dev` for anyone building from a checkout, which is the honest
+answer: a working tree is not a release.
+
+It exists for one exchange — "what version are you on?" — which is
+otherwise unanswerable for a self-hosted app, and unanswerable is where
+support conversations die.
+
+A small thing worth recording, because it is the kind of trap that gets
+committed: the first attempt put a `_("Version")` label beside it, whose
+French translation is the identical word. `test_i18n.py` refuses an entry
+identical to its English key, and it is right to — such an entry is
+indistinguishable from a forgotten one. The label was folded into the
+sentence instead.
+
+## F62. HTTPS on your own domain
+
+### Why
+
+Getting a certificate onto a self-hosted app is the step where installs
+die. Not because any part is hard, but because there are four parts and
+two of them fail silently.
+
+So Veillée ships the web server. `compose.https.yml` plus a `Caddyfile`,
+one `DOMAIN=` line in `.env`, and Caddy obtains a Let's Encrypt
+certificate, renews it forever, and redirects `http://` to `https://`
+without being asked.
+
+### The two settings that are invisible when wrong
+
+```yaml
+STORYBOOK_COOKIE_SECURE: 1
+STORYBOOK_TRUSTED_PROXIES: 1
+```
+
+Both are documented, both have always been the family's job, and both look
+exactly the same in a browser whether or not you set them.
+
+Without `COOKIE_SECURE`, the session cookie is not marked `Secure` and will
+travel over plain HTTP given the chance.
+
+Without `TRUSTED_PROXIES`, every visitor arrives as Caddy's container
+address. F36's login throttle counts failures per IP, so the entire
+internet shares one counter — and one person guessing passwords locks out
+the whole family. It fails closed, which is the right direction and a
+miserable way to find out.
+
+Shipping them set, in a file, is the argument for this feature existing at
+all rather than being another paragraph in the README.
+
+`tests/test_behind_a_proxy.py` is what keeps them honest, and it tests
+consequences rather than configuration: a run of failures from one
+forwarded address must not block a different one, the cookie must come back
+`Secure` + `HttpOnly` + `SameSite=Lax`, and HSTS must be sent over HTTPS
+and **not** sent on a plain LAN install — a browser that caches HSTS will
+refuse `http://` afterwards, and a LAN book has no certificate to offer
+instead.
+
+The default has to fail the other way, and there is a test for that too:
+with no proxy configured, two different `X-Forwarded-For` values still share
+a throttle counter. Trusting a header nobody sets would let any client
+invent a new address per attempt and walk straight past the lockout.
+
+### Deliberately a second file
+
+`docker-compose.yml` — the Synology setup, with its bind mount to
+`/volume2/Media/StoryBook` — is untouched and still valid. This stack takes
+ports 80 and 443 for itself, which a NAS already serving its own web
+interface on them cannot give. Two files, each honest about what it is for,
+rather than one with a profile flag and two ways to be half-configured.
+
+`caddy-data` is a named volume and the compose file says why at length: it
+holds the certificates, and Let's Encrypt allows five per domain per week.
+Deleting it on a Tuesday can leave the book without HTTPS until the
+following week.
+
+**Not verified end to end.** There is no Docker daemon in the environment
+this was written in. `docker compose config` validates both files and the
+missing-`DOMAIN` guard was confirmed to fire with its intended message, and
+everything on the app's side of the proxy is tested — but nobody has yet
+watched Caddy fetch a real certificate for a real domain. That is the one
+claim on this page taken on trust.
+
+## F63. The install page
+
+### Why
+
+Everything above assumes somebody gets as far as running the thing. The
+README is written for a developer reading a repository; `docs/install.md`
+is written for the person this project is now for — someone who can paste a
+command and follow it with their eyes, and who will not read a stack trace.
+
+### What it says that the README does not
+
+**Which machine, with the drawbacks named.** A table of Pi, NAS, old
+laptop, VPS and desktop, each with the thing that goes wrong: SD cards die
+without warning, a NAS's web interface already owns ports 80 and 443, a
+laptop sleeps when you close it, a VPS means the photographs sit on a
+rented disk.
+
+**Why the `-v` flag is the important part**, in a block quote, because it
+is the difference between a book and a container that will be deleted one
+day with everything in it.
+
+**CGNAT, named as a dead end.** Many providers — especially fibre and
+5G home broadband — put customers behind carrier-grade NAT, where no port
+forward can ever work. This is the single most likely reason a family's
+evening ends in failure, and the honest thing is to say so before they buy
+a domain. There is a two-minute check:
+
+1. `curl -4 ifconfig.me`
+2. the router's WAN address
+3. different, or starting `100.64.`–`100.127.` → CGNAT, and no amount of
+   configuration will change it
+
+with three real ways forward (a VPS, asking the provider for a public IP,
+or Tailscale) rather than a shrug. Failing fast beats an evening of
+somebody thinking they did it wrong.
+
+**What happens once a port is open**, plainly: strangers find the login
+page within hours, not because they are after you but because everything
+gets scanned. Followed by what the app actually does about it — scrypt,
+per-IP lockout, `Secure`/`HttpOnly` cookies, and a book that cannot be
+claimed without a code from your own logs — and the note that a VPN avoids
+having to make the decision at all.
+
+**Two ways out**, in the troubleshooting section, and they are the reason
+this page changed the code: writing them down made them promises, so they
+are tested now (`test_deleting_the_password_unclaims_the_book` and friends).
+
+- Forgot the book's password → delete `book_password.json`, restart, read
+  the new claim code from the logs. Stories untouched.
+- Lost the claim code before claiming → delete `claim_code`, restart.
+
+Both require access to the machine's filesystem, and neither is reachable
+from the browser. That asymmetry is the design: for a book on a NAS in your
+own house, whoever can delete that file is the person who installed it —
+whereas a password reset reachable over the network is a password reset for
+whoever finds the domain.
+
+`pytest` (1636) and `ruff check .` green.
+
+Both were run for real before being written down, and the first attempt to
+verify them was wrong: a `curl` POST to `/claim` returned 400 because CSRF
+was on and curl carried no token, which made the *next* step look like a
+passing result when nothing had been claimed at all. Worth recording as the
+shape of the mistake: a verification that fails silently upstream and
+succeeds downstream is worse than no verification.

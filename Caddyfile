@@ -1,0 +1,29 @@
+# Used by compose.https.yml. DOMAIN and EMAIL come from .env.
+#
+# Caddy gets and renews a Let's Encrypt certificate by itself, and
+# redirects http:// to https:// without being asked. There is nothing here
+# to configure beyond the domain, which is the point.
+{
+	# Where Let's Encrypt sends expiry warnings. Optional, and worth
+	# setting: it is the only notice you would get if renewal ever broke.
+	email {$EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Caddy sets X-Forwarded-For and X-Forwarded-Proto here, which is what
+	# STORYBOOK_TRUSTED_PROXIES=1 in the compose file tells the app to
+	# trust. The two settings only make sense together.
+	reverse_proxy veillee:5011 {
+		# A backup zip of a whole book can take a while to stream.
+		flush_interval -1
+	}
+
+	# Photographs, and the occasional voice memo. The app caps uploads at
+	# 128MB (MAX_CONTENT_LENGTH); this must not be the lower of the two, or
+	# the refusal comes from Caddy with no explanation the app can give.
+	request_body {
+		max_size 128MB
+	}
+}

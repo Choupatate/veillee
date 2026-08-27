@@ -111,6 +111,11 @@ against.
 
 ## Running it
 
+> **Not a developer?** [**docs/install.md**](docs/install.md) is the page
+> for you — one command, no repository to clone, and an honest section on
+> the router problem before you spend money on a domain. What follows here
+> is for running it from a checkout.
+
 ### Locally (dev server)
 
 Requires Python 3.12+.
@@ -147,6 +152,22 @@ python serve.py
 Serves on `http://0.0.0.0:5011` by default (set `PORT` to change it).
 
 ### Docker
+
+The published image, which is what [docs/install.md](docs/install.md) uses
+and what a family should install — no clone, no build:
+
+```bash
+docker run -d --name veillee --restart unless-stopped \
+  -p 5011:5011 \
+  -v "$PWD/stories:/data/stories" \
+  ghcr.io/choupatate/veillee:latest
+```
+
+Read the claim code it prints with `docker logs veillee`. To put it on your
+own domain with a real certificate, `compose.https.yml` runs it behind Caddy
+— set `DOMAIN=` in `.env` and nothing else.
+
+Or build it yourself from a checkout:
 
 ```bash
 docker build -t storybook .

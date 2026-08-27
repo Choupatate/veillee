@@ -232,6 +232,11 @@ TRANSLATIONS_FR = {
     "Log in": "Se connecter",
 
     # --- claiming a fresh book (F60) ---------------------------------------
+    "This copy": "Cette copie",
+    "the version you are running, worth quoting if you ever ask for help. A copy built from source rather than installed from a published release reads \"dev\".":
+    "la version que vous utilisez, à indiquer si vous demandez de l'aide un "
+    "jour. Une copie construite depuis les sources plutôt qu'installée "
+    "depuis une version publiée affiche « dev ».",
     "Claim this book": "Prendre possession du livre",
     "Nobody has claimed this book yet.":
     "Personne n'a encore pris possession de ce livre.",
